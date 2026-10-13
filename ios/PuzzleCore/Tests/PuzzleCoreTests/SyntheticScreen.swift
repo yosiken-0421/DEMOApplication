@@ -164,6 +164,20 @@ struct SyntheticScreen: PixelSource {
         }
     }
 
+    /// 「消せない」状態の印（独自デザイン）：白い縁取りの赤い×をマスの中央に描く
+    mutating func drawCross(cx: Double, cy: Double, cell: Double) {
+        let half = cell * 0.22
+        for (t, col) in [(cell * 0.06, RGB(250, 250, 250)), (cell * 0.04, RGB(215, 30, 35))] {
+            for yy in Int(cy - half - t)...Int(cy + half + t) {
+                for xx in Int(cx - half - t)...Int(cx + half + t) {
+                    let dx = Double(xx) + 0.5 - cx, dy = Double(yy) + 0.5 - cy
+                    guard abs(dx) <= half + t * 0.5, abs(dy) <= half + t * 0.5 else { continue }
+                    if abs(dx - dy) < t * 1.41 || abs(dx + dy) < t * 1.41 { fillRect(x: xx, y: yy, w: 1, h: 1, col) }
+                }
+            }
+        }
+    }
+
     /// 操作不可（テープ）の帯（独自デザイン）：濃い茶色の線で縁取った金色の帯に、茶色の点の模様。
     /// row を指定すると横の帯、col を指定すると縦の帯。from / to はそのマスの中での帯の端（0〜1）
     mutating func drawTape(x: Double, y: Double, cell: Double, size: BoardSize, row: Int? = nil, col: Int? = nil,

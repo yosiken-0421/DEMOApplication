@@ -1242,6 +1242,41 @@ final class TapeTests: XCTestCase {
         XCTAssertTrue(RecognitionDiagnostics.text(rd, source: "test", imageSize: nil).contains("cloud"))
     }
 
+    /// 「消せない」状態（赤い×）の闇ドロップと、紺色のお邪魔だけの盤面（実機と同じ並び）：
+    /// ×のマスは「動かせるが消えない」ドロップ、紺色はお邪魔と読む（×の赤で回復・水と読み違えない）。火ドロップは×と間違えない
+    func testCrossedOrbsAndNavyJammers() {
+        let board = Board(size: S65, string: """
+            DDDDJJ
+            DJDJDD
+            DDDDJJ
+            DJDDJJ
+            JDDJDJ
+            """)
+        var sc = SyntheticScreen()
+        let cell = Double(sc.width) / 6
+        let y = Double(sc.height) - cell * 5 - 110
+        sc.drawShinyBoard(board, x: 0, y: y, cell: cell, seed: 3, jammerColor: RGB(65, 82, 99))
+        for i in board.cells.indices where board.cells[i] == .dark {
+            sc.drawCross(cx: (Double(i % 6) + 0.5) * cell, cy: y + (Double(i / 6) + 0.5) * cell, cell: cell)
+        }
+        let rd = BoardReader.read(sc, rect: BoardRect(x: 0, y: y, cell: cell, size: S65), classifier: ColorClassifier())
+        for i in board.cells.indices {
+            if board.cells[i] == .dark {
+                XCTAssertEqual(rd.cells[i].crossed, true, "マス \(i) は×")
+                XCTAssertEqual(rd.cells[i].kind, .unknown)
+            } else {
+                XCTAssertEqual(rd.cells[i].kind, .jammer, "マス \(i) はお邪魔")
+            }
+        }
+        XCTAssertTrue(rd.isUsable)
+        // 火ドロップ（×なし）は×と間違えない
+        let normal = SyntheticScreen.randomBoard(S65, seed: 715)
+        let (sc2, rect2) = screen(normal)
+        let rd2 = BoardReader.read(sc2, rect: rect2, classifier: ColorClassifier())
+        XCTAssertTrue(rd2.cells.allSatisfy { $0.crossed != true })
+        XCTAssertEqual(rd2.board, normal)
+    }
+
     /// ちらつきに左右されない：2 フレーム続けば使い、消えたとみなすのは約 3 秒続けて見えないときだけ
     func testTapeTrackerSmoothsFlicker() {
         var t = TapeTracker()

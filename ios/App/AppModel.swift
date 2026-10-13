@@ -44,6 +44,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var coveredCells: Set<Int> = []
     /// 雲に隠れたマス（自動で見つけたもの）
     @Published private(set) var cloudCells: Set<Int> = []
+    /// 「消せない」状態の印（赤い×）が付いたマス
+    @Published private(set) var crossedCells: Set<Int> = []
     /// 画面共有側で自動で見つけたルーレットのマス
     @Published private(set) var autoRouletteCells: Set<Int> = []
     /// 画面から自動で見つけた操作不可（テープ）のマス
@@ -86,7 +88,7 @@ final class AppModel: ObservableObject {
             latest = nil
             lastSeq = -1
             if !edited && !showingSample {
-                board = nil; result = nil; confidence = []; colors = []; coveredCells = []; cloudCells = []; autoRouletteCells = []; autoTapedCells = []; progress = nil; offRoute = false
+                board = nil; result = nil; confidence = []; colors = []; coveredCells = []; cloudCells = []; crossedCells = []; autoRouletteCells = []; autoTapedCells = []; progress = nil; offRoute = false
             }
         }
         // 接続状態の確認（約 10 秒ごと）
@@ -114,6 +116,7 @@ final class AppModel: ObservableObject {
             colors = l.reading?.cells.map { $0.color } ?? []
             coveredCells = Set((l.reading?.cells ?? []).indices.filter { l.reading!.cells[$0].covered == true })
             cloudCells = Set((l.reading?.cells ?? []).indices.filter { l.reading!.cells[$0].cloud == true })
+            crossedCells = Set((l.reading?.cells ?? []).indices.filter { l.reading!.cells[$0].crossed == true })
             autoRouletteCells = Set(l.autoHidden ?? [])
             autoTapedCells = Set(l.autoTaped ?? [])
             result = r
@@ -149,6 +152,7 @@ final class AppModel: ObservableObject {
         b.cells[index] = kind
         coveredCells.remove(index)
         cloudCells.remove(index)
+        crossedCells.remove(index)
         board = b
         progress = nil
         offRoute = false
@@ -339,6 +343,7 @@ final class AppModel: ObservableObject {
                 self.colors = rd.cells.map { $0.color }
                 self.coveredCells = Set(rd.cells.indices.filter { rd.cells[$0].covered == true })
                 self.cloudCells = Set(rd.cells.indices.filter { rd.cells[$0].cloud == true })
+                self.crossedCells = Set(rd.cells.indices.filter { rd.cells[$0].crossed == true })
                 self.autoRouletteCells = []
                 self.autoTapedCells = Set(rd.taped ?? [])
                 self.progress = nil
@@ -427,6 +432,7 @@ final class AppModel: ObservableObject {
         colors = []
         coveredCells = []
         cloudCells = []
+        crossedCells = []
         autoRouletteCells = []
         autoTapedCells = []
         resolve()
@@ -442,6 +448,7 @@ final class AppModel: ObservableObject {
         colors = []
         coveredCells = []
         cloudCells = []
+        crossedCells = []
         autoRouletteCells = []
         autoTapedCells = []
         progress = nil
@@ -463,6 +470,7 @@ final class AppModel: ObservableObject {
         colors = []
         coveredCells = []
         cloudCells = []
+        crossedCells = []
         autoRouletteCells = []
         autoTapedCells = []
         resolve()

@@ -112,9 +112,12 @@ public struct CellReading: Codable, Equatable, Sendable {
     public var covered: Bool?
     /// 雲に隠れたドロップ（白い雲が上にかぶさって色が見えない）。covered も true にする
     public var cloud: Bool?
+    /// 「消せない」状態の印（赤い×）が付いたドロップ。covered も true にする
+    public var crossed: Bool?
 
-    public init(kind: OrbKind, confidence: Double, color: RGB, covered: Bool? = nil, cloud: Bool? = nil) {
+    public init(kind: OrbKind, confidence: Double, color: RGB, covered: Bool? = nil, cloud: Bool? = nil, crossed: Bool? = nil) {
         self.kind = kind; self.confidence = confidence; self.color = color; self.covered = covered; self.cloud = cloud
+        self.crossed = crossed
     }
 }
 
@@ -337,12 +340,22 @@ public enum BoardReader {
         let bodySat = feats.map { $0.bodyS }.sorted()
         let satMin = min(0.30, max(0.14, bodySat[bodySat.count / 2] * 0.55))
         if satMin < 0.30 { feats = features(satMin) }
+        // 「消せない」状態の印（ドロップの上の赤い×）が付いたマス：色は使わない（×の赤で色を読み違えるので、
+        // 盤面の色の基準を決めるときにも使わない）
+        var crossed = [Bool](repeating: false, count: size.count)
+        for r in 0..<size.rows {
+            for c in 0..<size.cols {
+                crossed[r * size.cols + c] = hasCrossMark(src, cx: rect.x + (Double(c) + 0.5) * rect.cell,
+                                                          cy: rect.y + (Double(r) + 0.5) * rect.cell, cell: rect.cell)
+            }
+        }
+        let statFeats = feats.indices.filter { !crossed[$0] }.map { feats[$0] }
 
         // その盤面での各色の中心色相を求める（基準から大きくずれない範囲で）
         var centers = prototypeHue
         for _ in 0..<2 {
             var acc: [OrbKind: (Double, Double, Int)] = [:]
-            for f in feats {
+            for f in statFeats {
                 guard let h = f.hue, f.colorfulRatio >= 0.45 else { continue }
                 let (k, d, second) = nearestKind(h, centers: centers)
                 guard d < 30, second - d > 12 else { continue }
@@ -357,12 +370,12 @@ public enum BoardReader {
         }
 
         // その盤面での色ドロップの典型的な彩度（お邪魔のくすんだ色と見分けるため）
-        let vivid = feats.filter { $0.hue != nil && $0.colorfulRatio >= 0.45 }.map { $0.meanS }.sorted()
+        let vivid = statFeats.filter { $0.hue != nil && $0.colorfulRatio >= 0.45 }.map { $0.meanS }.sorted()
         let typicalS = vivid.count >= 6 ? vivid[vivid.count / 2] : 0.7
         let dullLimit = min(0.45, typicalS * 0.62)
         // 紫系（闇・毒・猛毒）は、その盤面の鮮やかな闇ドロップと比べて見分ける
         // （くすんでいれば毒、暗ければ猛毒。闇ドロップがない盤面では決まった値で判断）
-        let darkRefs = feats.filter {
+        let darkRefs = statFeats.filter {
             guard let h = $0.hue else { return false }
             return $0.colorfulRatio >= 0.45 && (255..<300).contains(h) && $0.meanS >= min(0.55, typicalS * 0.8) && $0.meanV >= 0.5
         }
@@ -389,6 +402,11 @@ public enum BoardReader {
             // 動かせるが消えないものとして計算する（実機のお邪魔は暗い灰色〜紺色で明るさ 0.3〜0.6。ここまで白く明るくない）
             if f.bodyS < 0.09 && f.bodyV > 0.81 && f.greyBrightRatio >= 0.85 {
                 cells.append(CellReading(kind: .unknown, confidence: 0.9, color: f.color, covered: true, cloud: true))
+                continue
+            }
+            // 赤い×の付いた「消せない」ドロップ：動かせるが消えないものとして計算する
+            if crossed[cells.count] {
+                cells.append(CellReading(kind: .unknown, confidence: 0.9, color: f.color, covered: true, crossed: true))
                 continue
             }
             // 手動修正で覚えた色を優先
@@ -477,7 +495,7 @@ public enum BoardReader {
         }
         // 水がない盤面でも：盤面の色ドロップの典型的な明るさよりはっきり暗い青はお邪魔
         // 基準の明るさは青系以外の色ドロップで決める（お邪魔が多い盤面で、お邪魔自身が基準を下げないように）
-        let vivV = feats.filter {
+        let vivV = statFeats.filter {
             guard let h = $0.hue else { return false }
             return $0.colorfulRatio >= 0.45 && !(180..<250).contains(h)
         }.map { $0.meanV }.sorted()
@@ -500,6 +518,34 @@ public enum BoardReader {
         let taped = tapePoints.keys.sorted()
         return BoardReading(rect: rect, cells: cells, brightness: vSum / Double(max(1, size.count)), dimmed: dimmed ? true : nil,
                             taped: taped.isEmpty ? nil : taped)
+    }
+
+    /// 「消せない」状態の印：ドロップの中央に赤い×があり、ドロップの外周は赤くない
+    /// （実機：中央の赤 0.58〜0.78・外周の赤 0。火ドロップは外周まで赤い：0.54〜0.69）。
+    /// 火ドロップに×が付いた場合は見分けられない（火として読む）
+    static func hasCrossMark(_ src: PixelSource, cx: Double, cy: Double, cell: Double) -> Bool {
+        func isRed(_ x: Double, _ y: Double) -> Bool {
+            let p = src.rgb(min(max(Int(x), 0), src.width - 1), min(max(Int(y), 0), src.height - 1))
+            let (h, s, v) = RGB(p.0, p.1, p.2).hsv
+            return (h < 20 || h > 340) && s > 0.55 && v > 0.45
+        }
+        var center = 0, n1 = 0
+        for i in 0...8 {
+            for j in 0...8 {
+                if isRed(cx + (Double(i) * 0.025 - 0.10) * cell, cy + (Double(j) * 0.025 - 0.10) * cell) { center += 1 }
+                n1 += 1
+            }
+        }
+        guard Double(center) / Double(n1) >= 0.35 else { return false }
+        var outer = 0, n2 = 0
+        for k in 0..<24 {
+            let a = Double(k) / 24 * 2 * Double.pi
+            for r in [0.32, 0.37] {
+                if isRed(cx + cos(a) * r * cell, cy + sin(a) * r * cell) { outer += 1 }
+                n2 += 1
+            }
+        }
+        return Double(outer) / Double(n2) <= 0.15
     }
 
     /// 操作不可（テープ）の帯。行（横の帯）または列（縦の帯）に貼られ、そのマスのドロップは動かせない。
@@ -931,7 +977,7 @@ public enum RecognitionDiagnostics {
                 let c = r.cells[row * r.size.cols + col]
                 let (h, s, v) = c.color.hsv
                 cells.append(String(format: "%@ %.2f #%02X%02X%02X h%.0f s%.2f v%.2f",
-                                    c.cloud == true ? "cloud" : c.kind.key, c.confidence, c.color.r, c.color.g, c.color.b, h, s, v))
+                                    c.cloud == true ? "cloud" : c.crossed == true ? "crossed" : c.kind.key, c.confidence, c.color.r, c.color.g, c.color.b, h, s, v))
             }
             lines.append("\(row + 1)段目: " + cells.joined(separator: " | "))
         }
