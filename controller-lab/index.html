@@ -64,6 +64,14 @@
 .photo-pad-ps5-refined .pad-print{display:none}
 .photo-pad-ps5-refined .pad-color-key{z-index:5}
 
+
+/* Pixel-edited PS5 photo: no transparent color surfaces or CSS tint overlays. */
+.photo-pad-ps5-pixels canvas.ps5-pixel-canvas{position:absolute;inset:0;display:block;width:100%;height:100%;z-index:2;opacity:0;pointer-events:none;transition:opacity .18s}
+.photo-pad-ps5-pixels .pad-color-key{z-index:5}
+.photo-pad-ps5-pixels .ps5-pixel-error{display:none;position:absolute;z-index:9;left:9px;right:9px;bottom:33px;padding:7px 10px;background:#581f31;color:#fff;border-radius:6px;font-size:10px;line-height:1.5}
+.photo-pad-ps5-pixels.ps5-pixel-unavailable .ps5-pixel-error{display:block}
+.photo-pad-ps5-pixels .pad-shell,.photo-pad-ps5-pixels .pad-shell-base,.photo-pad-ps5-pixels .pad-shell-shade,.photo-pad-ps5-pixels .pad-face-buttons{display:none!important}
+
 </style>
 </head>
 <body>
@@ -73,7 +81,7 @@
 <section class="hero"><div class="wrap heroInner"><div><div class="eyebrow">UNLEASH YOUR COLOR / 01</div><h1>PLAY.<br><em>YOUR</em><br>STYLE.</h1><p>勝つための相棒に、好きな色を。PS5・PS4・Switch系のコントローラーを自分仕様に。カラーも、画像も、組み合わせは自由自在。</p><div class="heroBtns"><a class="btn btn-primary" href="#custom">⚡ 今すぐカスタムする <span>↗</span></a><a class="btn btn-secondary" href="#shop">商品を探す →</a></div><div style="margin-top:24px;color:#7f91aa;font-size:11px">LIVE PREVIEW  /  MOBILE READY  /  NO PAYMENT DEMO</div></div><div class="heroArt"><div id="heroSvg" aria-label="PS5用コントローラーの実機参考写真"></div><div class="orbitTag one"><b>⚡</b> MAKE IT YOURS<br><small style="color:#91a5cb">CHOOSE • CREATE • PLAY</small></div><div class="orbitTag two"><b>03</b> PLATFORMS / UNLIMITED IDEAS</div></div></div><div class="marquee">PS5 STYLE <b>✦</b> PS4 STYLE <b>✦</b> SWITCH PRO STYLE <b>✦</b> YOUR DESIGN. YOUR RULES.</div></section>
 <section class="section"><div class="wrap"><div class="features"><div class="feature"><strong>01 /</strong><h3>MAKE IT UNIQUE</h3><p>写真や画像を読み込み、好きな色や配置と組み合わせてリアルタイム表示。</p></div><div class="feature"><strong>02 /</strong><h3>PREVIEW BEFORE CART</h3><p>仕上がりのイメージを先に確認。カスタム内容と参考価格もまとめて表示。</p></div><div class="feature"><strong>03 /</strong><h3>YOUR OWN GALLERY</h3><p>作品を保存。公開に同意したデザインだけギャラリーに表示（デモ端末内）。</p></div></div></div></section>
 <section class="section" id="shop" style="padding-top:25px"><div class="wrap"><div class="sectionHead"><div><span class="eyebrow">01 / SHOP THE COLLECTION</span><h2>FIND YOUR NEXT <span style="color:var(--lime)">WEAPON.</span></h2><p class="sub">オリジナルモデルを見つけよう。価格・商品名・仕様はすべて見本です。</p></div><a class="btn btn-secondary" href="#custom">カスタマイズへ →</a></div><div class="filters" id="filters"><button class="chip active" data-filter="all">すべて</button><button class="chip" data-filter="ps5">PS5</button><button class="chip" data-filter="ps4">PS4</button><button class="chip" data-filter="switch">Switch Pro</button></div><div class="products" id="products"></div></div></section>
-<section class="section builderSection" id="custom"><div class="wrap"><div class="sectionHead"><div><span class="eyebrow">02 / CREATE YOUR OWN</span><h2>THE <span style="color:var(--lime)">CUSTOM</span> LAB.</h2><p class="sub">モデルを選んで、色を変えて、画像を重ねよう。実物写真を使った簡易合成プレビューです。色や画像の重なり位置は参考表示です。</p></div><span class="pill">● LIVE SIMULATOR</span></div><div class="builder"><div class="builderControls"><h3>⚙ CUSTOM SETTINGS</h3><div class="formline"><span class="label">01. コントローラーの種類</span><div class="seg" id="platformSeg"><button class="active" data-platform="ps5">PS5</button><button data-platform="ps4">PS4</button><button data-platform="switch">Switch Pro</button></div></div><div class="formline"><span class="label">02. シェルのベースカラー</span><div class="swatches" id="shellSwatches"></div></div><div class="formline"><span class="label">03. ボタン・スティックカラー</span><div class="swatches" id="buttonSwatches"></div></div><div class="formline"><span class="label">04. オリジナルカラーを指定</span><div class="colorrow"><input id="customColor" type="color" value="#886bff" aria-label="シェルの色を自由に指定"><span>カラーピッカーで自由に選べます</span></div></div><div class="formline"><span class="label">05. 画像をシェルへ合成</span><div class="dropzone"><div style="font-size:24px">⇧</div><strong style="font-size:12px">好きな画像・写真を選択</strong><input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" aria-label="カスタムシェル用画像を選ぶ"><p>PNG / JPG / WEBP｜10 MB以内（端末内で処理）</p><button class="btn btn-secondary btn-sm" id="clearImage" type="button">画像を取り消す</button></div><div id="imageTools" class="hidden"><div class="rangeLine"><label for="scaleInput">拡大率</label><input id="scaleInput" type="range" min="70" max="220" value="115"><output id="scaleOut">115%</output></div><div class="rangeLine"><label for="xInput">左右位置</label><input id="xInput" type="range" min="-200" max="200" value="0"><output id="xOut">0</output></div><div class="rangeLine"><label for="yInput">上下位置</label><input id="yInput" type="range" min="-130" max="130" value="0"><output id="yOut">0</output></div></div></div><div class="formline"><span class="label">06. 表面仕上げ</span><div class="seg" id="finishSeg"><button data-finish="matte" class="active">マット</button><button data-finish="gloss">グロス +¥500</button></div></div><div class="sharing"><strong>🌐 作品をギャラリーへ共有しますか？</strong><p>保存時に公開の同意を選べます。初期値は非公開です。公開デモでも他人の端末には転送されません。</p><div class="shareBtns" id="shareSeg"><button data-share="public">✓ 共有する（デモ）</button><button data-share="private" class="selected">🔒 共有しない</button></div></div><div class="note">他人のキャラクター・ロゴ・写真は権利者の許諾を確認してください。印刷可能範囲・ボタン部分の除外・色再現は製作時の確認が必要です。</div></div><div class="previewBox"><div><div class="previewTop"><div><span class="eyebrow">REAL-TIME DESIGN VIEW</span><h3 style="margin-top:5px">YOUR CONTROLLER.</h3></div><span class="pill" id="platformLabel">PS5 STYLE</span></div><div class="previewCanvas"><div class="corner">FRONT / SIMULATED RENDER</div><div id="mainPreview" style="width:100%;display:grid;place-items:center"></div></div><p class="previewFoot">※PS5はDualSense Edge参考写真のシェル領域を個別に色変更しています。実寸の型紙や製造用データではありません。写真とシェル境界の一致・印刷範囲・色再現は保証しません。写真は販売商品そのものではなく、メーカー公認・提携サイトではありません。</p></div><div><div class="priceBox"><div><div class="muted" style="font-size:11px">カスタム参考価格（税込・デモ）</div><div class="price" id="buildPrice">¥12,800</div></div><button id="builderCart" class="btn btn-primary">カートに追加 →</button></div><div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:14px"><button class="btn btn-secondary btn-sm" onclick="saveDesign()">♡ この作品を保存</button><button class="btn btn-ghost btn-sm" onclick="resetDesign()">↻ 初期化</button></div></div></div></div></div></section>
+<section class="section builderSection" id="custom"><div class="wrap"><div class="sectionHead"><div><span class="eyebrow">02 / CREATE YOUR OWN</span><h2>THE <span style="color:var(--lime)">CUSTOM</span> LAB.</h2><p class="sub">モデルを選んで、色を変えて、画像を重ねよう。実物写真を使った簡易合成プレビューです。色や画像の重なり位置は参考表示です。</p></div><span class="pill">● LIVE SIMULATOR</span></div><div class="builder"><div class="builderControls"><h3>⚙ CUSTOM SETTINGS</h3><div class="formline"><span class="label">01. コントローラーの種類</span><div class="seg" id="platformSeg"><button class="active" data-platform="ps5">PS5</button><button data-platform="ps4">PS4</button><button data-platform="switch">Switch Pro</button></div></div><div class="formline"><span class="label">02. シェルのベースカラー</span><div class="swatches" id="shellSwatches"></div></div><div class="formline"><span class="label">03. ボタン・スティックカラー</span><div class="swatches" id="buttonSwatches"></div></div><div class="formline"><span class="label">04. オリジナルカラーを指定</span><div class="colorrow"><input id="customColor" type="color" value="#886bff" aria-label="シェルの色を自由に指定"><span>カラーピッカーで自由に選べます</span></div></div><div class="formline"><span class="label">05. 画像をシェルへ合成</span><div class="dropzone"><div style="font-size:24px">⇧</div><strong style="font-size:12px">好きな画像・写真を選択</strong><input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" aria-label="カスタムシェル用画像を選ぶ"><p>PNG / JPG / WEBP｜10 MB以内（端末内で処理）</p><button class="btn btn-secondary btn-sm" id="clearImage" type="button">画像を取り消す</button></div><div id="imageTools" class="hidden"><div class="rangeLine"><label for="scaleInput">拡大率</label><input id="scaleInput" type="range" min="70" max="220" value="115"><output id="scaleOut">115%</output></div><div class="rangeLine"><label for="xInput">左右位置</label><input id="xInput" type="range" min="-200" max="200" value="0"><output id="xOut">0</output></div><div class="rangeLine"><label for="yInput">上下位置</label><input id="yInput" type="range" min="-130" max="130" value="0"><output id="yOut">0</output></div></div></div><div class="formline"><span class="label">06. 表面仕上げ</span><div class="seg" id="finishSeg"><button data-finish="matte" class="active">マット</button><button data-finish="gloss">グロス +¥500</button></div></div><div class="sharing"><strong>🌐 作品をギャラリーへ共有しますか？</strong><p>保存時に公開の同意を選べます。初期値は非公開です。公開デモでも他人の端末には転送されません。</p><div class="shareBtns" id="shareSeg"><button data-share="public">✓ 共有する（デモ）</button><button data-share="private" class="selected">🔒 共有しない</button></div></div><div class="note">他人のキャラクター・ロゴ・写真は権利者の許諾を確認してください。印刷可能範囲・ボタン部分の除外・色再現は製作時の確認が必要です。</div></div><div class="previewBox"><div><div class="previewTop"><div><span class="eyebrow">REAL-TIME DESIGN VIEW</span><h3 style="margin-top:5px">YOUR CONTROLLER.</h3></div><span class="pill" id="platformLabel">PS5 STYLE</span></div><div class="previewCanvas"><div class="corner">FRONT / SIMULATED RENDER</div><div id="mainPreview" style="width:100%;display:grid;place-items:center"></div></div><p class="previewFoot">※PS5は実機写真からシェル画素だけを選別して色変換しています。単純な色の重ねがけではありませんが、編集範囲は自動判定を含む概算です。製造用の正確な型紙ではなく、実際の塗装・印刷・色再現を保証しません。写真は販売商品そのものではなく、メーカー公認・提携サイトではありません。</p></div><div><div class="priceBox"><div><div class="muted" style="font-size:11px">カスタム参考価格（税込・デモ）</div><div class="price" id="buildPrice">¥12,800</div></div><button id="builderCart" class="btn btn-primary">カートに追加 →</button></div><div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:14px"><button class="btn btn-secondary btn-sm" onclick="saveDesign()">♡ この作品を保存</button><button class="btn btn-ghost btn-sm" onclick="resetDesign()">↻ 初期化</button></div></div></div></div></div></section>
 <section class="section" id="gallery"><div class="wrap"><div class="sectionHead"><div><span class="eyebrow">03 / PLAYER SHOWCASE</span><h2>MADE BY <span style="color:var(--purple)">PLAYERS.</span></h2><p class="sub">インスピレーションを見つけよう。最初の3件は架空の運営サンプルです。自分の保存作品はこの端末だけに表示されます。</p></div><a href="#custom" class="btn btn-secondary">あなたの作品を作る →</a></div><div class="filters" id="galleryFilters"><button class="chip active" data-gallery="public">公開作品（デモ）</button><button class="chip" data-gallery="own">自分の保存作品</button></div><div class="gallery" id="galleryGrid"></div></div></section>
 <section class="section gameSection" id="game"><div class="wrap gameGrid"><div><span class="eyebrow">04 / PRESS START TO PLAY</span><h2>QUICK TAP<br><span style="color:var(--lime)">CHALLENGE.</span></h2><p class="sub" style="margin:18px 0">光るターゲットを20秒間で何回タップできる？気分転換のミニゲーム。スコアは購入金額や割引には影響しません。</p><button class="btn btn-primary" onclick="startGame()" id="startGame">▶ ゲームスタート</button><div style="font-size:12px;color:#aaa7d0;margin-top:14px" id="bestScore">BEST SCORE: 0</div></div><div class="gameBoard" id="gameBoard"><div class="gameScore">SCORE: <span id="score">0</span></div><div class="gameClock">TIME: <span id="seconds">20</span>s</div><button class="target" id="target" disabled onclick="tapTarget()" aria-label="光るターゲットをタップ">✦</button><div class="gameMsg" id="gameMsg">START を押してプレイ！</div></div></div></section>
 <section class="section" id="about"><div class="wrap"><div class="sectionHead"><div><span class="eyebrow">05 / WE ARE NOVAXEL</span><h2>BEHIND THE <span style="color:var(--pink)">BUILD.</span></h2><p class="sub">ゲームが好きだから、コントローラーも楽しもう。会社・住所・連絡先は架空の販売デモとして作成しています。</p></div></div><div class="aboutGrid"><div class="infoCard"><h3>◈ NOVAXEL LABとは？</h3><p>ゲーム用コントローラーのカラー変更・シェル交換を提案する、架空ブランドのECサイト見本です。</p><p>取扱想定：PS5タイプ・PS4タイプ・Switch Proタイプのカスタマイズ。本デモではメーカー製品の販売・改造・修理・発送は行っていません。</p><div class="note">掲載イラストは独自の模式図です。PlayStationおよびNintendo各社の公式ストアや認定サービスではありません。</div><h3 style="margin-top:24px">✉ お問い合わせ</h3><p>見本用メール：<strong>hello@novaxel.example.invalid</strong>（実在せず送受信不可）</p><p>フォームは入力内容の確認のみ行う見本で、メール送信されません。</p><button class="btn btn-secondary btn-sm" onclick="openContact()">お問い合わせフォームを見る →</button></div><div class="infoCard"><h3>よくある質問</h3><div class="faqItem"><details><summary>画像は好きなものを使えますか？</summary><p>自分で権利を保有する画像、または権利者から利用許諾を得た画像を想定しています。第三者のゲームキャラやロゴの無断販売・公開には注意が必要です。</p></details></div><div class="faqItem"><details><summary>プレビュー通りに製造できますか？</summary><p>現段階では概念図です。実物に製造する際には、対応コントローラーの型式ごとに実測して印刷範囲と位置合わせが必要です。</p></details></div><div class="faqItem"><details><summary>デザインを共有しないことはできますか？</summary><p>はい。初期設定は非公開。公開を選んだものだけ、このブラウザのデモギャラリーへ表示されます。サーバー上への投稿は行いません。</p></details></div><div class="faqItem"><details><summary>今すぐ注文できますか？</summary><p>いいえ。カート・購入確認・履歴は操作を試すための見本で、決済や注文の送信は行いません。</p></details></div><div class="faqItem"><details><summary>改造でメーカー保証はどうなりますか？</summary><p>分解・改造を行った製品は、メーカーによって修理・保証の対象外となる場合があります。実販売前に各社の最新規定をご確認ください。</p></details></div></div></div></div></section>
@@ -101,6 +109,117 @@ function yen(v){return "¥"+Number(v).toLocaleString("ja-JP")}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]})}
 function simpleColor(s){return /^#[0-9a-fA-F]{6}$/.test(s)?s:"#886bff"}
 function titlePlatform(p){return p==="ps5"?"PS5 STYLE":p==="ps4"?"PS4 STYLE":"SWITCH PRO STYLE"}
+
+/* Photo-level material-color edit: modify pixels themselves rather than overlay a translucent color. */
+var ps5PhotoPixels=null,ps5PixelBusy=false,ps5PixelFailed=false,ps5PixelScheduled=false;
+var ps5RecolorCache=new Map();
+var ps5SourceUrl="https://upload.wikimedia.org/wikipedia/commons/a/ac/DualSense_Edge_Controller.jpg";
+var ps5Grip="M129 122 C175 96 239 86 295 99 L340 114 Q338 151 316 188 Q294 213 300 265 Q297 290 281 335 Q257 385 237 448 Q203 557 159 603 Q128 637 92 610 Q43 585 35 516 Q26 455 43 358 L57 270 Q69 174 129 122 Z";
+function schedulePS5PixelPaint(){
+ if(ps5PixelScheduled)return;
+ ps5PixelScheduled=true;
+ setTimeout(function(){ps5PixelScheduled=false;paintAllPS5PixelCanvases()},0);
+}
+function ps5MaskBuild(w,h,source){
+ var a=document.createElement("canvas");a.width=w;a.height=h;
+ var g=a.getContext("2d",{willReadFrequently:true});g.fillStyle="#fff";
+ var path=new Path2D(ps5Grip);
+ g.save();g.filter="blur(2px)";g.fill(path);g.translate(w,0);g.scale(-1,1);g.fill(path);g.restore();
+ // Hard exclusions: center touchpad, directional cluster, face buttons and both sticks.
+ g.globalCompositeOperation="destination-out";g.filter="none";
+ g.fillRect(315,90,422,165);
+ [[237,260,69,77],[816,260,69,77],[357,373,78,74],[696,373,78,74]].forEach(function(q){
+  g.beginPath();g.ellipse(q[0],q[1],q[2],q[3],0,0,Math.PI*2);g.fill();
+ });
+ var mask=g.getImageData(0,0,w,h).data;
+ var alpha=new Uint8Array(w*h);
+ for(var k=0;k<alpha.length;k++){
+  var off=k*4;
+  var red=source[off],green=source[off+1],blue=source[off+2];
+  var brightness=.2126*red+.7152*green+.0722*blue;
+  var neutral=Math.max(red,green,blue)-Math.min(red,green,blue);
+  // The pale shell is recolored; dark controls and photographic background stay intact.
+  var pale=Math.max(0,Math.min(1,(brightness-88)/65));
+  var achromatic=Math.max(0,Math.min(1,(72-neutral)/55));
+  alpha[k]=Math.round(mask[off+3]*pale*achromatic);
+ }
+ return alpha;
+}
+function ensurePS5PhotoPixels(){
+ if(ps5PhotoPixels||ps5PixelBusy||ps5PixelFailed)return;
+ ps5PixelBusy=true;
+ var image=new Image();
+ image.crossOrigin="anonymous";
+ image.onload=function(){
+  try{
+   var w=1053,h=692,c=document.createElement("canvas");c.width=w;c.height=h;
+   var ctx=c.getContext("2d",{willReadFrequently:true});
+   ctx.drawImage(image,0,0,w,h);
+   var pixels=ctx.getImageData(0,0,w,h);
+   ps5PhotoPixels={w:w,h:h,source:pixels.data,alpha:ps5MaskBuild(w,h,pixels.data)};
+   ps5PixelBusy=false;paintAllPS5PixelCanvases();
+  }catch(err){
+   ps5PixelBusy=false;ps5PixelFailed=true;showPS5PixelError("画像の画素を取得できず、色変更できません。"); 
+  }
+ };
+ image.onerror=function(){ps5PixelBusy=false;ps5PixelFailed=true;showPS5PixelError("元写真を読み込めませんでした。")};
+ image.src=ps5SourceUrl;
+}
+function showPS5PixelError(message){
+ document.querySelectorAll(".photo-pad-ps5-pixels").forEach(function(el){
+  el.classList.add("ps5-pixel-unavailable");
+  var label=el.querySelector(".ps5-pixel-error");if(label)label.textContent=message;
+ });
+}
+function ps5ColorPixels(shell,finish){
+ var key=shell+"_"+finish;
+ if(ps5RecolorCache.has(key))return ps5RecolorCache.get(key);
+ var src=ps5PhotoPixels.source,alpha=ps5PhotoPixels.alpha;
+ var out=new Uint8ClampedArray(src);
+ var R=parseInt(shell.slice(1,3),16),G=parseInt(shell.slice(3,5),16),B=parseInt(shell.slice(5,7),16);
+ var shine=finish==="gloss"?1.09:1;
+ for(var k=0;k<alpha.length;k++){
+  var mix=alpha[k]/255;
+  if(mix<.005)continue;
+  var j=k*4,gray=.2126*src[j]+.7152*src[j+1]+.0722*src[j+2];
+  var shadow=Math.max(.19,Math.min(1.25,gray/229))*shine;
+  var spec=Math.max(0,(gray-209)/46)*17;
+  var rr=Math.min(255,R*shadow+spec),gg=Math.min(255,G*shadow+spec),bb=Math.min(255,B*shadow+spec);
+  out[j]=src[j]*(1-mix)+rr*mix;
+  out[j+1]=src[j+1]*(1-mix)+gg*mix;
+  out[j+2]=src[j+2]*(1-mix)+bb*mix;
+ }
+ if(ps5RecolorCache.size>9)ps5RecolorCache.delete(ps5RecolorCache.keys().next().value);
+ ps5RecolorCache.set(key,out);return out;
+}
+function paintOnePS5Canvas(canvas){
+ if(!ps5PhotoPixels||!canvas.isConnected)return;
+ var w=ps5PhotoPixels.w,h=ps5PhotoPixels.h,ctx=canvas.getContext("2d");
+ var color=simpleColor(canvas.dataset.shell||"#ffffff");
+ var finish=canvas.dataset.finish==="gloss"?"gloss":"matte";
+ var px=ps5ColorPixels(color,finish);
+ var data=ctx.createImageData(w,h);data.data.set(px);ctx.putImageData(data,0,0);
+ canvas.style.opacity="1";
+ var art=canvas.dataset.art;
+ if(!art||!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(art))return;
+ var decal=new Image();
+ decal.onload=function(){
+  if(!canvas.isConnected)return;
+  var path=new Path2D(ps5Grip),sc=Math.min(2.5,Math.max(.7,(Number(canvas.dataset.scale)||115)/115));
+  var offX=Number(canvas.dataset.x)||0,offY=Number(canvas.dataset.y)||0;
+  // Prints only on the recolored shell areas, not across the central controls.
+  ctx.save();ctx.clip(path);ctx.globalAlpha=.85;
+  ctx.drawImage(decal,100+offX,135+offY,210*sc,380*sc);ctx.restore();
+  ctx.save();ctx.translate(w,0);ctx.scale(-1,1);ctx.clip(path);ctx.globalAlpha=.85;
+  ctx.drawImage(decal,100-offX,135+offY,210*sc,380*sc);ctx.restore();
+ };
+ decal.src=art;
+}
+function paintAllPS5PixelCanvases(){
+ if(!ps5PhotoPixels){ensurePS5PhotoPixels();return}
+ document.querySelectorAll("canvas.ps5-pixel-canvas").forEach(paintOnePS5Canvas);
+}
+
 function controllerSvg(p,sc,bc,art,scale,x,y,finish){
 p=["ps5","ps4","switch"].includes(p)?p:"ps5";
 sc=simpleColor(sc);bc=simpleColor(bc);
@@ -112,29 +231,14 @@ var photos={
 var title=titlePlatform(p);
 var uploaded=typeof art==="string"&&/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(art)&&art.length<800000?art:null;
 if(p==="ps5"){
- var maskId="ps5m"+Math.random().toString(36).slice(2,10);
- // Calibrated to the 1053 x 692 reference photograph. Preserve D-pad, sticks and touchpad.
- var leftPath="M129 122 C175 96 239 86 295 99 L340 114 Q338 151 316 188 Q294 213 300 265 Q297 290 281 335 Q257 385 237 448 Q203 557 159 603 Q128 637 92 610 Q43 585 35 516 Q26 455 43 358 L57 270 Q69 174 129 122 Z";
- var cover='<path d="'+leftPath+'" fill="white"/><path d="'+leftPath+'" transform="translate(1053 0) scale(-1 1)" fill="white"/>';
- var holes='<ellipse cx="238" cy="259" rx="66" ry="73" fill="black"/><ellipse cx="815" cy="259" rx="66" ry="73" fill="black"/>'
- +'<ellipse cx="357" cy="373" rx="80" ry="76" fill="black"/><ellipse cx="696" cy="373" rx="80" ry="76" fill="black"/>'
- +'<path d="M316 92 H737 V255 H316 Z" fill="black"/>';
- var picture='<svg class="ps5-precision-shell" viewBox="0 0 1053 692" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
- +'<defs><mask id="'+maskId+'" maskUnits="userSpaceOnUse" x="0" y="0" width="1053" height="692">'
- +'<rect width="1053" height="692" fill="black"/>'+cover+holes+'</mask></defs>'
- +'<g mask="url(#'+maskId+')">'
- +'<rect width="1053" height="692" fill="'+sc+'"/>'
- +'<image class="ps5-photo-shading" href="'+photos.ps5+'" x="0" y="0" width="1053" height="692" preserveAspectRatio="none"/>'
- +(uploaded?'<image href="'+uploaded+'" x="'+(526-450*(Number(scale)||115)/100+Number(x||0))+'" y="'+(342-295*(Number(scale)||115)/100+Number(y||0))+'" width="'+(900*(Number(scale)||115)/100)+'" height="'+(590*(Number(scale)||115)/100)+'" preserveAspectRatio="xMidYMid slice" opacity=".85"/>':'')
- +'</g></svg>';
- return '<div class="photo-pad photo-pad-ps5 photo-pad-ps5-refined'+(finish==="gloss"?' photo-gloss':'')+'" style="--shell:'+sc+';--buttons:'+bc+'" role="img" aria-label="PS5 DualSense Edge 参考写真の専用シェル色変更プレビュー">'
- +'<img loading="lazy" decoding="async" src="'+photos.ps5+'" alt="PS5 DualSense Edge 参考写真" onerror="this.closest(\'.photo-pad\').classList.add(\'photo-unavailable\')">'
- +picture
- +'<span class="pad-face-buttons"><i></i><i></i><i></i><i></i></span>'
- +'<span class="pad-color-key"><i style="background:'+sc+'"></i><i style="background:'+bc+'"></i><span>PS5 SHELL SIM</span></span>'
- +'<span class="photo-error">元写真を読み込めませんでした。ネット接続をご確認ください。</span></div>';
+ schedulePS5PixelPaint();
+ return '<div class="photo-pad photo-pad-ps5 photo-pad-ps5-pixels'+(finish==="gloss"?' photo-gloss':'')+'" role="img" aria-label="PS5実機参考写真のシェル画素を直接変更したプレビュー">'
+ +'<img loading="lazy" decoding="async" src="'+photos.ps5+'" alt="PS5 DualSense Edge 元の写真" onerror="this.closest(\'.photo-pad\').classList.add(\'photo-unavailable\')">'
+ +'<canvas class="ps5-pixel-canvas" width="1053" height="692" data-shell="'+sc+'" data-finish="'+(finish==="gloss"?'gloss':'matte')+'" data-art="'+(uploaded||'')+'" data-scale="'+Math.max(70,Math.min(250,Number(scale)||115))+'" data-x="'+Math.max(-130,Math.min(130,Number(x)||0))+'" data-y="'+Math.max(-130,Math.min(130,Number(y)||0))+'" aria-label="シェルの画素を変換した写真"></canvas>'
+ +'<span class="pad-color-key"><i style="background:'+sc+'"></i><span>SHELL COLOR / PIXEL EDIT</span></span>'
+ +'<span class="ps5-pixel-error" aria-live="polite"></span>'
+ +'<span class="photo-error">写真を読み込めませんでした。</span></div>';
 }
-
 var layer=uploaded?'<span class="pad-print" style="background-image:url('+uploaded+');background-size:'+Math.max(70,Math.min(450,Number(scale)*1.4||115))+'% auto;background-position:calc(50% + '+Math.max(-130,Math.min(130,Number(x)||0))+'px) calc(50% + '+Math.max(-130,Math.min(130,Number(y)||0))+'px)"></span>':'';
 return '<div class="photo-pad photo-pad-'+p+(finish==="gloss"?' photo-gloss':'')+'" style="--shell:'+sc+';--buttons:'+bc+'" role="img" aria-label="'+title+'の実機参考写真を使った簡易カスタムプレビュー">'
 +'<img loading="lazy" decoding="async" src="'+photos[p]+'" alt="'+title+'の実機参考写真" onerror="this.closest(\'.photo-pad\').classList.add(\'photo-unavailable\')">'
