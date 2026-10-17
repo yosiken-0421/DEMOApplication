@@ -114,7 +114,8 @@ function titlePlatform(p){return p==="ps5"?"PS5 STYLE":p==="ps4"?"PS4 STYLE":"SW
 var ps5PhotoPixels=null,ps5PixelBusy=false,ps5PixelFailed=false,ps5PixelScheduled=false;
 var ps5RecolorCache=new Map();
 var ps5SourceUrl="https://upload.wikimedia.org/wikipedia/commons/a/ac/DualSense_Edge_Controller.jpg";
-var ps5Grip="M129 122 C175 96 239 86 295 99 L340 114 Q338 151 316 188 Q294 213 300 265 Q297 290 281 335 Q257 385 237 448 Q203 557 159 603 Q128 637 92 610 Q43 585 35 516 Q26 455 43 358 L57 270 Q69 174 129 122 Z";
+// Hand-tuned boundary from the referenced 1053x692 front photo; not a die-cut template.
+var ps5Grip="M305 37 C228 21 166 35 118 70 C73 103 44 163 30 225 C13 324 28 460 67 544 C89 600 124 658 155 656 C171 622 169 566 183 517 C193 458 207 413 238 367 C269 316 292 266 313 223 C334 183 350 135 337 91 C330 61 318 41 305 37 Z";
 function schedulePS5PixelPaint(){
  if(ps5PixelScheduled)return;
  ps5PixelScheduled=true;
@@ -128,7 +129,7 @@ function ps5MaskBuild(w,h,source){
  // Hard exclusions: center touchpad, directional cluster, face buttons and both sticks.
  g.globalCompositeOperation="destination-out";g.filter="none";
  g.fillRect(315,90,422,165);
- [[237,260,69,77],[816,260,69,77],[357,373,78,74],[696,373,78,74]].forEach(function(q){
+ [[225,183,89,91],[828,183,89,91],[366,287,89,95],[687,287,89,95]].forEach(function(q){
   g.beginPath();g.ellipse(q[0],q[1],q[2],q[3],0,0,Math.PI*2);g.fill();
  });
  var mask=g.getImageData(0,0,w,h).data;
