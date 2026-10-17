@@ -46,6 +46,14 @@
 .cartItem .photo-pad{max-width:100px;border-radius:7px}
 @media(max-width:720px){.heroArt .photo-pad{width:83%;max-width:400px}.previewCanvas .photo-pad{max-width:100%;width:94%}.productVisual .photo-pad{max-height:95%}}
 
+.photo-pad .pad-face-buttons{position:absolute;z-index:4;left:70.1%;top:12%;width:17.4%;height:30%;display:block;pointer-events:none}
+.photo-pad .pad-face-buttons i{position:absolute;display:block;width:26%;aspect-ratio:1;border-radius:50%;background:var(--buttons);border:2px solid #1b2334;box-shadow:inset 0 2px 2px #fff4,0 0 0 1px #fff1;mix-blend-mode:multiply;opacity:.82}
+.photo-pad .pad-face-buttons i:nth-child(1){left:37%;top:0}
+.photo-pad .pad-face-buttons i:nth-child(2){left:72%;top:35%}
+.photo-pad .pad-face-buttons i:nth-child(3){left:37%;top:70%}
+.photo-pad .pad-face-buttons i:nth-child(4){left:2%;top:35%}
+.photo-pad-ps4 .pad-face-buttons{left:72%;top:29%;width:19%;height:25%;transform:rotate(12deg)}
+.photo-pad-switch .pad-face-buttons{left:70%;top:22%;width:18%;height:26%}
 </style>
 </head>
 <body>
@@ -97,6 +105,7 @@ var layer=uploaded?'<span class="pad-print" style="background-image:url('+upload
 return '<div class="photo-pad photo-pad-'+p+(finish==="gloss"?' photo-gloss':'')+'" style="--shell:'+sc+';--buttons:'+bc+'" role="img" aria-label="'+title+'の実機参考写真を使った簡易カスタムプレビュー">'
 +'<img loading="lazy" decoding="async" src="'+photos[p]+'" alt="'+title+'の実機参考写真" onerror="this.closest(\'.photo-pad\').classList.add(\'photo-unavailable\')">'
 +'<span class="pad-shell pad-shell-left"></span><span class="pad-shell pad-shell-right"></span>'
++'<span class="pad-face-buttons"><i></i><i></i><i></i><i></i></span>'
 +layer
 +'<span class="pad-color-key"><i style="background:'+sc+'"></i><i style="background:'+bc+'"></i><span>PHOTO MOCKUP</span></span>'
 +'<span class="photo-error">写真を読み込めませんでした。ネット接続をご確認ください。</span></div>';
