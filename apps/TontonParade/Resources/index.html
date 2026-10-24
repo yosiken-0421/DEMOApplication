@@ -813,6 +813,54 @@ function turnCue(t) {
   tone(t, 2100, 0.05, { type: 'sine', v: 0.35, d: 0.06, s: 0.4, r: 0.03, bus: A.sfx });
   Dr.hey(t + 0.02, 1.6, A.sfx);
 }
+// soft beat clicks through the player's bar (first beat accented) so the downbeat is easy to feel
+function respTick(t, accent) { tone(t, accent ? 1760 : 1320, 0.02, { type: 'sine', v: accent ? 0.42 : 0.24, d: 0.035, s: 0, r: 0.02, bus: A.sfx }); }
+function turnTicks(cb, base, bpb) { for (let i = 0; i < bpb; i++) cb.cue(base + bpb + i, (t) => respTick(t, i === 0)); }
+// rhythm lane: the demo's notes appear on a strip, then a playhead sweeps over them during the player's bar
+function drawLane(B, objs, bpb, run, col) {
+  let bar = null;
+  for (const b of turnBars(objs)) if (B >= b - 0.6 && B < b + 2 * bpb + 0.3) { bar = b; break; }
+  if (bar == null) return;
+  const notes = objs.filter(o => o.bar === bar);
+  const y = SAFE_T + (run && run.mode === 'practice' ? 305 : 222), x0 = 92, w = W - 184, h = 92;
+  const inResp = B >= bar + bpb - 1;
+  const fade = Math.min(clamp((B - (bar - 0.6)) / 0.35, 0, 1), clamp((bar + 2 * bpb + 0.3 - B) / 0.3, 0, 1));
+  g.save(); g.globalAlpha = fade;
+  rrect(x0 - 34, y - h / 2, w + 68, h, 30); fs('rgba(255,255,255,0.93)', 5);
+  // tag
+  const tag = inResp ? 'きみの番' : 'お手本', tc = inResp ? COL.pink : COL.orange;
+  rrect(x0 - 30, y - h / 2 - 30, 150, 40, 20); fs(tc, 4); text(tag, x0 + 45, y - h / 2 - 10, 24, '#fff', INK);
+  // beat grid
+  for (let i = 0; i <= bpb; i++) {
+    const x = x0 + i / bpb * w;
+    g.beginPath(); g.moveTo(x, y - 30); g.lineTo(x, y + 30); g.lineWidth = i === 0 ? 5 : 2; g.strokeStyle = i === 0 ? INK : 'rgba(43,23,71,0.25)'; g.stroke();
+    if (i < bpb) text(String(i + 1), x + 12, y + 30, 18, 'rgba(43,23,71,0.55)', null, 'left');
+  }
+  // notes
+  for (const o of notes) {
+    const x = x0 + (o.c - bar) / bpb * w;
+    if (!inResp && B < o.c - 0.02) continue;
+    const ap = inResp ? 1 : clamp((B - o.c) / 0.12, 0, 1);
+    const res = o.hit && o.hit.res;
+    let fill = col || COL.sky;
+    if (inResp && res) fill = res === 'm' ? '#c9c9d9' : res === 'p' ? COL.yellow : COL.mint;
+    if (o.len) { rrect(x, y - 13, Math.max(18, o.len / bpb * w), 26, 13); fs(fill, 4); }
+    circle(x, y, 19 * ease.outBack(ap)); fs(fill, 5);
+    if (o.high || o.crash) text('↑', x, y + 1, 24, INK, null);
+  }
+  // playheads
+  const pb = inResp ? B - (bar + bpb) : B - bar;
+  if (inResp && pb < 0) { // "start here" marker during the gap beat
+    const k = 0.5 + 0.5 * Math.sin(B * Math.PI * 8);
+    g.beginPath(); g.moveTo(x0, y - 40); g.lineTo(x0, y + 40); g.lineWidth = 8; g.strokeStyle = `rgba(255,95,162,${0.4 + 0.6 * k})`; g.stroke();
+    text('▲ここから', x0 - 10, y + h / 2 + 22, 24, COL.pink, INK, 'left');
+  } else if (pb >= 0 && pb <= bpb + 0.05) {
+    const x = x0 + Math.min(pb, bpb) / bpb * w;
+    g.beginPath(); g.moveTo(x, y - 40); g.lineTo(x, y + 40); g.lineWidth = inResp ? 8 : 5; g.strokeStyle = inResp ? COL.pink : 'rgba(43,23,71,0.45)'; g.lineCap = 'round'; g.stroke();
+    g.beginPath(); g.moveTo(x - 10, y - 48); g.lineTo(x + 10, y - 48); g.lineTo(x, y - 36); g.closePath(); fs(inResp ? COL.pink : '#9a8fb5', 3);
+  }
+  g.restore();
+}
 function checkDemo(gid, s, bpb) { // presses must end 1.5 beats before the bar end, releases at least 1 beat before
   let last = -1; for (let k = 0; k < s.length; k++) if (s[k] !== '.') last = k;
   if (last >= 0 && (last + 1) * 0.5 > bpb - 1 + 1e-6) throw new Error(gid + ' demo pattern too long for the turn gap: ' + s);
@@ -832,11 +880,12 @@ function turnLight(B, objs, bpb, x, y, w = 150) {
 function turnBanner(B, objs, bpb, x, y) {
   for (const bar of turnBars(objs)) {
     const a = B - (bar + bpb - 1);
-    if (a >= -0.05 && a < 1.3) {
-      const k = clamp((a + 0.05) / 0.15, 0, 1), fade = a > 1 ? 1 - (a - 1) / 0.3 : 1;
-      g.save(); g.globalAlpha = clamp(fade, 0, 1); g.translate(clamp(x, 170, W - 170), y); g.rotate(-0.06); g.scale(ease.outBack(k), ease.outBack(k));
-      rrect(-150, -44, 300, 88, 44); g.fillStyle = INK; g.fill(); rrect(-150, -50, 300, 88, 44); fs(COL.yellow, 6);
-      text('きみの番!', 0, -6, 46, INK, null);
+    if (a >= -0.05 && a < 1.7) {
+      const start = a >= 1; // "せーの" on the gap beat, "スタート!" on the player's first beat
+      const k = clamp(((start ? a - 1 : a) + 0.05) / 0.15, 0, 1), fade = start && a > 1.4 ? 1 - (a - 1.4) / 0.3 : 1;
+      g.save(); g.globalAlpha = clamp(fade, 0, 1); g.translate(clamp(x, 170, W - 170), y); g.rotate(start ? 0.05 : -0.06); const sc = ease.outBack(k) * (start ? 1.15 : 1); g.scale(sc, sc);
+      rrect(-150, -44, 300, 88, 44); g.fillStyle = INK; g.fill(); rrect(-150, -50, 300, 88, 44); fs(start ? COL.pink : COL.yellow, 6);
+      text(start ? 'スタート!' : 'せーの…', 0, -6, 46, start ? '#fff' : INK, start ? INK : null);
       g.restore();
     }
   }
@@ -1355,7 +1404,7 @@ GAMES.frog = {
       if (!s) return;
       checkDemo('frog', s, bpb);
       const base = (bar0 + i * 2) * bpb; let k = 0;
-      cb.cue(base + bpb - 1, (t) => turnCue(t));
+      cb.cue(base + bpb - 1, (t) => turnCue(t)); turnTicks(cb, base, bpb);
       const seed = (bar0 + i * 2) * 13.7;
       const startIdx = Math.floor(rand(seed) * 3);
       for (let st = 0; st < s.length; st++) {
@@ -1543,6 +1592,7 @@ GAMES.frog = {
     for (let i = 0; i < 8; i++) { const a = B * 0.7 + i * 0.8; const fx = 60 + i * 85 + Math.sin(a) * 20, fyy = wy - 260 + Math.cos(a * 1.3) * 40; circle(fx, fyy, 6 + pulse(B + i * 0.25, 4) * 4); g.fillStyle = 'rgba(255,240,120,0.85)'; g.fill(); }
     if (missRecent) text('!?', 660, wy - 150, 48, COL.red);
     turnBanner(B, st.objs, 4, 560, wy - 230);
+    drawLane(B, st.objs, 4, run, COL.green);
     crowd(B, run, H - 170 - SAFE_B * 0.5);
   },
   icon(x, y, s) { this.drawFrog(x, y + 10 * s, s * 0.7, COL.green, { open: 0.7, eye: 'happy', badge: true }); },
@@ -2095,7 +2145,7 @@ GAMES.balloon = {
       if (!s) return;
       checkDemo('balloon', s, bpb);
       const base = (bar0 + i * 2) * bpb;
-      cb.cue(base + bpb - 1, (t) => turnCue(t));
+      cb.cue(base + bpb - 1, (t) => turnCue(t)); turnTicks(cb, base, bpb);
       for (let k = 0; k < s.length; k++) {
         const ch = s[k]; if (ch !== 'p' && ch !== 't') continue;
         const c = base + k * 0.5;
@@ -2314,6 +2364,7 @@ GAMES.balloon = {
     }
     grooveAt(625, fy, B, 0.5, () => this.drawBunny(625, fy - 110, B, pPress, mood));
     turnBanner(B, st.objs, run.c.bpb, 520, fy - 560);
+    drawLane(B, st.objs, run.c.bpb, run, COL.sky);
     crowd(B, run, H - 190 - SAFE_B * 0.5);
   },
   icon(x, y, s) { this.drawBalloon(x, y - 10 * s, s * 0.7, COL.pink, 2, 0); },
@@ -2893,7 +2944,7 @@ GAMES.jazz = {
       let last = -1; for (let k = 0; k < s.length; k++) if (s[k] !== '.') last = k;
       if (last >= 0 && last / 3 > bpb - 1.3) throw new Error('jazz demo pattern too long for the turn gap: ' + s);
       const base = (bar0 + i * 2) * bpb; let k = 0;
-      cb.cue(base + bpb - 1, (t) => turnCue(t));
+      cb.cue(base + bpb - 1, (t) => turnCue(t)); turnTicks(cb, base, bpb);
       const start = Math.floor(rand(base * 1.7) * 3);
       for (let st = 0; st < s.length; st++) {
         const ch = s[st]; if (ch === '.') continue;
@@ -3026,6 +3077,7 @@ GAMES.jazz = {
     const miss = B - st.missB >= 0 && B - st.missB < 1;
     grooveAt(590, fy, B, 0.66, () => this.drawCat(590, fy - 120 - (st.pCrash && pBlow ? 30 : 0), 1.0, '#ff99c8', { blow: pBlow, flip: true, eye: miss ? 'x' : pBlow ? 'closed' : 'dot' }));
     turnBanner(B, st.objs, 4, 560, fy - 330);
+    drawLane(B, st.objs, 4, run, '#ff99c8');
     crowd(B, run, H - 170 - SAFE_B * 0.5);
   },
   icon(x, y, s) { this.drawCat(x, y + 22 * s, s * 0.55, '#ff99c8', { blow: 1, eye: 'closed' }); },
