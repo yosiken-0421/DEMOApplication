@@ -604,10 +604,10 @@ const Dr = {
   // build-up whoosh that leads into the next section
   riser(t, dur, v = 1) { noise(t, dur, { ft: 'bandpass', f: 600, fEnd: 7000, fT: dur, q: 1.2, v: 0.09 * v, a: dur * 0.85, d: 0.05, s: 1, r: 0.05 }); },
   // crowd-style shout "Hey!" (formant noise + voiced buzz)
-  hey(t, v = 1) {
-    noise(t, 0.14, { f: 1100, q: 3, v: 0.32 * v, a: 0.01, d: 0.12, s: 0.2, rev: 0.3 });
-    noise(t, 0.12, { f: 2500, q: 4, v: 0.18 * v, a: 0.01, d: 0.1, s: 0.2 });
-    tone(t, 190, 0.1, { type: 'sawtooth', from: 240, glide: 0.08, v: 0.1 * v, cut: 1400, q: 2, d: 0.1, s: 0.3, r: 0.05 });
+  hey(t, v = 1, bus) {
+    noise(t, 0.14, { f: 1100, q: 3, v: 0.32 * v, a: 0.01, d: 0.12, s: 0.2, rev: 0.3, bus });
+    noise(t, 0.12, { f: 2500, q: 4, v: 0.18 * v, a: 0.01, d: 0.1, s: 0.2, bus });
+    tone(t, 190, 0.1, { type: 'sawtooth', from: 240, glide: 0.08, v: 0.1 * v, cut: 1400, q: 2, d: 0.1, s: 0.3, r: 0.05, bus });
   },
   timp(t, v = 1) { tone(t, 90, 0.2, { type: 'sine', from: 140, glide: 0.05, v: 0.5 * v, d: 0.35, s: 0 }); },
 };
@@ -805,6 +805,41 @@ const Sfx = {
   sad(t) { [67, 66, 65, 64].forEach((n, i) => tone(t + i * 0.18, mtof(n), 0.2, { type: 'triangle', v: 0.16, vib: 0.02, d: 0.1, s: 0.7, bus: A.sfx })); },
   tick(t) { tone(t, 1600, 0.02, { type: 'sine', v: 0.15, d: 0.03, s: 0, bus: A.sfx }); },
 };
+
+// ---------- "your turn" signal for call & response games ----------
+// the demo leaves its last beat empty; on that beat: whistle + "Hey!" + banner, then the player's bar starts
+function turnCue(t) {
+  tone(t, 2100, 0.05, { type: 'sine', v: 0.35, d: 0.06, s: 0.4, r: 0.03, bus: A.sfx });
+  Dr.hey(t + 0.02, 1.6, A.sfx);
+}
+function checkDemo(gid, s, bpb) { // presses must end 1.5 beats before the bar end, releases at least 1 beat before
+  let last = -1; for (let k = 0; k < s.length; k++) if (s[k] !== '.') last = k;
+  if (last >= 0 && (last + 1) * 0.5 > bpb - 1 + 1e-6) throw new Error(gid + ' demo pattern too long for the turn gap: ' + s);
+}
+function turnBars(objs) { if (!objs._turn) objs._turn = [...new Set(objs.map(o => o.bar))]; return objs._turn; }
+function turnLight(B, objs, bpb, x, y, w = 150) {
+  for (const bar of turnBars(objs)) {
+    const a = B - (bar + bpb);
+    if (a >= -1 && a < bpb) {
+      const k = a < 0 ? (a + 1) * 0.6 : 0.6 + 0.4 * pulse(B, 4);
+      g.save(); g.globalAlpha = 0.55 * k;
+      g.fillStyle = '#fff6b0'; g.beginPath(); g.moveTo(x - 40, -20); g.lineTo(x + 40, -20); g.lineTo(x + w, y + 30); g.lineTo(x - w, y + 30); g.closePath(); g.fill();
+      ell(x, y + 30, w, 34); g.fill(); g.restore();
+    }
+  }
+}
+function turnBanner(B, objs, bpb, x, y) {
+  for (const bar of turnBars(objs)) {
+    const a = B - (bar + bpb - 1);
+    if (a >= -0.05 && a < 1.3) {
+      const k = clamp((a + 0.05) / 0.15, 0, 1), fade = a > 1 ? 1 - (a - 1) / 0.3 : 1;
+      g.save(); g.globalAlpha = clamp(fade, 0, 1); g.translate(clamp(x, 170, W - 170), y); g.rotate(-0.06); g.scale(ease.outBack(k), ease.outBack(k));
+      rrect(-150, -44, 300, 88, 44); g.fillStyle = INK; g.fill(); rrect(-150, -50, 300, 88, 44); fs(COL.yellow, 6);
+      text('きみの番!', 0, -6, 46, INK, null);
+      g.restore();
+    }
+  }
+}
 
 // ---------- chart builder ----------
 class CB {
@@ -1289,7 +1324,7 @@ GAMES.frog = {
   bpm: { n: 120, h: 140 }, bpb: 4,
   howto: [
     'リーダーのゲロ先生が 1小節 うたうよ。',
-    'つぎの小節で 同じリズムを タップ してまねしよう!',
+    'お手本が終わると「ピッ・ハイ!」の合図。次の小節の頭から 同じリズムを タップ!',
     '高い「ケロッ↑」は ジャンプ。上へフリック!',
     'まわりの合唱団は きみに合わせて うたうよ。'
   ],
@@ -1317,7 +1352,9 @@ GAMES.frog = {
     const bpb = cb.bpb;
     calls.forEach((s, i) => {
       if (!s) return;
+      checkDemo('frog', s, bpb);
       const base = (bar0 + i * 2) * bpb; let k = 0;
+      cb.cue(base + bpb - 1, (t) => turnCue(t));
       const seed = (bar0 + i * 2) * 13.7;
       const startIdx = Math.floor(rand(seed) * 3);
       for (let st = 0; st < s.length; st++) {
@@ -1351,13 +1388,13 @@ GAMES.frog = {
   },
   structure(diff) {
     const N = diff === 'h' ? {
-      g1: ['x.x.x.x.', 'xx.xx.x.', 'x..x..x.', 'x.xx.xx.', 'xxx.x...', '.x.x.x.x', 'x..xx..x', 'xx.x.xx.'],
-      g2: ['x.h.x.h.', 'h.xx.h..', 'xxh.xxh.', '.h.h.x.x', 'x.x.h.hx', 'h..h..h.', 'xh.xh.x.', 'x.xxh.h.'],
-      g3: ['xxxxh...', '.x.xh.h.', 'x.h.xxh.', 'h.h.h.x.']
+      g1: ['x.xx.x..', 'xx.xx...', '.x.x.x..', 'x..xxx..', 'xxx.xx..', 'x.x.xx..', '.xx.x...', 'xx.x.x..'],
+      g2: ['x.h.xh..', 'h.xx.h..', 'xxh.xh..', '.h.hx...', 'x.xhhx..', 'h..hxh..', 'xh.xh...', 'x.xxhh..'],
+      g3: ['xxxxh...', '.x.xhh..', 'x.hxxh..', 'hhx.h...']
     } : {
-      g1: ['x.x.x.x.', 'x.x.x...', 'x...x.x.', 'x.x.x.x.', 'xx..x...', 'x.xx.x..', 'x..x..x.', 'xx.xx...'],
-      g2: ['x.x.h...', 'x.x.x.h.', 'h...h...', 'xx.x..h.', 'x..x..h.', 'h.h.x.x.', 'x.xx.xh.', 'xx.h.h..'],
-      g3: ['x.x.x.x.', 'xxx.x.h.', 'x.h.x.h.', 'h.x.h.x.']
+      g1: ['x.x.x...', 'x.xx....', 'x...x...', 'xx.x....', 'x..x.x..', 'xx..x...', 'x.x.xx..', 'xxx.x...'],
+      g2: ['x.x.h...', 'h...x...', 'x.h.x...', 'xx.h....', 'h.x.h...', 'x..xh...', 'hx.x.h..', 'x.xhx...'],
+      g3: ['x.x.x...', 'xxx.h...', 'x.h.hx..', 'hxhx.h..']
     };
     return N;
   },
@@ -1390,10 +1427,10 @@ GAMES.frog = {
   practice() {
     const cb = new CB(this.bpm.n - 10, 4);
     this.music(cb, 20, i => i >= 18 ? { ch: 'F', dr: i === 18 ? 'end' : null, bs: i === 18 ? 'h' : null } : { dr: i < 2 ? 'intro' : 'doo', bs: 'w', pad: true });
-    this.add(cb, 2, ['x.x.x.x.', 'x...x.x.', 'xx..x...', null, 'x.x.h...', 'h...h...', 'x.xx.xh.', null]);
+    this.add(cb, 2, ['x.x.x...', 'x...x...', 'xx..x...', null, 'x.x.h...', 'h...h...', 'x.xx.h..', null]);
     // the nulls leave 2 empty bars for hints
     cb.hint(-1, 'ゲロ先生が うたったら…');
-    cb.hint(1, 'つぎの小節で 同じリズムを タップ!');
+    cb.hint(1, 'お手本のあと「ハイ!」の合図。\nつぎの小節の頭から 同じリズムをタップ!');
     cb.hint(8, 'こんどは高い「ケロッ↑」がまざるよ。\nそこは 上へフリック!');
     cb.hint(16, 'カンペキ!');
     return cb.finish({ len: 20 * 4, id: this.id, diff: 'p' });
@@ -1468,6 +1505,7 @@ GAMES.frog = {
   draw(run, B, st, theme) {
     const wy = this.wy();
     this.bg(B, theme);
+    turnLight(B, st.objs, 4, 600, wy + 10, 120);
     // pads
     const xs = [125, 290, 445, 600];
     xs.forEach((x, i) => { ell(x, wy + 50, 105, 30); fs('#4caf50', 6); g.beginPath(); g.moveTo(x, wy + 50); g.lineTo(x + 70, wy + 30); g.lineTo(x + 80, wy + 50); g.closePath(); g.fillStyle = gr2col(); g.fill(); });
@@ -1503,6 +1541,7 @@ GAMES.frog = {
     dancer(615, wy + 215, 0.8, B, { col: '#ffd6a5', hat: 'flower', phase: 0 });
     for (let i = 0; i < 8; i++) { const a = B * 0.7 + i * 0.8; const fx = 60 + i * 85 + Math.sin(a) * 20, fyy = wy - 260 + Math.cos(a * 1.3) * 40; circle(fx, fyy, 6 + pulse(B + i * 0.25, 4) * 4); g.fillStyle = 'rgba(255,240,120,0.85)'; g.fill(); }
     if (missRecent) text('!?', 660, wy - 150, 48, COL.red);
+    turnBanner(B, st.objs, 4, 560, wy - 230);
     crowd(B, run, H - 170 - SAFE_B * 0.5);
   },
   icon(x, y, s) { this.drawFrog(x, y + 10 * s, s * 0.7, COL.green, { open: 0.7, eye: 'happy', badge: true }); },
@@ -2012,7 +2051,7 @@ GAMES.balloon = {
   bpm: { n: 132, h: 156 }, bpb: 3,
   howto: [
     '3拍子のワルツ。ピエロンが1小節ポンプを押すよ。',
-    'つぎの小節で 同じタイミングで 長押し→はなす!',
+    'お手本のあと「ピッ・ハイ!」の合図。次の小節の頭から 同じように長押し→はなす!',
     '「シュー」の長さ = 押す長さ。はなすタイミングも判定!',
     '短い「シュッ」は タップでOK。押しすぎると…パーン!'
   ],
@@ -2053,7 +2092,9 @@ GAMES.balloon = {
     const bpb = cb.bpb;
     pairs.forEach((s, i) => {
       if (!s) return;
+      checkDemo('balloon', s, bpb);
       const base = (bar0 + i * 2) * bpb;
+      cb.cue(base + bpb - 1, (t) => turnCue(t));
       for (let k = 0; k < s.length; k++) {
         const ch = s[k]; if (ch !== 'p' && ch !== 't') continue;
         const c = base + k * 0.5;
@@ -2109,13 +2150,13 @@ GAMES.balloon = {
   },
   patterns(diff) {
     return diff === 'h' ? {
-      g1: ['p-.p-.', 'p.p.p.', 't.t.p-', 'p-.t.t', 'p.p---', 't.t.t.', 'p--.t.', 'p-----'],
-      g2: ['p.t.p.', 'p-.p.t', 't.p-.t', 'p---.t', 'p.p.t.', 't.p.p.', 'p--.p.', 'p-.p--'],
-      g3: ['p.p.p.', 't.p---', 'p-.t.t', 'p.t.p.', 'p---.t', 'p.p.p.', 't.t.p-', 'p-----']
+      g1: ['p-.t..', 'p.p...', 't.p-..', 'p---..', 't.t...', 'p--...', 'p.t...', 'p-....'],
+      g2: ['t.p...', 'p-.t..', 'p.p...', 't.t...', 'p--...', 'p.t...', 't.p-..', 'p---..'],
+      g3: ['p.p...', 't.p-..', 'p-.t..', 'p.t...', 'p---..', 't.t...', 'p--...', 'p.p...']
     } : {
-      g1: ['p---..', 'p-.p-.', 'p---..', 't.t.t.', 'p-.t..', 'p---..', 't.p-..', 'p-----'],
-      g2: ['p-.p-.', 'p.p.p.', 't.t.p-', 'p--.t.', 'p.t.p-', 'p--.t.', 'p-.p--', 'tt.p-.'],
-      g3: ['p.p.p.', 'p-----', 't.t.t.', 'p-.t.t', 'p.t.p.', 'p--.p.', 'p-.p--', 'p---..']
+      g1: ['p---..', 'p-....', 'p.p...', 't.t...', 'p--...', 't.p-..', 'p.t...', 'p---..'],
+      g2: ['tt.t..', 'p-.t..', 't.p...', 'p--...', 'p.t...', 'tt.p..', 'p---..', 't.t...'],
+      g3: ['p.p...', 'p---..', 't.t...', 'p-.t..', 'tt.t..', 'p--...', 't.p-..', 'p.t...']
     };
   },
   build(diff) {
@@ -2128,9 +2169,9 @@ GAMES.balloon = {
   practice() {
     const cb = new CB(this.bpm.n - 12, 3);
     this.music(cb, 22, true);
-    this.add(cb, 2, ['p---..', 'p---..', 'p-.p-.', null, 't.t.t.', 'p-.t..', 'p-----', 't.p-..', null]);
+    this.add(cb, 2, ['p---..', 'p---..', 'p-.p..', null, 't.t...', 'p-.t..', 'p.p...', 't.p-..', null]);
     cb.hint(-1, 'ピエロンがポンプを押したら…');
-    cb.hint(1, 'つぎの小節で 同じだけ長押し!\n「シュー」が止まる所で はなす');
+    cb.hint(1, 'お手本のあと「ハイ!」の合図。次の小節で\n同じだけ長押し→「シュー」が止まる所ではなす');
     cb.hint(8, '短い「シュッ」は タップ!');
     cb.hint(16, 'いいね!');
     return cb.finish({ len: 22 * 3, id: this.id, diff: 'p' });
@@ -2262,6 +2303,7 @@ GAMES.balloon = {
       if (e.k === 'deflate' && d < 0.8) { mood = mood || 'sad'; this.drawBalloon(495 + Math.sin(d * 30) * 40 * d, fy - 380 + d * 60, (e.size || 0.6) * (1 - d), COL.sky, 0, d * 20); }
     }
     if (B - st.strayB < 0.3) pPress = Math.max(pPress, 0.6);
+    turnLight(B, st.objs, run.c.bpb, 550, fy - 10, 170);
     this.drawPump(470, fy - 10, pPress);
     if (holding) {
       const o = st.curObj; const len = o ? o.len : 2;
@@ -2270,6 +2312,7 @@ GAMES.balloon = {
       this.drawBalloon(495 + (over ? Math.sin(B * 60) * 6 : 0), fy - 400, 0.45 + grow * 0.6, over ? COL.red : COL.sky, 0, B * 3);
     }
     grooveAt(625, fy, B, 0.5, () => this.drawBunny(625, fy - 110, B, pPress, mood));
+    turnBanner(B, st.objs, run.c.bpb, 520, fy - 560);
     crowd(B, run, H - 190 - SAFE_B * 0.5);
   },
   icon(x, y, s) { this.drawBalloon(x, y - 10 * s, s * 0.7, COL.pink, 2, 0); },
@@ -2374,16 +2417,16 @@ GAMES.remix = {
     };
     // ---- round 1 ----
     seg('onigiri', 6, b => GAMES.onigiri.add(cb, b, H_ ? ['n...n.n.', 'd...n...', 'n...B...', 'n.n.d...', 't...d...', '........'] : ['n...n...', 'd...n...', 'n...B...', 'n.n.n...', 'd...d...', '........']));
-    seg('frog', 6, b => GAMES.frog.add(cb, b, H_ ? ['x.xx.x.x', 'xx.x..h.', 'x.h.xxh.'] : ['x.x.x.x.', 'xx.x..h.', 'x.xx.xh.']));
+    seg('frog', 6, b => GAMES.frog.add(cb, b, H_ ? ['x.xx.x..', 'xx.x.h..', 'x.hxxh..'] : ['x.x.x...', 'xx.x.h..', 'x.xxh...']));
     seg('robo', 6, b => GAMES.robo.add(cb, b, H_ ? ['....n.n.', 'n.n.s.n.', 'f.f.n.s.', 'n.f.s.n.', 'f.f.f.f.', 's.......'] : ['....n...', 'n.n.s...', 'f...n...', 'n.f.s...', 'n.n.n.n.', 's.......']));
     pongSeg(H_ ? ['nfnfnnl'] : ['nnfnnl']);
-    seg('balloon', 6, b => GAMES.balloon.add(cb, b, H_ ? ['p-.p-.t.', 'p.p.p.p.', 't.p---..'] : ['p---....', 'p-.p-...', 't.t.p-..']));
+    seg('balloon', 6, b => GAMES.balloon.add(cb, b, H_ ? ['p-.p-...', 'p.p.p...', 't.p---..'] : ['p---....', 'p-.p-...', 't.t.p-..']));
     // ---- round 2 : quick cuts ----
     seg('onigiri', 4, b => GAMES.onigiri.add(cb, b, H_ ? ['n.n.d...', 'd.n.B...', 't...n...', '........'] : ['n.n.n...', 'd...B...', 't.......', '........']));
     seg('robo', 4, b => GAMES.robo.add(cb, b, H_ ? ['....f.f.', 'f.n.s.n.', 'f.f.f.f.', 's.......'] : ['....n.n.', 'f.f.s...', 'n.n.n.n.', 's.......']));
-    seg('frog', 4, b => GAMES.frog.add(cb, b, H_ ? ['x.h.xxh.', 'hx.hx.h.'] : ['x.x.h...', 'xx.xx.h.']));
+    seg('frog', 4, b => GAMES.frog.add(cb, b, H_ ? ['x.h.xh..', 'hx.hxh..'] : ['x.x.h...', 'xx.xh...']));
     pongSeg(H_ ? ['ffnfl'] : ['fnfnl']);
-    seg('balloon', 4, b => GAMES.balloon.add(cb, b, H_ ? ['p.p.p.p.', 'p--.t.t.'] : ['p.p.p...', 'p--.t...']));
+    seg('balloon', 4, b => GAMES.balloon.add(cb, b, H_ ? ['p.p.t...', 'p-.t.t..'] : ['p.p.p...', 'p--.t...']));
     seg('onigiri', 4, b => GAMES.onigiri.add(cb, b, H_ ? ['d.d.d.d.', 't...B...', '........', '........'] : ['d.d.d...', 'n.n.B...', '........', '........']));
     const nBars = bar + 2;
     this.music(cb, nBars, starts);
