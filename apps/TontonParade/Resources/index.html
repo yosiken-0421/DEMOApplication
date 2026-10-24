@@ -183,7 +183,8 @@ function heart(x, y, s) {
 }
 // cute face: eyes + mouth
 function face(x, y, s, o = {}) {
-  const eye = o.eye || 'dot', mouth = o.mouth || 'smile', look = o.look || 0, lookY = o.lookY || 0;
+  let eye = o.eye || 'dot'; const mouth = o.mouth || 'smile', look = o.look || 0, lookY = o.lookY || 0;
+  if (eye === 'dot' && o.blink !== false) { const seed = x * 0.013 + y * 0.007; if (((sceneT + seed * 1.7) % 3.3 + 3.3) % 3.3 < 0.11) eye = 'closed'; }
   const ex = s * 0.38, ey = -s * 0.08;
   g.lineCap = 'round';
   for (const side of [-1, 1]) {
@@ -235,11 +236,56 @@ function crowd(B, run, yBase, o = {}) {
       face(x, y + 30, r * 0.7, { eye: sad ? 'closed' : hype > 0.4 ? 'happy' : 'dot', mouth: sad ? 'o' : hype > 0.3 ? 'open' : 'smile', cheek: true });
     }
   }
-  if (combo >= 10 && !sad) { const s = 1 + pulse(B, 6) * 0.08; g.save(); g.translate(W - 120, yBase - 60); g.scale(s, s); g.rotate(0.1); text(combo + ' コンボ!', 0, 0, 40, COL.yellow); g.restore(); }
   if (sad) text('あ〜…', W / 2, yBase - 40, 40, '#fff');
 }
 
+// ---------- groove: every character dances on the beat ----------
+let HYPE = 1; // 0.8 .. 1.8, follows the combo
+function groove(B, phase = 0) {
+  const ph = frac(B + phase), k = Math.exp(-ph * 5);
+  return { sx: 1 + 0.06 * HYPE * k, sy: 1 - 0.08 * HYPE * k + 0.02 * HYPE * (1 - k), lean: Math.sin((B + phase) * Math.PI) * 0.05 * HYPE };
+}
+function grooveAt(x, footY, B, phase, fn) {
+  const q = groove(B, phase);
+  g.save(); g.translate(x, footY); g.rotate(q.lean); g.scale(q.sx, q.sy); g.translate(-x, -footY); fn(); g.restore();
+}
+// small dancing buddies (per stage they get their own look)
+function dancer(x, y, s, B, o = {}) {
+  const col = o.col || COL.pink, ph = o.phase || 0, beat = Math.floor(B + ph);
+  const k = Math.exp(-frac(B + ph) * 5);
+  const jump = (beat % 4 === 0 ? 26 : 10) * k * HYPE;
+  const armUp = beat % 2 === 0;
+  g.save(); g.translate(x, y - jump); g.scale(s, s * (1 - 0.08 * k));
+  g.rotate(Math.sin((B + ph) * Math.PI) * 0.12);
+  // arms
+  g.lineCap = 'round';
+  for (const sd of [-1, 1]) {
+    const up = (sd < 0) === armUp;
+    const ex = sd * 62, ey = up ? -78 : 18;
+    g.lineWidth = 16; g.strokeStyle = INK; g.beginPath(); g.moveTo(sd * 34, -6); g.lineTo(ex, ey); g.stroke();
+    g.lineWidth = 9; g.strokeStyle = col; g.stroke();
+    if (HYPE > 1.3) { circle(ex, ey - 6, 11); fs(sd < 0 ? COL.yellow : COL.mint, 3); }
+  }
+  // feet
+  ell(-20, 44, 16, 9); fs(INK, 0); ell(20, 44, 16, 9); fs(INK, 0);
+  // body
+  if (o.kind === 'rice') { g.beginPath(); g.moveTo(0, -52); g.quadraticCurveTo(50, -20, 46, 34); g.lineTo(-46, 34); g.quadraticCurveTo(-50, -20, 0, -52); g.closePath(); fs('#fff', 5); g.fillStyle = '#1f4d3a'; g.fillRect(-24, 10, 48, 24); }
+  else if (o.kind === 'bot') { rrect(-40, -46, 80, 82, 18); fs(col, 5); rrect(-28, -32, 56, 30, 8); fs('#24324f', 3); }
+  else { ell(0, -4, 46, 46); fs(col, 5); }
+  if (o.kind === 'bot') { for (const sd of [-1, 1]) { circle(sd * 12, -17, 5); g.fillStyle = k > 0.5 ? '#ffffff' : '#7bffb2'; g.fill(); } g.beginPath(); g.moveTo(0, -46); g.lineTo(0, -66); g.lineWidth = 4; g.strokeStyle = INK; g.stroke(); circle(0, -70, 7); fs(beat % 2 ? COL.red : COL.yellow, 3); }
+  else face(0, o.kind === 'rice' ? -10 : -8, 30, { eye: o.kind === 'alien' ? 'dot' : (k > 0.5 ? 'happy' : 'dot'), mouth: k > 0.3 ? 'open' : 'smile' });
+  if (o.kind === 'alien') { circle(0, -36, 9); fs('#fff', 3); circle(0, -35, 4); g.fillStyle = INK; g.fill(); g.beginPath(); g.moveTo(-14, -48); g.lineTo(-24, -76); g.moveTo(14, -48); g.lineTo(24, -76); g.lineWidth = 4; g.strokeStyle = INK; g.stroke(); circle(-24, -80, 6); fs(COL.yellow, 3); circle(24, -80, 6); fs(COL.pink, 3); }
+  if (o.hat === 'band') { g.fillStyle = COL.red; rrect(-44, -36, 88, 14, 6); fs(COL.red, 3); g.beginPath(); g.moveTo(40, -30); g.lineTo(62, -40); g.lineTo(60, -20); g.closePath(); fs(COL.red, 3); }
+  if (o.hat === 'flower') { for (let i = 0; i < 5; i++) { const a = i * TAU / 5 - Math.PI / 2; circle(Math.cos(a) * 12, -50 + Math.sin(a) * 12, 9); fs('#ffb3d1', 3); } circle(0, -50, 7); fs(COL.yellow, 3); }
+  if (o.hat === 'bow') { g.beginPath(); g.moveTo(0, -48); g.lineTo(-22, -60); g.lineTo(-22, -36); g.closePath(); g.moveTo(0, -48); g.lineTo(22, -60); g.lineTo(22, -36); g.closePath(); fs(COL.red, 3); circle(0, -48, 6); fs(COL.yellow, 3); }
+  if (o.hat === 'top') { rrect(-24, -86, 48, 40, 6); fs(INK, 0); rrect(-36, -50, 72, 10, 4); fs(INK, 0); g.fillStyle = COL.red; g.fillRect(-24, -60, 48, 8); }
+  g.restore();
+}
+
 // ---------- particles / effects ----------
+const SHAKE = { amp: 0, t: 0 };
+function shake(a) { SHAKE.amp = Math.max(SHAKE.amp, a); SHAKE.t = 0; }
+const JUDGE_LOOK = { p: { t: 'PERFECT!!', s: 60 }, g: { t: 'GREAT!', c: '#ff5fa2', s: 54 }, o: { t: 'GOOD', c: '#3ee0b5', s: 48 }, m: { t: 'MISS', c: '#a59cc2', s: 48 } };
 const FX = {
   list: [],
   add(p) { this.list.push(p); if (this.list.length > 400) this.list.shift(); },
@@ -253,11 +299,16 @@ const FX = {
   stars(x, y, n = 6, c = COL.yellow) { this.burst(x, y, n, [c, '#fff'], 380, { k: 'star', size: 18, grav: 300, life: 0.6 }); },
   ring(x, y, c = '#fff', r = 80) { this.add({ k: 'ring', x, y, t: 0, life: 0.35, c, s: r }); },
   word(x, y, str, c = '#fff', size = 54) { this.add({ k: 'word', x, y, t: 0, life: 0.8, c, s: size, str, vy: -120 }); },
+  judge(x, y, r, sub) {
+    this.list = this.list.filter(p => p.k !== 'judge'); // only the newest judgement stays on screen
+    const L = JUDGE_LOOK[r];
+    this.add({ k: 'judge', x: clamp(x, 170, W - 170), y, t: 0, life: r === 'm' ? 0.6 : 0.7, jr: r, s: L.s, str: L.t, c: L.c, sub, rot: (Math.random() - 0.5) * 0.18, vy: r === 'm' ? 40 : -90 });
+  },
   update(dt) {
     for (const p of this.list) {
       p.t += dt;
       if (p.vx != null) { p.vy += (p.g || 0) * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.985; }
-      if (p.k === 'word') p.y += p.vy * dt;
+      if (p.k === 'word' || p.k === 'judge') p.y += p.vy * dt;
       p.r += (p.vr || 0) * dt;
     }
     this.list = this.list.filter(p => p.t < p.life);
@@ -271,6 +322,18 @@ const FX = {
       else if (p.k === 'dot') { circle(p.x, p.y, p.s * (1 - k * 0.5)); fs(p.c, 3); }
       else if (p.k === 'ring') { circle(p.x, p.y, p.s * (0.4 + ease.outCubic(k) * 0.9)); g.lineWidth = 10 * (1 - k); g.strokeStyle = p.c; g.stroke(); }
       else if (p.k === 'word') { const sc = k < 0.15 ? ease.outBack(k / 0.15) : 1; g.translate(p.x, p.y); g.scale(sc, sc); text(p.str, 0, 0, p.s, p.c); }
+      else if (p.k === 'judge') {
+        const pop = p.t < 0.14 ? ease.outBack(p.t / 0.14) * 1.15 : 1.15 - Math.min(0.15, (p.t - 0.14) * 0.6);
+        g.translate(p.x, p.y); g.rotate(p.rot); g.scale(pop, pop);
+        if (p.jr === 'p') { // rainbow letters + sparkle
+          g.font = `bold ${p.s}px ${FONT}`; const w = g.measureText(p.str).width;
+          const gr = g.createLinearGradient(-w / 2, 0, w / 2, 0);
+          ['#ff4d6d', '#ff8c42', '#ffd23f', '#7bd64f', '#4cc9f0', '#8b5cf6'].forEach((c, i) => gr.addColorStop(i / 5, c));
+          text(p.str, 0, 6, p.s, INK, INK); text(p.str, 0, 0, p.s, gr);
+          for (let i = 0; i < 3; i++) { const a = p.t * 6 + i * 2.1; star(Math.cos(a) * (w / 2 + 16), Math.sin(a) * 30 - 6, 12, 4, 0.4); fs('#fff', 2); }
+        } else { text(p.str, 0, 5, p.s, INK, INK); text(p.str, 0, 0, p.s, p.c); }
+        if (p.sub) text(p.sub, 0, p.s * 0.85, 26, p.sub === 'はやい' ? COL.sky : COL.orange);
+      }
       g.restore();
     }
   },
@@ -538,6 +601,15 @@ const Dr = {
     tone(t, 845, 0.08, { type: 'square', v: 0.07 * v, d: 0.2, s: 0, cut: 2200, ft: 'bandpass', q: 2 });
   },
   crash(t, v = 1) { noise(t, 1.2, { ft: 'highpass', f: 5000, v: 0.16 * v, d: 1.0, rev: 0.4 }); },
+  // build-up whoosh that leads into the next section
+  riser(t, dur, v = 1) { noise(t, dur, { ft: 'bandpass', f: 600, fEnd: 7000, fT: dur, q: 1.2, v: 0.09 * v, a: dur * 0.85, d: 0.05, s: 1, r: 0.05 }); },
+  // crowd-style shout "Hey!" (formant noise + voiced buzz)
+  hey(t, v = 1) {
+    noise(t, 0.14, { f: 1100, q: 3, v: 0.32 * v, a: 0.01, d: 0.12, s: 0.2, rev: 0.3 });
+    noise(t, 0.12, { f: 2500, q: 4, v: 0.18 * v, a: 0.01, d: 0.1, s: 0.2 });
+    tone(t, 190, 0.1, { type: 'sawtooth', from: 240, glide: 0.08, v: 0.1 * v, cut: 1400, q: 2, d: 0.1, s: 0.3, r: 0.05 });
+  },
+  timp(t, v = 1) { tone(t, 90, 0.2, { type: 'sine', from: 140, glide: 0.05, v: 0.5 * v, d: 0.35, s: 0 }); },
 };
 
 // ---------- music DSL ----------
@@ -634,8 +706,29 @@ function renderBars(song, startBar, bars, I) {
       const steps = tokens(bd.mel).length || stepsPerBar; const stepB = bpb / steps;
       for (const nt of parseMel(bd.mel)) song.at(b0 + nt.s * stepB, (t, spb) => I.leadV(t, mtof(nt.n), nt.len * stepB * spb * 0.92));
     }
+    if (bd.crash) song.at(b0, (t) => Dr.crash(t, 0.7));
+    if (bd.riser) song.at(b0, (t, spb) => Dr.riser(t, bpb * spb));
+    if (bd.hey) bd.hey.forEach(p => song.at(b0 + p, (t) => Dr.hey(t)));
+    if (bd.harm && bd.mel && I.harmV) {
+      const steps = tokens(bd.mel).length || stepsPerBar; const stepB = bpb / steps;
+      for (const nt of parseMel(bd.mel)) song.at(b0 + nt.s * stepB, (t, spb) => I.harmV(t, mtof(nt.n + (bd.harm === true ? 12 : bd.harm)), nt.len * stepB * spb * 0.9));
+    }
+    const bp2 = bd.br && I.brass && I.brass[bd.br];
+    if (bp2 && I.brassV) {
+      const tk = tokens(bp2); const stepB = bpb / tk.length; const vo = voicing(ch, 67);
+      tk.forEach((c, k) => { if (c === '.' || c === '-') return; let len = 1; while (tk[k + len] === '-') len++; song.at(b0 + k * stepB, (t, spb) => I.brassV(t, vo.map(mtof), len * stepB * spb * 0.85)); });
+    }
     if (bd.fx) bd.fx(song, b0);
   });
+}
+// add section markers to an arrangement: crash at section starts, riser into them, harmony & brass in choruses
+function decorate(bars, o) {
+  (o.crash || []).forEach(i => { if (bars[i]) bars[i].crash = true; });
+  (o.riser || []).forEach(i => { if (bars[i]) bars[i].riser = true; });
+  (o.harm || []).forEach(([a, b]) => { for (let i = a; i <= b; i++) if (bars[i]) bars[i].harm = true; });
+  (o.brass || []).forEach(([a, b, key]) => { for (let i = a; i <= b; i++) if (bars[i]) bars[i].br = key || 'a'; });
+  for (const k in (o.hey || {})) if (bars[k]) bars[k].hey = o.hey[k];
+  return bars;
 }
 function sec(chords, mels, o = {}) {
   return chords.map((ch, i) => Object.assign({ ch, mel: mels ? mels[i % mels.length] : null }, typeof o === 'function' ? o(i) : o));
@@ -690,6 +783,9 @@ const Inst = {
   stabSaw: (t, fs, d, acc) => fs.forEach(f => tone(t, f, d, { type: 'sawtooth', v: acc ? 0.075 : 0.055, cut: 2800, cutEnd: 700, cutT: 0.14, d: 0.12, s: 0.35, r: 0.05 })),
   stabOrgan: (t, fs, d) => fs.forEach(f => tone(t, f, d, { type: 'square', v: 0.035, cut: 2000, d: 0.05, s: 0.8, r: 0.04 })),
   stabEP: (t, fs, d) => fs.forEach(f => fm(t, f, d, { v: 0.05, ratio: 1, index: 1.2, modT: 0.2, d: 0.25, s: 0.3, r: 0.12 })),
+  brass: (t, fs, d) => fs.forEach(f => tone(t, f, d, { type: 'sawtooth', uni: 2, det: 8, v: 0.045, cut: 900, cutEnd: 3200, cutT: 0.06, a: 0.015, d: 0.12, s: 0.6, r: 0.06, rev: 0.2 })),
+  harmBell: (t, f, d) => fm(t, f, d, { v: 0.05, ratio: 3.5, index: 1.6, d: 0.35, s: 0.1, r: 0.25, rev: 0.4 }),
+  harmTri: (t, f, d) => tone(t, f, d, { type: 'triangle', v: 0.07, d: 0.1, s: 0.6, r: 0.08, vib: 0.006, rev: 0.3 }),
   stabPluck: (t, fs, d) => fs.forEach(f => tone(t, f, Math.min(d, .15), { type: 'triangle', v: 0.07, d: 0.1, s: 0.2, r: 0.05 })),
   pad: (t, fs, d) => fs.forEach(f => tone(t, f, d, { type: 'sawtooth', uni: 2, det: 14, v: 0.045, cut: 1300, a: 0.25, d: 0.3, s: 0.85, r: 0.35, rev: 0.35 })),
   padSoft: (t, fs, d) => fs.forEach(f => tone(t, f, d, { type: 'triangle', uni: 2, det: 8, v: 0.06, a: 0.3, d: 0.3, s: 0.85, r: 0.4, rev: 0.4 })),
@@ -818,9 +914,16 @@ class Run {
     if (r !== 'm' && A.ctx) duck(A.ctx.currentTime + 0.005, 0.6, 0.08);
     if (gm.onJudge) gm.onJudge(this.gs[h.g], h, r, this);
     if (r === 'p' || r === 'g') haptic(r === 'p' ? 'light' : 'soft');
-    if (this.mode === 'practice' && (r === 'g' || r === 'o')) {
-      const pos = gm.guidePos ? gm.guidePos(this.gs[h.g], h, this) : { x: W / 2, y: H * 0.5 };
-      FX.word(pos.x, pos.y - 130, d < 0 ? 'はやい!' : 'おそい!', d < 0 ? COL.sky : COL.orange, 40);
+    // judgement popup & juice
+    const pos = gm.guidePos ? gm.guidePos(this.gs[h.g], h, this) : { x: W / 2, y: H * 0.5 };
+    const sub = (r === 'g' || r === 'o') ? (d < 0 ? 'はやい' : 'おそい') : null;
+    FX.judge(pos.x, pos.y - 150, r, sub);
+    if (r === 'p') { FX.ring(pos.x, pos.y, '#fff', 110); shake(3); }
+    else if (r === 'g') FX.ring(pos.x, pos.y, '#ffd6e7', 80);
+    else if (r === 'm') shake(9);
+    if (r !== 'm' && this.combo > 0 && this.combo % 10 === 0) {
+      this.comboPopB = this.B;
+      if (A.ctx) [84, 88, 91].forEach((n, i) => fm(A.ctx.currentTime + 0.03 + i * 0.045, mtof(n), 0.12, { v: 0.05, bus: A.sfx }));
     }
   }
   _gamePress(gid, h) { const gm = GAMES[gid]; if (gm.onPress) gm.onPress(this.gs[gid], h, this); }
@@ -1010,6 +1113,8 @@ GAMES.onigiri = {
       );
     }
     I.arpV = (t, f, d) => Inst.bell(t, f, d * 0.6);
+    I.harmV = Inst.harmBell; I.brassV = Inst.brass; I.brass = { a: '. . . . x . x .', b: 'x . . x . . x .' };
+    if (!prac) decorate(bars, { crash: [2, 10, 18, 28, 36, 44], riser: [1, 9, 17, 27, 35, 43], harm: [[10, 17], [28, 35], [44, 51]], brass: [[18, 25, 'a'], [44, 51, 'b']], hey: { 1: [3], 27: [3], 52: [2] } });
     renderBars(cb.song, 0, bars, I);
     return bars.length;
   },
@@ -1146,7 +1251,9 @@ GAMES.onigiri = {
     // granny
     let armUp = 0;
     for (const o of st.objs) { if (o.c > B + 0.2) break; armUp = Math.max(armUp, clamp(1 - (B - o.c) / 0.4, 0, 1) * (B >= o.c - 0.1 ? 1 : 0)); }
-    this.drawGranny(150, fy - 120, B, armUp);
+    grooveAt(150, fy, B, 0, () => this.drawGranny(150, fy - 120, B, armUp));
+    dancer(70, fy + 120, 0.85, B, { kind: 'rice', hat: 'band', phase: 0.5 });
+    dancer(650, fy + 120, 0.85, B, { kind: 'rice', hat: 'band', phase: 0 });
     // flying onigiri
     for (const o of st.objs) {
       if (o.c > B) break;
@@ -1167,7 +1274,7 @@ GAMES.onigiri = {
         else { const p = this.path(o, 1); this.drawOnigiri(lerp(p.x, px, ease.inOut(k)), lerp(p.y, py - 40, k) - Math.sin(k * Math.PI) * 120, lerp(sc, 0.7, k), 0, true, 'happy'); }
       }
     }
-    this.drawNorio(570, fy - 100, B, st);
+    grooveAt(570, fy, B, 0.5, () => this.drawNorio(570, fy - 100, B, st));
     crowd(B, run, H - 190 - SAFE_B * 0.5);
   },
   icon(x, y, s) { this.drawOnigiri(x, y, s, -0.15, true, 'happy'); },
@@ -1261,6 +1368,8 @@ GAMES.frog = {
       const L = layout(i);
       bars.push(Object.assign({ ch: L.ch || prog[i % 4] }, L));
     }
+    I.harmV = Inst.harmTri; I.brassV = Inst.brass; I.brass = { a: '. . x . . . x -' };
+    if (nBars >= 40) decorate(bars, { crash: [2, 20, 36], riser: [1, 19, 35], harm: [[18, 19]], brass: [[36, 43, 'a']], hey: { 1: [3], 19: [3], 44: [2] } });
     renderBars(cb.song, 0, bars, I);
   },
   build(diff) {
@@ -1376,7 +1485,8 @@ GAMES.frog = {
     // leader
     g.save(); g.translate(125, wy + 10 + sway);
     g.restore();
-    this.drawFrog(125, wy + 10, 1.12, COL.orange, { open: lOpen, jump: lJump, sac: lSac, bow: true, eye: lOpen > 0.3 ? 'happy' : 'dot', look: respond ? 1 : 0 });
+    grooveAt(125, wy + 60, B, 0, () => this.drawFrog(125, wy + 10, 1.12, COL.orange, { open: lOpen, jump: lJump, sac: lSac, bow: true, eye: lOpen > 0.3 ? 'happy' : 'dot', look: respond ? 1 : 0 }));
+    if (true) { g.save(); g.translate(125, wy - 70 - lJump); rrect(-26, -62, 52, 46, 6); fs(INK, 0); rrect(-40, -20, 80, 12, 5); fs(INK, 0); g.fillStyle = COL.red; g.fillRect(-26, -30, 52, 8); g.restore(); }
     // baton pointing to the chorus during response
     if (respond) { g.save(); g.translate(205, wy - 60 - lJump); g.rotate(-0.4 + Math.sin(B * Math.PI) * 0.25); g.fillStyle = '#fff'; g.fillRect(0, -4, 90, 8); g.lineWidth = 3; g.strokeStyle = INK; g.strokeRect(0, -4, 90, 8); circle(0, 0, 10); fs(COL.yellow, 3); g.restore(); }
     if (calling && !respond) { text('♪', 205 + Math.sin(B * 3) * 6, wy - 190 - lJump, 54, COL.yellow); }
@@ -1386,9 +1496,12 @@ GAMES.frog = {
     const pJump = st.pHigh && dp >= 0 && dp < 0.45 ? Math.sin(Math.PI * dp / 0.45) * 60 : 0;
     const sour = st.pRes === 'stray' || st.pRes === 'o';
     const missRecent = B - st.missB >= 0 && B - st.missB < 1;
-    this.drawFrog(290, wy + 15 + Math.sin(B * Math.PI + 1) * 4, 0.92, COL.pink, { open: pOpen * 0.8, jump: pJump * 0.8, look: missRecent ? 1 : 0, eye: missRecent ? 'dot' : pOpen > 0.3 ? 'happy' : 'dot' });
-    this.drawFrog(445, wy + 15 + Math.sin(B * Math.PI + 2) * 4, 0.92, COL.sky, { open: pOpen * 0.8, jump: pJump * 0.8, look: missRecent ? 1 : 0, eye: pOpen > 0.3 ? 'happy' : 'dot' });
-    this.drawFrog(600, wy + 10 + sway, 1.0, COL.green, { open: pOpen, jump: pJump, sac: pOpen, badge: true, eye: missRecent ? 'x' : sour && pOpen > 0 ? 'dot' : pOpen > 0.3 ? 'happy' : 'dot' });
+    grooveAt(290, wy + 60, B, 0.25, () => this.drawFrog(290, wy + 15, 0.92, COL.pink, { open: pOpen * 0.8, jump: pJump * 0.8, look: missRecent ? 1 : 0, eye: missRecent ? 'dot' : pOpen > 0.3 ? 'happy' : 'dot' }));
+    grooveAt(445, wy + 60, B, 0.5, () => this.drawFrog(445, wy + 15, 0.92, COL.sky, { open: pOpen * 0.8, jump: pJump * 0.8, look: missRecent ? 1 : 0, eye: pOpen > 0.3 ? 'happy' : 'dot' }));
+    grooveAt(600, wy + 60, B, 0.75, () => this.drawFrog(600, wy + 10, 1.0, COL.green, { open: pOpen, jump: pJump, sac: pOpen, badge: true, eye: missRecent ? 'x' : sour && pOpen > 0 ? 'dot' : pOpen > 0.3 ? 'happy' : 'dot' }));
+    dancer(110, wy + 215, 0.8, B, { col: '#9be7a0', hat: 'flower', phase: 0.5 });
+    dancer(615, wy + 215, 0.8, B, { col: '#ffd6a5', hat: 'flower', phase: 0 });
+    for (let i = 0; i < 8; i++) { const a = B * 0.7 + i * 0.8; const fx = 60 + i * 85 + Math.sin(a) * 20, fyy = wy - 260 + Math.cos(a * 1.3) * 40; circle(fx, fyy, 6 + pulse(B + i * 0.25, 4) * 4); g.fillStyle = 'rgba(255,240,120,0.85)'; g.fill(); }
     if (missRecent) text('!?', 660, wy - 150, 48, COL.red);
     crowd(B, run, H - 170 - SAFE_B * 0.5);
   },
@@ -1471,6 +1584,8 @@ GAMES.robo = {
   music(cb, nBars, layout) {
     const I = this.kit(); const bars = [];
     for (let i = 0; i < nBars; i++) bars.push(layout(i));
+    I.harmV = Inst.harmBell; I.brassV = Inst.brass; I.brass = { a: '. . x . . x . x', b: 'x - . x . . x .' };
+    if (nBars >= 40) decorate(bars, { crash: [2, 10, 20, 28, 36], riser: [1, 9, 19, 27, 35], harm: [[20, 35], [40, 43]], brass: [[10, 17, 'a'], [28, 35, 'b']], hey: { 1: [3], 18: [1, 3], 19: [3], 44: [2] } });
     renderBars(cb.song, 0, bars, I);
   },
   arrangement(i) {
@@ -1618,7 +1733,7 @@ GAMES.robo = {
     rrect(rx - 92, ry + 40, 50, 120, 10); fs('#5c677d', 5);
     circle(rx - 67, ry + 40 - (slam > 0.5 ? 0 : 6), 22); fs(COL.red, 5);
     g.save(); g.translate(rx + 70, ry + 120); g.rotate(lever ? -0.9 : 0.3); g.fillStyle = '#adb5bd'; g.fillRect(-5, -80, 10, 80); g.lineWidth = 4; g.strokeStyle = INK; g.strokeRect(-5, -80, 10, 80); circle(0, -84, 14); fs(COL.yellow, 4); g.restore();
-    g.save(); g.translate(rx, ry + bob);
+    const gq = groove(B, 0.5); g.save(); g.translate(rx, ry + 100); g.rotate(gq.lean); g.scale(gq.sx, gq.sy); g.translate(0, -100 + bob);
     popShape(() => rrect(-62, -40, 124, 140, 30), '#ffd23f');
     rrect(-48, -110, 96, 76, 22); fs('#ffd23f', 6);
     g.beginPath(); g.moveTo(0, -110); g.lineTo(0, -140); g.lineWidth = 5; g.strokeStyle = INK; g.stroke(); circle(0, -146, 10); fs(pulse(B, 4) > 0.5 ? COL.red : '#ff9eb5', 4);
@@ -1633,6 +1748,8 @@ GAMES.robo = {
     // done counter
     let ok = 0; for (const o of st.objs) if (o.hit.res && o.hit.res !== 'm') ok++;
     rrect(30, cy + 110, 200, 70, 20); fs('#fff', 5); text('完成 ' + ok, 130, cy + 146, 34, INK, null);
+    dancer(300, cy + 175, 0.75, B, { kind: 'bot', col: COL.pink, phase: 0.5 });
+    dancer(410, cy + 175, 0.75, B, { kind: 'bot', col: COL.mint, phase: 0 });
     crowd(B, run, H - 170 - SAFE_B * 0.5);
   },
   icon(x, y, s) { this.drawHead(x, y + 40 * s, s, { type: 'n', hue: 0 }, 'good', 0); },
@@ -1727,7 +1844,14 @@ GAMES.pong = {
       else if (sect === 1) bars.push({ ch: B_[k % 4], dr: k === 7 ? 'fill' : 'half', bs: 'b', pad: true, mel: mB[k % 4] });
       else if (sect === 2) bars.push({ ch: A_[k % 4], dr: 'half2', bs: 'a', st: 'a', arp: 'a', mel: k >= 4 ? mA[k % 4] : null });
       else bars.push({ ch: B_[k % 4], dr: k === 7 ? 'fill' : 'half2', bs: 'b', pad: true, arp: 'a', mel: mB[k % 4] });
+      const cur = bars[bars.length - 1];
+      if (k === 0) cur.crash = true;
+      if (k === 7) cur.riser = true;
+      if (sect === 1 || sect === 3) cur.harm = true;
+      if (sect >= 2) cur.br = k % 2 ? 'b' : 'a';
     }
+    I.harmV = Inst.harmBell; I.brassV = Inst.brass; I.brass = { a: '. . . . x - . .', b: '. . x . . . x .' };
+    if (bars[1]) bars[1].hey = [3];
     renderBars(cb.song, 0, bars, I);
   },
   build(diff) {
@@ -1864,13 +1988,16 @@ GAMES.pong = {
         else if (k < 2) { const p = this.pOut(k / 2); this.ball(p.x, p.y, 16); }
       }
     }
-    this.drawAlien(150, ty - 110, B, { swing: alienSwing, ko, sad });
+    grooveAt(150, ty - 20, B, 0, () => this.drawAlien(150, ty - 110, B, { swing: alienSwing, ko, sad }));
     if (ko) { for (let i = 0; i < 3; i++) { const a = B * 4 + i * TAU / 3; star(150 + Math.cos(a) * 80, ty - 250 + Math.sin(a) * 16, 14); fs(COL.yellow, 3); } text('KO!', 140, ty - 300, 60, COL.red); }
     const ds = B - st.swingB, dsm = B - st.smashB;
     const swing = Math.max(ds >= 0 && ds < 0.25 ? 1 - ds / 0.25 : 0, dsm >= 0 && dsm < 0.3 ? 1 : 0);
     let dizzy = false; for (const o of st.objs) { if (o.hit.res === 'm' && B - o.h > 0 && B - o.h < 1) dizzy = true; }
-    this.drawCat(585, ty - 100, B, { swing, happy: (ds >= 0 && ds < 0.4) || (dsm >= 0 && dsm < 1), dizzy });
+    grooveAt(585, ty + 10, B, 0.5, () => this.drawCat(585, ty - 100, B, { swing, happy: (ds >= 0 && ds < 0.4) || (dsm >= 0 && dsm < 1), dizzy }));
     g.restore();
+    // cheering aliens on a little UFO
+    { const ux = 200 + Math.sin(B * 0.5) * 60, uy = 300 + SAFE_T * 0.5; ell(ux, uy + 40, 120, 30); fs('#b8c0ff', 5); ell(ux, uy + 30, 60, 30); fs('rgba(180,230,255,0.5)', 4); for (let i = 0; i < 5; i++) { circle(ux - 90 + i * 45, uy + 48, 7); fs(frac(B / 2 + i * 0.2) < 0.5 ? COL.yellow : COL.pink, 3); }
+      dancer(ux - 34, uy + 2, 0.5, B, { kind: 'alien', col: '#7bd64f', phase: 0 }); dancer(ux + 34, uy + 2, 0.5, B, { kind: 'alien', col: '#c084fc', phase: 0.5 }); }
     crowd(B, run, H - 170 - SAFE_B * 0.5);
   },
   icon(x, y, s) { g.save(); g.translate(x, y); g.scale(s, s); circle(0, 0, 44); fs(COL.red, 5); g.fillStyle = '#8d6e63'; g.fillRect(-8, 36, 16, 50); g.lineWidth = 4; g.strokeStyle = INK; g.strokeRect(-8, 36, 16, 50); this.ball(40, -40, 16); g.restore(); },
@@ -1975,6 +2102,9 @@ GAMES.balloon = {
       bars.push({ ch, dr: k === 7 ? 'fill' : (sect >= 2 ? 'w2' : 'w'), bs: k % 2 ? 'w5' : 'w', st: 'w', mel: prac ? null : (sect === 0 ? null : useB ? mB[k] : mA[k]), arp: sect === 0 && !prac ? 'a' : null });
     }
     I.arpV = (t, f, d) => Inst.bell(t, f, d * 0.5);
+    I.harmV = Inst.harmTri; I.brassV = Inst.brass; I.brass = { a: 'x - - . . .' };
+    if (!prac) bars.forEach((b, i) => { if (i < 2 || i >= nBars - 2) return; const j = i - 2, k = j % 8, sect = Math.floor(j / 8) % 4; if (k === 0) b.crash = true; if (k === 7) b.riser = true; if (sect % 2 === 1) b.harm = true; if (sect >= 2 && k % 4 === 0) b.br = 'a'; });
+    if (!prac && bars[nBars - 2]) bars[nBars - 2].hey = [2];
     renderBars(cb.song, 0, bars, I);
   },
   patterns(diff) {
@@ -2117,7 +2247,10 @@ GAMES.balloon = {
     this.drawPump(200, fy - 10, cPress);
     if (cBal > 0) this.drawBalloon(225, fy - 400, 0.45 + cBal * 0.6, COL.yellow, 0, B * 3);
     if (cRel >= 0 && cRel < 0.8) this.drawBalloon(225 + cRel * 120, fy - 400 - cRel * 400, 0.95, COL.yellow, 0, B * 3);
-    this.drawClown(90, fy - 130, B, cPress);
+    grooveAt(90, fy, B, 0, () => this.drawClown(90, fy - 130, B, cPress));
+    // juggling performer in the middle
+    { const jx = 335, jy = fy + 40; dancer(jx, jy + 10, 0.85, B, { col: '#9ad1ff', hat: 'top', phase: 0.5 });
+      for (let i = 0; i < 3; i++) { const a = (B / 1.5 + i / 3) * TAU; circle(jx + Math.cos(a) * 60, jy - 120 - Math.abs(Math.sin(a)) * 80, 14); fs([COL.red, COL.yellow, COL.mint][i], 3); } }
     // player
     const holding = st.holding; const hb = B - st.holdStartB;
     let pPress = holding ? 1 : 0; let mood = null;
@@ -2136,7 +2269,7 @@ GAMES.balloon = {
       const over = o && hb > len + 0.15;
       this.drawBalloon(495 + (over ? Math.sin(B * 60) * 6 : 0), fy - 400, 0.45 + grow * 0.6, over ? COL.red : COL.sky, 0, B * 3);
     }
-    this.drawBunny(625, fy - 110, B, pPress, mood);
+    grooveAt(625, fy, B, 0.5, () => this.drawBunny(625, fy - 110, B, pPress, mood));
     crowd(B, run, H - 190 - SAFE_B * 0.5);
   },
   icon(x, y, s) { this.drawBalloon(x, y - 10 * s, s * 0.7, COL.pink, 2, 0); },
@@ -2220,6 +2353,11 @@ GAMES.remix = {
     for (const s of segStarts) cb.song.at(s * 4, (t) => Dr.crash(t, 0.8));
     // turn the 'fill' on a seg start into a normal groove (fill was just a marker for crash)
     bars.forEach((b, i) => { if (b.dr === 'fill' && i >= 2) b.dr = 'fes2'; });
+    I.harmV = Inst.harmBell; I.brassV = Inst.brass; I.brass = { a: '. . x . . x . .', b: 'x . . x . . x .' };
+    bars.forEach((b, i) => { const j = i - 2, sect = Math.floor(j / 8) % 4; if (i >= 2 && i < nBars - 2) { if (sect % 2 === 1) b.harm = true; if (sect >= 1) b.br = sect % 2 ? 'b' : 'a'; } });
+    for (const s of segStarts) if (bars[s - 1]) bars[s - 1].riser = true;
+    if (bars[1]) bars[1].hey = [1, 3];
+    if (bars[nBars - 2]) bars[nBars - 2].hey = [2];
     renderBars(cb.song, 0, bars, I);
   },
   build(diff) {
@@ -2475,7 +2613,18 @@ Scenes.play = {
     const seg = r.c.segs.length ? r.gameAt(B) : null;
     const gid = seg ? seg.g : r.c.id;
     const gm = GAMES[gid];
+    HYPE = 0.8 + Math.min(r.combo || 0, 30) / 30;
+    SHAKE.t += 1 / 60; const sa = SHAKE.amp * Math.max(0, 1 - SHAKE.t / 0.25);
+    g.save(); if (sa > 0.2) g.translate((Math.random() - 0.5) * sa * 2, (Math.random() - 0.5) * sa * 2);
     gm.draw(r, B, r.gs[gid], seg ? seg.theme : null);
+    g.restore();
+    // combo HUD
+    if ((r.combo || 0) >= 5) {
+      const since = B - (r.comboPopB ?? -9); const sc = since >= 0 && since < 0.5 ? 1 + 0.35 * Math.exp(-since * 8) : 1 + pulse(B, 8) * 0.05;
+      g.save(); g.translate(W - 110, SAFE_T + 150); g.scale(sc, sc); g.rotate(0.06);
+      text(String(r.combo), 0, 0, 64, r.combo >= 30 ? COL.yellow : '#fff'); text('COMBO', 0, 44, 24, COL.yellow);
+      g.restore();
+    }
     if (seg) GAMES.remix.drawOverlay(r, B);
     // guide rings
     if (r.guide) {
@@ -2597,7 +2746,7 @@ Scenes.result = {
     // breakdown
     const by = cy + 200;
     if (t > 2.2) {
-      const items = [['ピッタリ', a.st.p, COL.pink], ['いい感じ', a.st.g, COL.mint], ['ギリギリ', a.st.o, COL.sky], ['ミス', a.st.m, '#8a8aa0']];
+      const items = [['PERFECT', a.st.p, COL.orange], ['GREAT', a.st.g, COL.pink], ['GOOD', a.st.o, COL.mint], ['MISS', a.st.m, '#8a8aa0']];
       items.forEach(([l, v, c], i) => { const x = 50 + i * 158; rrect(x, by, 146, 110, 24); fs(c, 5); text(l, x + 73, by + 32, 24, '#fff'); text(String(v), x + 73, by + 76, 40, '#fff'); });
       const e = a.st.early, l = a.st.late;
       let tip = e + l < 3 ? 'タイミングばっちり!' : e > l * 1.5 ? '全体的に はやめ。ひと呼吸まって!' : l > e * 1.5 ? '全体的に おそめ。音の頭をねらおう!' : 'はやい・おそいが まざってる。体でリズムを!';
