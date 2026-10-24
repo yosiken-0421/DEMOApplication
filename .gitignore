@@ -16,3 +16,6 @@ ios/Payload/
 # PC ビューアーのビルド成果物
 viewer/dist/
 viewer/puzzleroute-viewer*
+# トントン☆パレード（xcodegen で生成されるもの）
+apps/TontonParade/*.xcodeproj/
+apps/TontonParade/App/Info.plist
