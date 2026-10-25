@@ -1,0 +1,104 @@
+name: PIKOPIA verify and finish internal TestFlight
+on:
+  push:
+    branches: [pikopia/testflight]
+    paths: ['.github/workflows/pikopia-finalize-testflight.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pikopia-testflight-finalize
+  cancel-in-progress: false
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Prepare Apple API client
+        run: |
+          python3 -m venv "$RUNNER_TEMP/pikopia-api"
+          "$RUNNER_TEMP/pikopia-api/bin/pip" install --quiet pyjwt cryptography requests
+      - name: Verify processed build and add only the existing account administrator
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          "$RUNNER_TEMP/pikopia-api/bin/python" - <<'PY'
+          import base64,os,re,time,json,jwt,requests
+          APP='6826824653'
+          GROUP='c7cc5ede-f20e-448b-84f5-a7a898aefa4d'
+          raw=re.sub(r'-----(BEGIN|END)[^-]*-----','',os.environ['ASC_KEY_P8'])
+          raw=re.sub(r'[^A-Za-z0-9+/=]','',raw)
+          der=base64.b64decode(raw+'='*(-len(raw)%4))
+          b64=base64.b64encode(der).decode()
+          pem='-----BEGIN PRIVATE KEY-----\n'+'\n'.join(b64[i:i+64] for i in range(0,len(b64),64))+'\n-----END PRIVATE KEY-----\n'
+          now=int(time.time())
+          token=jwt.encode({'iss':os.environ['ASC_ISSUER_ID'].strip(),'iat':now,'exp':now+600,'aud':'appstoreconnect-v1'},pem,algorithm='ES256',headers={'kid':os.environ['ASC_KEY_ID'].strip(),'typ':'JWT'})
+          s=requests.Session();s.headers.update({'Authorization':'Bearer '+token,'Content-Type':'application/json'})
+          base='https://api.appstoreconnect.apple.com/v1'
+          def call(method,path,params=None,payload=None):
+              r=s.request(method,base+path,params=params,json=payload,timeout=40)
+              if not r.ok:
+                  try: codes=','.join(e.get('code','UNKNOWN') for e in r.json().get('errors',[]))
+                  except Exception: codes='UNKNOWN'
+                  raise SystemExit('Apple API operation failed: '+method+' '+path.split('/relationships')[0].split('?')[0]+' HTTP '+str(r.status_code)+' '+codes)
+              return r.json() if r.content else {}
+          def listing(path,params=None):
+              result=call('GET',path,params=params)
+              if result.get('links',{}).get('next'): raise SystemExit('Refusing incomplete recipient or relationship list')
+              return result.get('data',[])
+          app=call('GET','/apps/'+APP)['data']
+          if app['attributes']['bundleId']!='com.yosiken0421.pikopia': raise SystemExit('Wrong app; no changes made')
+          group=call('GET','/betaGroups/'+GROUP,params={'include':'app'})['data']
+          if not group['attributes']['isInternalGroup'] or group['relationships']['app']['data']['id']!=APP:
+              raise SystemExit('Wrong group; no changes made')
+          result=call('GET','/builds',params={'filter[app]':APP,'filter[version]':'9001','include':'buildBetaDetail,preReleaseVersion','limit':10})
+          builds=result.get('data',[])
+          if len(builds)!=1: raise SystemExit('Expected PIKOPIA build not uniquely available yet')
+          build=builds[0];bid=build['id'];a=build['attributes']
+          print('PIKOPIA build 9001 processing state: '+str(a.get('processingState')))
+          if a.get('processingState')!='VALID' or a.get('expired'):
+              raise SystemExit('Build is not ready; no tester changes made')
+          included=result.get('included',[])
+          detail=next((x['attributes'] for x in included if x['type']=='buildBetaDetails'),{})
+          version=next((x['attributes'].get('version') for x in included if x['type']=='preReleaseVersions'),None)
+          if version!='0.1.0': raise SystemExit('Wrong app version; refusing tester changes')
+          print('PIKOPIA app version: '+version)
+          print('PIKOPIA internal build state: '+str(detail.get('internalBuildState','UNKNOWN')))
+          users=listing('/users',{'limit':200})
+          admins=[u for u in users if 'ADMIN' in u.get('attributes',{}).get('roles',[])]
+          # Earlier account UI established exactly one administrator: the
+          # signed-in account owner. Do not guess when that is no longer unique.
+          if len(admins)!=1: raise SystemExit('Administrator recipient is ambiguous; no invitations sent')
+          admin=admins[0]['attributes'];email=admin.get('username','')
+          if not email or '@' not in email: raise SystemExit('Administrator has no usable email; no invitations sent')
+          testers=listing('/betaTesters',{'filter[email]':email,'limit':200})
+          matches=[t for t in testers if t['attributes'].get('email','').casefold()==email.casefold()]
+          if len(matches)>1: raise SystemExit('Tester identity is ambiguous; no invitations sent')
+          group_builds=listing('/betaGroups/'+GROUP+'/builds',{'limit':200})
+          if not any(b['id']==bid for b in group_builds):
+              call('POST','/betaGroups/'+GROUP+'/relationships/builds',payload={'data':[{'type':'builds','id':bid}]})
+          if matches:
+              tid=matches[0]['id']
+              current=listing('/betaGroups/'+GROUP+'/betaTesters',{'limit':200})
+              if not any(t['id']==tid for t in current):
+                  call('POST','/betaGroups/'+GROUP+'/relationships/betaTesters',payload={'data':[{'type':'betaTesters','id':tid}]})
+          else:
+              attributes={'email':email}
+              for name in ['firstName','lastName']:
+                  if admin.get(name): attributes[name]=admin[name]
+              created=call('POST','/betaTesters',payload={'data':{'type':'betaTesters','attributes':attributes,'relationships':{'betaGroups':{'data':[{'type':'betaGroups','id':GROUP}]}}}})
+              tid=created['data']['id']
+          final_builds=listing('/betaGroups/'+GROUP+'/builds',{'limit':200})
+          final_testers=listing('/betaGroups/'+GROUP+'/betaTesters',{'limit':200})
+          if not any(b['id']==bid for b in final_builds) or not any(t['id']==tid for t in final_testers):
+              raise SystemExit('Assignment verification did not pass')
+          detail=call('GET','/builds/'+bid+'/buildBetaDetail')['data']['attributes']
+          state=detail.get('internalBuildState','UNKNOWN')
+          print('PIKOPIA build-to-group assignment: VERIFIED')
+          print('Requested administrator tester assignment: VERIFIED')
+          print('PIKOPIA internal build state after assignment: '+state)
+          print('PIKOPIA TESTFLIGHT DELIVERY '+('READY' if state=='IN_BETA_TESTING' else 'ASSIGNED_PENDING_STATE'))
+          # No emails, user IDs, account records, keys, or tokens in public logs.
+          PY
