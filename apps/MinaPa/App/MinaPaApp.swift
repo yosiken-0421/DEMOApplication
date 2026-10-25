@@ -4,8 +4,8 @@ import AVFoundation
 @main
 struct MinaPaApp: App {
     init() {
-        // 他のアプリの音楽を止めずに効果音を鳴らす
-        try? AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+        // マナーモード(消音スイッチ)でもBGM・効果音が鳴るようにする（他のアプリの音楽は止めない）
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
         try? AVAudioSession.sharedInstance().setActive(true)
     }
 

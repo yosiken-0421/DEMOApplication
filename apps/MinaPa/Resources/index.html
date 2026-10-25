@@ -125,6 +125,7 @@ h2{margin:4px 0 12px;font-size:24px;color:#fff;text-shadow:0 3px 0 var(--purple)
 
   <!-- タイトル -->
   <section class="screen" id="s-title">
+    <button class="back" id="bgmBtn" style="left:auto;right:14px;top:auto;bottom:calc(var(--sb) + 14px)" onclick="BGM.toggle()">🎵</button>
     <div class="tag">みんなでワイワイ ミニゲームパーティー</div>
     <h1 class="logo"><span>み</span><span>な</span><span>パ</span><span>！</span></h1>
     <div class="hero" id="titleHero"></div>
@@ -1098,6 +1099,131 @@ function drawFx(g, fx) {
 /* ============================================================
    ゲーム実行
    ============================================================ */
+/* ============================================================
+   BGM（オリジナル曲をその場で演奏）
+   ============================================================ */
+const NOTE_IDX = { C: 0, "C#": 1, Db: 1, D: 2, "D#": 3, Eb: 3, E: 4, F: 5, "F#": 6, Gb: 6, G: 7, "G#": 8, Ab: 8, A: 9, "A#": 10, Bb: 10, B: 11 };
+function noteHz(n) { const m = /^([A-G][#b]?)(\d)$/.exec(n); if (!m) return 0; return 440 * Math.pow(2, (NOTE_IDX[m[1]] + 12 * (+m[2] + 1) - 69) / 12); }
+const CHORD = {
+  C: ["C3", "E3", "G3"], F: ["F2", "A2", "C3"], Am: ["A2", "C3", "E3"], G: ["G2", "B2", "D3"], E: ["E2", "G#2", "B2"], Dm: ["D3", "F3", "A3"]
+};
+function song(o) {
+  o.mel = o.mel.replace(/\|/g, " ").trim().split(/\s+/);
+  o.len = o.mel.length * 2;
+  return o;
+}
+const BGM = {
+  songs: {
+    menu: song({
+      bpm: 112, chords: ["C", "F", "Am", "G", "C", "F", "G", "C"], bass: "R . O . R . O .", drum: "k.h.s.h.k.hks.h.", arp: false,
+      mel: "E5 - G5 - C6 - G5 E5 | F5 - A5 - C6 - A5 F5 | E5 - A5 - C6 - B5 A5 | G5 - - - D5 - . . | E5 G5 C6 G5 E5 G5 C6 E6 | D6 C6 A5 F5 A5 C6 - A5 | B5 - D6 - B5 G5 A5 B5 | C6 - - - . . . ."
+    }),
+    game: song({
+      bpm: 150, chords: ["Am", "F", "C", "G", "Am", "F", "G", "E"], bass: "R R O R R R O R", drum: "x.hhs.hhx.hxs.hh", arp: true,
+      mel: "A4 - C5 E5 A5 - G5 E5 | F5 - E5 - C5 - A4 C5 | G5 - E5 G5 C6 - B5 G5 | D5 - B4 D5 G5 - . G5 | A5 G5 E5 A5 G5 E5 C5 E5 | F5 A5 C6 A5 F5 C5 A4 C5 | B4 D5 G5 B5 D6 - B5 G5 | G#5 - E5 - B4 - G#4 B4"
+    })
+  },
+  cur: null, want: null, timer: 0, step: 0, nextT: 0, rate: 1, out: null, noise: null,
+  enabled() { return Save.d.bgm !== false; },
+  ensure() {
+    const c = Snd.ctx; if (!c) return null;
+    if (!this.noise) {
+      const b = c.createBuffer(1, c.sampleRate * 0.5, c.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      this.noise = b;
+    }
+    if (!this.out) { this.out = c.createGain(); this.out.gain.value = 0.5; this.out.connect(c.destination); }
+    return c;
+  },
+  request(name) { this.want = name; this.play(name); },
+  play(name) {
+    if (this.cur === name && this.timer) return;
+    this.stop(true);
+    if (!this.enabled() || !Snd.ctx) return;
+    const c = this.ensure(); if (!c) return;
+    this.cur = name; this.rate = 1; this.step = 0; this.nextT = c.currentTime + 0.08;
+    this.timer = setInterval(() => this.tick(), 25);
+  },
+  stop(keepWant) {
+    clearInterval(this.timer); this.timer = 0; this.cur = null;
+    if (!keepWant) this.want = null;
+    const c = Snd.ctx, o = this.out;
+    if (c && o) {
+      const t = c.currentTime;
+      o.gain.cancelScheduledValues(t); o.gain.setValueAtTime(o.gain.value, t); o.gain.linearRampToValueAtTime(0.0001, t + 0.15);
+      setTimeout(() => { try { o.disconnect(); } catch (e) {} }, 400);
+      this.out = null;
+    }
+  },
+  wake() { if (this.want && !this.timer) this.play(this.want); },
+  setRate(r) { this.rate = r; },
+  toggle() {
+    Save.d.bgm = !this.enabled(); Save.save();
+    if (this.enabled()) { Snd.init(); this.play(this.want || "menu"); } else { const w = this.want; this.stop(); this.want = w; }
+    this.icon();
+  },
+  icon() { const b = $("bgmBtn"); if (b) b.textContent = this.enabled() ? "🎵" : "🔇"; },
+  tick() {
+    const c = Snd.ctx, S = this.songs[this.cur];
+    if (!c || !S) return;
+    if (c.state !== "running") { this.nextT = c.currentTime + 0.05; return; }
+    const dt = 60 / S.bpm / 4 / this.rate;
+    if (this.nextT < c.currentTime - 0.2) this.nextT = c.currentTime + 0.03;
+    while (this.nextT < c.currentTime + 0.12) {
+      this.playStep(S, this.step, this.nextT, dt);
+      this.nextT += dt; this.step = (this.step + 1) % S.len;
+    }
+  },
+  playStep(S, st, t, dt) {
+    const bar = Math.floor(st / 16) % S.chords.length, chord = CHORD[S.chords[bar]], s16 = st % 16;
+    // ドラム
+    const d = S.drum[s16];
+    if (d === "k" || d === "x") this.kick(t);
+    if (d === "s") this.snare(t);
+    if (d === "h" || d === "x") this.hat(t);
+    // メロディ（8分音符単位、"-" でのばす）
+    if (st % 2 === 0) {
+      const i = st / 2, tok = S.mel[i];
+      if (tok && tok !== "-" && tok !== ".") {
+        let hold = 1; while (S.mel[(i + hold) % S.mel.length] === "-" && hold < 8) hold++;
+        const f = noteHz(tok), dur = hold * 2 * dt;
+        this.voice("square", f, t, dur * 0.92, 0.045);
+        this.voice("triangle", f, t, dur * 0.92, 0.05);
+        this.voice("square", f, t + dt * 3, dur * 0.6, 0.012); // ちょっとエコー
+      }
+      // ベース
+      const bp = S.bass.split(" ")[(st / 2) % 8];
+      if (bp === "R" || bp === "O") {
+        const f = noteHz(chord[0]) * (bp === "O" ? 2 : 1);
+        this.voice("triangle", f, t, dt * 1.7, 0.2);
+      }
+    }
+    // アルペジオ
+    if (S.arp) { const f = noteHz(chord[s16 % 3]) * 4; this.voice("square", f, t, dt * 0.8, 0.014); }
+  },
+  voice(type, f, t, d, v) {
+    const c = Snd.ctx, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.012);
+    g.gain.setValueAtTime(v * 0.8, t + Math.max(0.02, d - 0.04)); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.03);
+    o.connect(g); g.connect(this.out); o.start(t); o.stop(t + d + 0.05);
+  },
+  kick(t) {
+    const c = Snd.ctx, o = c.createOscillator(), g = c.createGain();
+    o.type = "sine"; o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12);
+    g.gain.setValueAtTime(0.45, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    o.connect(g); g.connect(this.out); o.start(t); o.stop(t + 0.18);
+  },
+  noiseHit(t, freq, len, v) {
+    const c = Snd.ctx, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    s.buffer = this.noise; f.type = "highpass"; f.frequency.value = freq;
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    s.connect(f); f.connect(g); g.connect(this.out); s.start(t); s.stop(t + len + 0.02);
+  },
+  snare(t) { this.noiseHit(t, 1500, 0.13, 0.13); this.voice("triangle", 190, t, 0.06, 0.08); },
+  hat(t) { this.noiseHit(t, 7000, 0.035, 0.045); }
+};
+
 const Runner = {
   cv: null, g: null, game: null, raf: 0, onEnd: null, liveCb: null,
   start(id, seed, onEnd, liveCb) {
@@ -1108,7 +1234,7 @@ const Runner = {
     this.cv.width = W * dpr; this.cv.height = H * dpr; this.g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const proto = GAMES[id];
     this.game = Object.create(proto); this.game.init(W, H, RNG(seed));
-    this.id = id; this.onEnd = onEnd; this.liveCb = liveCb; this.state = "count"; this.elapsed = 0; this.count = 3.5; this.lastLive = -1;
+    this.id = id; this.onEnd = onEnd; this.liveCb = liveCb; this.hurry = false; this.state = "count"; this.elapsed = 0; this.count = 3.5; this.lastLive = -1;
     $("hudName").textContent = proto.icon + " " + proto.name; $("hudScore").textContent = "0";
     $("tbar").style.visibility = proto.timeLimit ? "visible" : "hidden"; $("tbarI").style.transform = "scaleX(1)";
     this.showOverlay("3", "big"); Snd.tick();
@@ -1124,16 +1250,17 @@ const Runner = {
     if (this.state === "count") {
       const before = Math.ceil(this.count - 0.5); this.count -= dt; const after = Math.ceil(this.count - 0.5);
       if (after !== before) { if (after > 0) { this.showOverlay(String(after), "big"); Snd.tick(); } else { this.showOverlay("スタート！", "mid"); Snd.go(); } }
-      if (this.count <= 0) { this.state = "play"; setTimeout(() => this.hideOverlay(), 450); }
+      if (this.count <= 0) { this.state = "play"; BGM.request("game"); setTimeout(() => this.hideOverlay(), 450); }
       gm.draw(this.g); return;
     }
     if (this.state === "play") {
       gm.update(dt); this.elapsed += dt;
       const lim = GAMES[this.id].timeLimit;
+      if (lim && !this.hurry && lim - this.elapsed < 5) { this.hurry = true; BGM.setRate(1.22); }
       if (lim) $("tbarI").style.transform = `scaleX(${clamp(1 - this.elapsed / lim, 0, 1)})`;
       $("hudScore").textContent = gm.score;
       if (this.liveCb && Math.floor(this.elapsed * 2) !== this.lastLive) { this.lastLive = Math.floor(this.elapsed * 2); this.liveCb(gm.score); }
-      if ((lim && this.elapsed >= lim) || gm.done || this.elapsed > (GAMES[this.id].maxTime || 40)) { this.state = "end"; this.endT = 0; this.showOverlay("そこまで！", "mid"); Snd.fanfare(); Native.haptic("success"); }
+      if ((lim && this.elapsed >= lim) || gm.done || this.elapsed > (GAMES[this.id].maxTime || 40)) { this.state = "end"; this.endT = 0; BGM.stop(); this.showOverlay("そこまで！", "mid"); Snd.fanfare(); Native.haptic("success"); }
       gm.draw(this.g); return;
     }
     if (this.state === "end") {
@@ -1163,6 +1290,9 @@ const UI = {
     Snd.init();
     document.querySelectorAll(".screen").forEach((s) => s.classList.remove("on"));
     $("s-" + name).classList.add("on"); this.cur = name;
+    if (["title", "chars", "solo", "records", "online", "lobby", "intro", "wait"].includes(name)) BGM.request("menu");
+    else if (name === "game") BGM.stop();
+    else if (name === "result") { BGM.stop(); clearTimeout(UI._bgmT); UI._bgmT = setTimeout(() => { if (UI.cur === "result") BGM.request("menu"); }, 2300); }
     if (this[name]) this[name]();
   },
   title() {
@@ -1578,6 +1708,12 @@ window.__gcEvent = (e) => { try { Party.onEvent(typeof e === "string" ? JSON.par
   document.addEventListener("touchmove", (e) => { if (UI.cur === "game") e.preventDefault(); }, { passive: false });
   document.addEventListener("gesturestart", (e) => e.preventDefault());
   CHARS.forEach((c, i) => { charImg(i); charImg(i, "happy"); charImg(i, "surprise"); });
+  document.addEventListener("pointerdown", () => { Snd.init(); BGM.wake(); }, true);
+  document.addEventListener("visibilitychange", () => {
+    if (!Snd.ctx) return;
+    if (document.hidden) Snd.ctx.suspend(); else { Snd.ctx.resume(); BGM.wake(); }
+  });
+  BGM.icon();
   UI.go("title");
   Native.send("ready");
 })();
