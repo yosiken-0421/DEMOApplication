@@ -42,7 +42,12 @@ jobs:
               if not r.ok:
                   try: codes=','.join(e.get('code','UNKNOWN') for e in r.json().get('errors',[]))
                   except Exception: codes='UNKNOWN'
-                  raise SystemExit('Apple API operation failed: '+method+' '+path.split('/relationships')[0].split('?')[0]+' HTTP '+str(r.status_code)+' '+codes)
+                  details='; '.join(e.get('detail','') for e in r.json().get('errors',[]))
+                  details=re.sub(r'[^\s;,]+@[^\s;,]+','[email]',details)
+                  for value in globals().get('admin',{}).values():
+                      if isinstance(value,str) and len(value)>1: details=details.replace(value,'[account]')
+                  print('Apple operation detail: '+details[:600])
+                  raise SystemExit('Apple API operation failed: '+method+' '+path.split('?')[0]+' HTTP '+str(r.status_code)+' '+codes)
               return r.json() if r.content else {}
           def listing(path,params=None):
               result=call('GET',path,params=params)
@@ -92,11 +97,13 @@ jobs:
               print('PIKOPIA account-holder recipient resolved; existing tester record selected')
           group_builds=listing('/betaGroups/'+GROUP+'/builds',{'limit':200})
           if not any(b['id']==bid for b in group_builds):
+              print('Assigning PIKOPIA build to internal group')
               call('POST','/betaGroups/'+GROUP+'/relationships/builds',payload={'data':[{'type':'builds','id':bid}]})
           if matches:
               tid=matches[0]['id']
               current=listing('/betaGroups/'+GROUP+'/betaTesters',{'limit':200})
               if not any(t['id']==tid for t in current):
+                  print('Assigning resolved tester to internal group')
                   call('POST','/betaGroups/'+GROUP+'/relationships/betaTesters',payload={'data':[{'type':'betaTesters','id':tid}]})
           else:
               attributes={'email':email}
