@@ -147,10 +147,14 @@ h2{color:#fff;font-weight:800;text-shadow:0 2px 10px #0006;letter-spacing:.04em}
 .cpick .rl{font-size:10px;color:var(--sub);text-align:center;margin-top:1px;line-height:1.3}
 .charrole{color:#d9d6ff;font-size:13px;margin-top:-2px}
 .gitem{box-shadow:0 4px 0 #0004}
-.pl .av svg{transform:translateY(4px) scale(1.95);transform-origin:50% 35%}
 .pod .pn{color:#fff}
 .intro-t{text-shadow:0 3px 0 #ff6b81,0 8px 20px #0006}
 .roundno{background:#ffffff1c;border:1px solid #ffffff33}
+.hero{width:300px;height:250px}
+.cpick .c{height:132px;overflow:hidden}
+.cpick .c svg{transform:scale(1.35);transform-origin:50% 4%}
+.pl .av svg{transform:translateY(12px) scale(3.1);transform-origin:50% 22%}
+#charBig{width:190px!important}
 .round-ic{position:absolute;right:14px;bottom:calc(var(--sb) + 14px);display:flex;gap:10px;z-index:5}
 .round-ic button{width:46px;height:46px;border-radius:50%;background:#ffffff18;border:1px solid #ffffff30;font-size:20px;color:#fff}
 </style>
@@ -326,22 +330,22 @@ const Snd = {
    キャラクター（オリジナル・アニメ調デフォルメ）
    ============================================================ */
 const CHARS = [
-  { name: "ヒナタ", role: "大学生／ムードメーカー", color: "#ff7a59", hair: "#7a4a32", eye: "#b8652a", outfit: "#ff7a59", style: "bob", wear: "hoodie", fem: true, acc: "clip",
+  { name: "ヒナタ", bottom: "#4a6fa5", role: "大学生／ムードメーカー", color: "#ff7a59", hair: "#7a4a32", eye: "#b8652a", outfit: "#ff7a59", style: "bob", wear: "hoodie", fem: true, acc: "clip",
     voice: { g: "f", pitch: 1.18, rate: 1.06 },
     lines: { hi: "よーし、今日は全力で楽しもう！", win: "やった！みんなありがとう！", lose: "うわー、悔しい！次は負けないよ！", mid: "いい感じ！このままいこう！" } },
-  { name: "ソラ", role: "エンジニア／クール", color: "#4c7bd9", hair: "#2a3142", eye: "#3d6fa8", outfit: "#2b3a55", style: "short", wear: "jacket", fem: false,
+  { name: "ソラ", bottom: "#2b2f3a", role: "エンジニア／クール", color: "#4c7bd9", hair: "#2a3142", eye: "#3d6fa8", outfit: "#2b3a55", style: "short", wear: "jacket", fem: false,
     voice: { g: "m", pitch: 1.0, rate: 1.0 },
     lines: { hi: "じゃあ、本気でいくよ。", win: "計算どおり、かな。", lose: "次はもう少しうまくやる。", mid: "悪くないペースだね。" } },
-  { name: "ミオ", role: "カフェ店員／おっとり", color: "#e8789c", hair: "#b98b67", eye: "#9b6a45", outfit: "#efe1d1", style: "wavy", wear: "cardigan", fem: true,
+  { name: "ミオ", bottom: "#b5838d", role: "カフェ店員／おっとり", color: "#e8789c", hair: "#b98b67", eye: "#9b6a45", outfit: "#efe1d1", style: "wavy", wear: "cardigan", fem: true,
     voice: { g: "f", pitch: 1.3, rate: 0.94 },
     lines: { hi: "みんなでやると楽しいですね。", win: "わぁ、勝っちゃいました！", lose: "うーん、あと少しでしたね。", mid: "その調子です！" } },
-  { name: "レン", role: "営業マン／熱血", color: "#2fb37a", hair: "#4a3326", eye: "#5a3a26", outfit: "#1f2a44", style: "spiky", wear: "suit", tie: "#2f9e44", fem: false,
+  { name: "レン", bottom: "#1f2a44", role: "営業マン／熱血", color: "#2fb37a", hair: "#4a3326", eye: "#5a3a26", outfit: "#1f2a44", style: "spiky", wear: "suit", tie: "#2f9e44", fem: false,
     voice: { g: "m", pitch: 1.12, rate: 1.12 },
     lines: { hi: "よっしゃ、いっちょ盛り上げますか！", win: "よっしゃー！今日の主役は俺っすね！", lose: "くっ…リベンジさせてください！", mid: "まだまだここからっすよ！" } },
-  { name: "コハク", role: "デザイナー／クールビューティー", color: "#c9a227", hair: "#24202c", eye: "#7a2e3a", outfit: "#24212b", style: "long", wear: "highneck", fem: true, acc: "earring",
+  { name: "コハク", bottom: "#2a2733", role: "デザイナー／クールビューティー", color: "#c9a227", hair: "#24202c", eye: "#7a2e3a", outfit: "#24212b", style: "long", wear: "highneck", fem: true, acc: "earring",
     voice: { g: "f", pitch: 0.98, rate: 0.97 },
     lines: { hi: "勝負なら、手加減しないわよ。", win: "当然の結果ね。", lose: "今回は譲ってあげる。", mid: "なかなかやるじゃない。" } },
-  { name: "ユウ", role: "部長／ダンディ", color: "#8b6cff", hair: "#3d3d45", eye: "#4a4a55", outfit: "#4a4f5a", style: "slick", wear: "suit2", tie: "#343a8a", fem: false, acc: "glasses", stubble: true, gray: true,
+  { name: "ユウ", bottom: "#4a4f5a", role: "部長／ダンディ", color: "#8b6cff", hair: "#3d3d45", eye: "#4a4a55", outfit: "#4a4f5a", style: "slick", wear: "suit2", tie: "#343a8a", fem: false, acc: "glasses", stubble: true, gray: true,
     voice: { g: "m", pitch: 0.82, rate: 0.92 },
     lines: { hi: "たまには童心に返るのも悪くないね。", win: "はっはっは、まだまだ若い者には負けんよ。", lose: "参った。みんな強いなあ。", mid: "いい勝負じゃないか。" } }
 ];
@@ -379,38 +383,45 @@ const TORSO = "M26 250 C28 206 50 182 84 172 L116 172 C150 182 172 206 174 250Z"
 const WEAR = {
   hoodie: (c, u) =>
     `<path d="M62 178 C70 160 130 160 138 178 C120 190 80 190 62 178Z" fill="${shade(c.outfit, -30)}"/>` +
-    `<path d="${TORSO}" fill="url(#${u}o)"/>` +
-    `<path d="M84 172 C90 184 110 184 116 172" stroke="${shade(c.outfit, -35)}" stroke-width="3" fill="none"/>` +
+        `<path d="M84 172 C90 184 110 184 116 172" stroke="${shade(c.outfit, -35)}" stroke-width="3" fill="none"/>` +
     `<path d="M93 182 L91 214 M107 182 L109 214" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>` +
     `<rect x="88" y="212" width="6" height="8" rx="2" fill="#dee2e6"/><rect x="106" y="212" width="6" height="8" rx="2" fill="#dee2e6"/>`,
   jacket: (c, u) =>
-    `<path d="${TORSO}" fill="url(#${u}o)"/>` +
-    `<path d="M84 172 L100 206 L116 172Z" fill="#ced4da"/>` +
+        `<path d="M84 172 L100 206 L116 172Z" fill="#ced4da"/>` +
     `<path d="M84 172 L74 250 M116 172 L126 250" stroke="${shade(c.outfit, -30)}" stroke-width="3"/>` +
     `<path d="M80 172 C78 180 82 188 88 192 M120 172 C122 180 118 188 112 192" stroke="${shade(c.outfit, 25)}" stroke-width="3" fill="none"/>`,
   cardigan: (c, u) =>
-    `<path d="${TORSO}" fill="url(#${u}o)"/>` +
-    `<path d="M82 172 L100 222 L118 172Z" fill="#ffffff"/>` +
+        `<path d="M82 172 L100 222 L118 172Z" fill="#ffffff"/>` +
     `<path d="M88 174 L100 184 L112 174 L106 172 L100 177 L94 172Z" fill="#f8f9fa" stroke="#dee2e6" stroke-width="1"/>` +
     `<path d="M96 182 l-7 -4 l1 9z M104 182 l7 -4 l-1 9z" fill="${c.color}"/><circle cx="100" cy="182" r="2.6" fill="${shade(c.color, -20)}"/>` +
     `<path d="M82 172 L98 226 M118 172 L102 226" stroke="${shade(c.outfit, -25)}" stroke-width="2"/>` +
     `<circle cx="95" cy="214" r="2.2" fill="${shade(c.outfit, -40)}"/><circle cx="105" cy="214" r="2.2" fill="${shade(c.outfit, -40)}"/>`,
   suit: (c, u) =>
-    `<path d="${TORSO}" fill="url(#${u}o)"/>` +
-    `<path d="M84 172 L100 226 L116 172Z" fill="#f8f9fa"/>` +
+        `<path d="M84 172 L100 226 L116 172Z" fill="#f8f9fa"/>` +
     `<path d="M96 176 L104 176 L106 184 L102 224 L98 224 L94 184Z" fill="${c.tie}"/><path d="M95 174 L105 174 L104 180 L96 180Z" fill="${shade(c.tie, -20)}"/>` +
     `<path d="M84 172 L92 204 L82 196 L88 214 L100 240 M116 172 L108 204 L118 196 L112 214 L100 240" stroke="${shade(c.outfit, 30)}" stroke-width="2" fill="none"/>`,
   suit2: (c, u) =>
-    `<path d="${TORSO}" fill="url(#${u}o)"/>` +
-    `<path d="M84 172 L100 226 L116 172Z" fill="#d0ebff"/>` +
+        `<path d="M84 172 L100 226 L116 172Z" fill="#d0ebff"/>` +
     `<path d="M96 176 L104 176 L106 184 L102 224 L98 224 L94 184Z" fill="${c.tie}"/><path d="M95 174 L105 174 L104 180 L96 180Z" fill="${shade(c.tie, -20)}"/>` +
     `<path d="M84 172 L92 204 L82 196 L88 214 L100 240 M116 172 L108 204 L118 196 L112 214 L100 240" stroke="${shade(c.outfit, 30)}" stroke-width="2" fill="none"/>` +
     `<path d="M126 206 L140 204 L139 210 L127 211Z" fill="#fff"/>`,
   highneck: (c, u) =>
-    `<path d="${TORSO}" fill="url(#${u}o)"/>` +
-    `<path d="M86 150 L86 176 C92 180 108 180 114 176 L114 150Z" fill="${shade(c.outfit, 10)}"/>` +
+        `<path d="M89 162 L89 176 C93 179 107 179 111 176 L111 162Z" fill="${shade(c.outfit, 10)}"/>` +
     `<path d="M80 190 Q100 206 120 190" stroke="#e9c46a" stroke-width="1.8" fill="none"/><circle cx="100" cy="199" r="3" fill="#e9c46a"/>`
 };
+
+
+function bodySVG(c, u, skin) {
+  const sl = shade(c.outfit, -10), edge = shade(c.outfit, -38);
+  let s = "";
+  s += `<path d="M65 210 L135 210 C138 226 140 240 142 250 L58 250 C60 240 62 226 65 210Z" fill="${c.bottom}"/>`;
+  s += `<path d="M66 210 L134 210 L134 216 L66 216Z" fill="${shade(c.bottom, -25)}"/>`;
+  s += `<path d="M60 108 C68 102 84 100 92 100 L108 100 C116 100 132 102 140 108 C146 118 145 140 141 160 C138 178 135 196 135 212 L65 212 C65 196 62 178 59 160 C55 140 54 118 60 108Z" fill="url(#${u}o)"/>`;
+  s += `<path d="M60 108 C47 112 42 128 42 150 C42 174 44 198 48 222 L61 222 C59 198 59 174 61 150 C61 136 63 124 66 116Z" fill="${sl}" stroke="${edge}" stroke-width="1"/>`;
+  s += `<path d="M140 108 C153 112 158 128 158 150 C158 174 156 198 152 222 L139 222 C141 198 141 174 139 150 C139 136 137 124 134 116Z" fill="${sl}" stroke="${edge}" stroke-width="1"/>`;
+  s += `<ellipse cx="54.5" cy="229" rx="7" ry="9.5" fill="${skin}"/><ellipse cx="145.5" cy="229" rx="7" ry="9.5" fill="${skin}"/>`;
+  return s;
+}
 
 function eyePath(x, y, right) {
   const k = right ? -1 : 1;
@@ -431,10 +442,12 @@ function charSVG(idx, expr = "normal") {
     <clipPath id="${u}cl"><path d="${eyePath(LX, EY, false)}"/></clipPath><clipPath id="${u}cr"><path d="${eyePath(RX, EY, true)}"/></clipPath>
   </defs>`;
   const H = `url(#${u}h)`;
-  s += `<ellipse cx="100" cy="247" rx="70" ry="4" fill="#0002"/>`;
-  s += `<path d="${hs.back}" fill="${H}"/>`;
-  s += `<path d="M87 118 L86 168 L114 168 L113 118Z" fill="${skinS}"/>`;
-  s += `<g transform="translate(100 250) scale(1.16 1.14) translate(-100 -250)">` + WEAR[c.wear](c, u) + `</g>`;
+  const HG = `<g transform="translate(100 92) scale(.62) translate(-100 -136)">`;
+  s += HG + `<path d="${hs.back}" fill="${H}"/></g>`;
+  s += `<path d="M92 80 L92 106 L108 106 L108 80Z" fill="${skinS}"/>`;
+  s += bodySVG(c, u, skin);
+  s += `<g transform="translate(100 100) scale(.9 1.35) translate(-100 -172)">` + WEAR[c.wear](c, u) + `</g>`;
+  s += HG;
   if (hs.locks) s += `<path d="${hs.locks}" fill="${H}"/>`;
   // 耳
   s += `<ellipse cx="62" cy="90" rx="6" ry="10" fill="${skinS}"/><ellipse cx="138" cy="90" rx="6" ry="10" fill="${skinS}"/>`;
@@ -491,7 +504,7 @@ function charSVG(idx, expr = "normal") {
   if (c.gray) s += `<path d="M58 70 C58 80 60 88 62 94 L64 94 C62 86 61 78 62 70Z M142 70 C142 80 140 88 138 94 L136 94 C138 86 139 78 138 70Z" fill="#c9ccd3"/>`;
   if (c.acc === "clip") s += `<rect x="124" y="54" width="14" height="4" rx="2" fill="#ffd166" transform="rotate(-25 131 56)"/>`;
   if (c.acc === "glasses") s += `<g fill="#ffffff18" stroke="#2b2b33" stroke-width="2"><rect x="68" y="78" width="31" height="20" rx="5"/><rect x="101" y="78" width="31" height="20" rx="5"/></g><path d="M99 85 L101 85 M68 84 L62 82 M132 84 L138 82" stroke="#2b2b33" stroke-width="2"/>`;
-  s += `</svg>`;
+  s += `</g></svg>`;
   return s;
 }
 function shade(hex, amt) {
@@ -1433,9 +1446,9 @@ const UI = {
   title() {
     const me = Save.d.char, a = (me + 2) % 6, b = (me + 4) % 6;
     $("titleHero").innerHTML =
-      `<div class="c bob" style="left:-10px;width:120px;bottom:6px;animation-delay:.3s">${charSVG(a)}</div>` +
-      `<div class="c bob" style="right:-10px;width:120px;bottom:6px;animation-delay:.6s">${charSVG(b)}</div>` +
-      `<div class="c bob" style="left:55px">${charSVG(me, "happy")}</div>`;
+      `<div class="c bob" style="left:-30px;width:170px;bottom:0;animation-delay:.3s">${charSVG(a)}</div>` +
+      `<div class="c bob" style="right:-30px;width:170px;bottom:0;animation-delay:.6s">${charSVG(b)}</div>` +
+      `<div class="c bob" style="left:50px;width:200px;bottom:0">${charSVG(me, "happy")}</div>`;
     $("titleSpeech").textContent = CHARS[me].name + "「" + CHARS[me].lines.hi + "」";
   },
   chars() {
