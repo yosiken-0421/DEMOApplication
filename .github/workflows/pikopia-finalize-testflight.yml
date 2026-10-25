@@ -75,7 +75,18 @@ jobs:
           if not email or '@' not in email: raise SystemExit('Account Holder has no usable email; no invitations sent')
           testers=listing('/betaTesters',{'filter[email]':email,'limit':200})
           matches=[t for t in testers if t['attributes'].get('email','').casefold()==email.casefold()]
-          if len(matches)>1: raise SystemExit('Tester identity is ambiguous; no invitations sent')
+          if len(matches)>1:
+              # Exact same account-holder email can have separate internal
+              # and external tester records. Select an existing internal record.
+              internal=[]
+              for tester in matches:
+                  groups=listing('/betaTesters/'+tester['id']+'/betaGroups',{'limit':200})
+                  if any(g.get('attributes',{}).get('isInternalGroup') for g in groups):
+                      internal.append(tester)
+              print('PIKOPIA recipient email resolved; selecting existing internal tester record')
+              if len(internal)!=1:
+                  raise SystemExit('Internal tester record is not unique; no invitations sent')
+              matches=internal
           group_builds=listing('/betaGroups/'+GROUP+'/builds',{'limit':200})
           if not any(b['id']==bid for b in group_builds):
               call('POST','/betaGroups/'+GROUP+'/relationships/builds',payload={'data':[{'type':'builds','id':bid}]})
