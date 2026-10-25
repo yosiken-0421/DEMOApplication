@@ -758,6 +758,326 @@ GAMES.stop = {
     drawFx(g, this.fx);
   }
 };
+/* ---- キャラ画像（canvas 用） ---- */
+const _charImgs = {};
+function charImg(i, expr = "normal") {
+  const k = i + ":" + expr;
+  if (!_charImgs[k]) {
+    const im = new Image();
+    im.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(charSVG(i, expr).replace("<svg ", '<svg width="200" height="250" '));
+    _charImgs[k] = im;
+  }
+  return _charImgs[k];
+}
+function drawImg(g, im, x, y, w, h) { if (im.complete && im.naturalWidth) g.drawImage(im, x, y, w, h); }
+
+/* ---- れんだダッシュ ---- */
+GAMES.rapid = {
+  name: "れんだダッシュ", icon: "🏃", timeLimit: 10, coop: 55,
+  desc: "画面をとにかく連打してゴールをめざせ！<br>10秒間で何回タップできるかな？",
+  init(W, H) { this.W = W; this.H = H; this.score = 0; this.fx = []; this.t = 0; this.goal = 80; this.kick = 0; this.me = Save.d.char; this.goalHit = false; },
+  update(dt) { this.t += dt; stepFx(this.fx, dt); this.kick = Math.max(0, this.kick - dt * 5); },
+  down(x, y) {
+    this.score++; this.kick = 1;
+    Snd.tone(300 + (this.score % 8) * 45, 0.05, "square", 0.05);
+    if (this.score % 10 === 0) { floatText(this.fx, x, y - 30, this.score + "!", "#ffe066"); Native.haptic("light"); }
+    if (this.score === this.goal && !this.goalHit) {
+      this.goalHit = true; Snd.fanfare(); Native.haptic("success");
+      burst(this.fx, this.W * 0.86, this.H * 0.55, "#ffe066", 30); floatText(this.fx, this.W / 2, this.H * 0.42, "ゴール！", "#ffe066");
+    }
+  },
+  draw(g) {
+    const { W, H } = this;
+    const gr = g.createLinearGradient(0, 0, 0, H);
+    gr.addColorStop(0, "#74c0fc"); gr.addColorStop(0.56, "#e7f5ff"); gr.addColorStop(0.56, "#8ce99a"); gr.addColorStop(1, "#40c057");
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    cloud(g, W * 0.15, H * 0.16, 0.8); cloud(g, W * 0.7, H * 0.24, 1);
+    const p = Math.min(1, this.score / this.goal);
+    const ty = H * 0.64, th = H * 0.1;
+    g.fillStyle = "#e8590c"; g.fillRect(0, ty, W, th);
+    g.fillStyle = "#ffffff55"; for (let i = 0; i < 12; i++) { const mx = ((i * 70 - p * 900) % (W + 70) + W + 70) % (W + 70) - 35; g.fillRect(mx, ty + th / 2 - 2, 34, 4); }
+    const gx = W * 0.88;
+    g.fillStyle = "#fff"; g.fillRect(gx, ty - 100, 5, 100 + th);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) { g.fillStyle = (r + c) % 2 ? "#212529" : "#fff"; g.fillRect(gx + 5 + c * 9, ty - 100 + r * 9, 9, 9); }
+    const cw = Math.min(120, W * 0.28), ch = cw * 1.25;
+    const rx = cw * 0.55 + p * (gx - cw * 0.75);
+    const hop = this.goalHit ? Math.abs(Math.sin(this.t * 8)) * 20 : this.kick * 16;
+    if (this.kick > 0.2 && !this.goalHit) { g.strokeStyle = "#ffffffaa"; g.lineWidth = 4; for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(rx - cw * 0.5 - 10 - i * 6, ty - ch * 0.3 - i * 18); g.lineTo(rx - cw * 0.5 - 40 - i * 6, ty - ch * 0.3 - i * 18); g.stroke(); } }
+    g.save(); g.translate(rx, ty + th * 0.55 - hop); g.rotate(this.goalHit ? 0 : 0.12 * this.kick);
+    drawImg(g, charImg(this.me, this.goalHit ? "happy" : "normal"), -cw / 2, -ch, cw, ch); g.restore();
+    g.textAlign = "center"; g.textBaseline = "middle"; g.lineWidth = 8; g.strokeStyle = "#1c7ed6";
+    g.font = `bold ${Math.min(90, W * 0.22)}px sans-serif`; g.strokeText(this.score, W / 2, H * 0.34); g.fillStyle = "#fff"; g.fillText(this.score, W / 2, H * 0.34);
+    g.font = "bold 20px sans-serif"; g.lineWidth = 5; g.strokeText("れんだ！れんだ！", W / 2, H * 0.34 + 62); g.fillText("れんだ！れんだ！", W / 2, H * 0.34 + 62);
+    drawFx(g, this.fx);
+  }
+};
+
+/* ---- ひょっこりタッチ ---- */
+GAMES.popup = {
+  name: "ひょっこりタッチ", icon: "🕳️", timeLimit: 20, coop: 170,
+  desc: "穴から顔を出したなかまをタップ！<br>⭐は+30点、👻おばけは-20点。",
+  init(W, H, rng) {
+    this.W = W; this.H = H; this.score = 0; this.fx = []; this.t = 0;
+    const cell = Math.min((W - 32) / 3, (H * 0.62) / 3);
+    this.cell = cell; this.ox = (W - cell * 3) / 2; this.oy = H * 0.3;
+    this.holes = [];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) this.holes.push({ x: this.ox + c * cell + cell / 2, y: this.oy + r * cell + cell * 0.8 });
+    this.sp = []; const busy = new Array(9).fill(0); let t = 0.4;
+    while (t < 19.5) {
+      const free = []; for (let i = 0; i < 9; i++) if (busy[i] <= t) free.push(i);
+      if (free.length) {
+        const h = free[rng.int(free.length)], r = rng();
+        const type = r < 0.1 ? "star" : r < 0.3 ? "ghost" : "pal";
+        const dur = rng.range(0.8, 1.3) * (1 - t / 50);
+        this.sp.push({ t, h, type, dur, c: rng.int(CHARS.length) }); busy[h] = t + dur + 0.3;
+      }
+      t += rng.range(0.25, 0.55) * (1 - t / 45);
+    }
+    this.si = 0; this.act = [];
+  },
+  update(dt) {
+    this.t += dt; stepFx(this.fx, dt);
+    while (this.si < this.sp.length && this.sp[this.si].t <= this.t) { const s = this.sp[this.si++]; this.act.push(Object.assign({}, s, { st: this.t, hit: 0 })); }
+    for (const a of this.act) if (a.hit) a.hit += dt;
+    this.act = this.act.filter((a) => (a.hit ? a.hit < 0.3 : this.t < a.st + a.dur + 0.2));
+  },
+  pop(a) {
+    if (a.hit) return Math.max(0, 1 - a.hit / 0.25);
+    const k = this.t - a.st;
+    if (k < 0.15) return k / 0.15;
+    if (k > a.dur) return Math.max(0, 1 - (k - a.dur) / 0.2);
+    return 1;
+  },
+  down(x, y) {
+    const s = this.cell * 0.8;
+    for (const a of this.act) {
+      if (a.hit) continue;
+      const h = this.holes[a.h];
+      if (this.pop(a) < 0.3) continue;
+      if (Math.abs(x - h.x) < s * 0.55 && y < h.y + 16 && y > h.y - s * 1.15) {
+        a.hit = 0.0001;
+        const pts = a.type === "star" ? 30 : a.type === "ghost" ? -20 : 10;
+        this.score = Math.max(0, this.score + pts);
+        floatText(this.fx, h.x, h.y - s, (pts > 0 ? "+" : "") + pts, pts > 0 ? "#fff" : "#ff6b6b");
+        if (pts > 0) { Snd.pop(); Native.haptic("light"); burst(this.fx, h.x, h.y - s * 0.5, a.type === "star" ? "#ffe066" : "#ffffff", 10); }
+        else { Snd.bad(); Native.haptic("soft"); }
+        return;
+      }
+    }
+  },
+  draw(g) {
+    const { W, H } = this, s = this.cell * 0.8;
+    const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#d3f9d8"); gr.addColorStop(1, "#69db7c");
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#ffffff44"; for (let i = 0; i < 40; i++) { g.beginPath(); g.arc((i * 89) % W, (i * 137) % H, 3, 0, 7); g.fill(); }
+    for (const h of this.holes) {
+      g.fillStyle = "#2b1a0c"; g.beginPath(); g.ellipse(h.x, h.y, s * 0.55, s * 0.18, 0, 0, 7); g.fill();
+    }
+    for (const a of this.act) {
+      const h = this.holes[a.h], p = this.pop(a); if (p <= 0) continue;
+      g.save(); g.beginPath(); g.rect(h.x - s, h.y - s * 2, s * 2, s * 2); g.clip();
+      const top = h.y - s * 1.05 * p;
+      if (a.type === "pal") drawImg(g, charImg(a.c, a.hit ? "surprise" : "happy"), h.x - s * 0.45, top, s * 0.9, s * 1.125);
+      else { g.font = `${s * 0.72}px sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(a.type === "star" ? "⭐" : "👻", h.x, top + s * 0.5); }
+      g.restore();
+    }
+    for (const h of this.holes) {
+      g.strokeStyle = "#8d5a2b"; g.lineWidth = 8; g.beginPath(); g.ellipse(h.x, h.y, s * 0.55, s * 0.18, 0, 0, Math.PI); g.stroke();
+      g.strokeStyle = "#b07a45"; g.lineWidth = 3; g.beginPath(); g.ellipse(h.x, h.y + 3, s * 0.55, s * 0.18, 0, 0.2, Math.PI - 0.2); g.stroke();
+    }
+    drawFx(g, this.fx);
+  }
+};
+
+/* ---- なかまはずれ ---- */
+GAMES.odd = {
+  name: "なかまはずれ", icon: "🔍", timeLimit: 20, coop: 12,
+  desc: "ひとつだけちがう絵をさがしてタップ！<br>見つけるたびに数がふえていくよ。",
+  pairs: [["😀", "😃"], ["🙂", "🙃"], ["🍎", "🍅"], ["⭐", "🌟"], ["🌸", "💮"], ["🐻", "🐨"], ["🕐", "🕑"], ["🚗", "🚙"], ["🐟", "🐠"], ["🍙", "🍘"], ["😺", "😸"], ["🌕", "🌝"]],
+  init(W, H, rng) {
+    this.W = W; this.H = H; this.score = 0; this.fx = []; this.lock = 0; this.shake = 0;
+    this.lv = [];
+    for (let n = 0; n < 40; n++) {
+      const size = Math.min(3 + Math.floor(n / 2), 7), p = rng.pick(this.pairs), sw = rng() < 0.5;
+      this.lv.push({ size, a: sw ? p[1] : p[0], b: sw ? p[0] : p[1], odd: rng.int(size * size) });
+    }
+    this.i = 0; this.area = Math.min(W - 32, H * 0.58); this.ox = (W - this.area) / 2; this.oy = H * 0.27;
+  },
+  update(dt) { stepFx(this.fx, dt); this.lock = Math.max(0, this.lock - dt); this.shake = Math.max(0, this.shake - dt); },
+  down(x, y) {
+    if (this.lock > 0) return;
+    const L = this.lv[this.i % this.lv.length], c = this.area / L.size;
+    const cx = Math.floor((x - this.ox) / c), cy = Math.floor((y - this.oy) / c);
+    if (cx < 0 || cy < 0 || cx >= L.size || cy >= L.size) return;
+    if (cy * L.size + cx === L.odd) {
+      this.score++; this.i++; Snd.good(); Native.haptic("light");
+      floatText(this.fx, this.ox + (cx + 0.5) * c, this.oy + cy * c, "みっけ！", "#ffe066");
+      burst(this.fx, this.ox + (cx + 0.5) * c, this.oy + (cy + 0.5) * c, "#ffe066", 12);
+    } else { this.lock = 0.7; this.shake = 0.3; Snd.bad(); Native.haptic("soft"); }
+  },
+  draw(g) {
+    const { W, H } = this;
+    const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#fff9db"); gr.addColorStop(1, "#ffe8cc");
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#e8590c"; g.font = "bold 22px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(this.lock > 0 ? "ざんねん…" : "ちがうのはどれ？", W / 2, this.oy - 36);
+    const sx = this.shake > 0 ? Math.sin(this.shake * 80) * 6 : 0;
+    g.fillStyle = "#fff"; roundRect(g, this.ox - 8 + sx, this.oy - 8, this.area + 16, this.area + 16, 22); g.fill();
+    const L = this.lv[this.i % this.lv.length], c = this.area / L.size;
+    g.globalAlpha = this.lock > 0 ? 0.45 : 1;
+    g.font = `${c * 0.72}px sans-serif`;
+    for (let k = 0; k < L.size * L.size; k++) g.fillText(k === L.odd ? L.b : L.a, this.ox + (k % L.size + 0.5) * c + sx, this.oy + (Math.floor(k / L.size) + 0.5) * c + 2);
+    g.globalAlpha = 1;
+    drawFx(g, this.fx);
+  }
+};
+
+/* ---- けいさんバトル ---- */
+GAMES.calc = {
+  name: "けいさんバトル", icon: "➗", timeLimit: 20, coop: 11,
+  desc: "計算の答えを4つの中からえらぼう！<br>あたり+1、はずれ-1。",
+  init(W, H, rng) {
+    this.W = W; this.H = H; this.score = 0; this.fx = []; this.lock = 0; this.flash = 0; this.q = [];
+    for (let i = 0; i < 120; i++) {
+      const k = rng.int(3); let a, b, ans, op;
+      if (k === 0) { a = 1 + rng.int(20); b = 1 + rng.int(20); ans = a + b; op = "+"; }
+      else if (k === 1) { a = 5 + rng.int(26); b = 1 + rng.int(a); ans = a - b; op = "−"; }
+      else { a = 2 + rng.int(8); b = 2 + rng.int(8); ans = a * b; op = "×"; }
+      const set = new Set([ans]); let guard = 0;
+      while (set.size < 4 && guard++ < 60) { const d = (1 + rng.int(10)) * (rng() < 0.5 ? -1 : 1); if (ans + d >= 0) set.add(ans + d); }
+      let arr = [...set]; while (arr.length < 4) arr.push(ans + arr.length * 11);
+      this.q.push({ a, b, op, ans, arr: shuffle(arr, rng) });
+    }
+    this.i = 0;
+    const bw = (W - 48) / 2, bh = Math.min(100, H * 0.13);
+    this.btns = [0, 1, 2, 3].map((k) => ({ k, x: 16 + (k % 2) * (bw + 16), y: H * 0.6 + Math.floor(k / 2) * (bh + 16), w: bw, h: bh }));
+  },
+  update(dt) { stepFx(this.fx, dt); this.lock = Math.max(0, this.lock - dt); this.flash = Math.max(0, this.flash - dt); },
+  down(x, y) {
+    if (this.lock > 0) return;
+    const b = this.btns.find((b) => x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h); if (!b) return;
+    const Q = this.q[this.i % this.q.length];
+    if (Q.arr[b.k] === Q.ans) { this.score++; Snd.good(); Native.haptic("light"); floatText(this.fx, b.x + b.w / 2, b.y, "+1", "#2f9e44"); }
+    else { this.score = Math.max(0, this.score - 1); this.lock = 0.5; this.flash = 0.3; Snd.bad(); Native.haptic("soft"); }
+    this.i++;
+  },
+  draw(g) {
+    const { W, H } = this, Q = this.q[this.i % this.q.length];
+    g.fillStyle = this.flash > 0 ? "#ffc9c9" : "#e7f5ff"; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#fff"; roundRect(g, 24, H * 0.2, W - 48, H * 0.3, 28); g.fill();
+    g.fillStyle = "#1864ab"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.font = `bold ${Math.min(64, W * 0.15)}px sans-serif`; g.fillText(`${Q.a} ${Q.op} ${Q.b}`, W / 2, H * 0.32);
+    g.font = "bold 22px sans-serif"; g.fillStyle = "#868e96"; g.fillText("= ?", W / 2, H * 0.42);
+    const cols = ["#ff8787", "#74c0fc", "#ffd43b", "#8ce99a"];
+    for (const b of this.btns) {
+      g.fillStyle = shade(cols[b.k], -40); roundRect(g, b.x, b.y + 6, b.w, b.h, 22); g.fill();
+      g.fillStyle = cols[b.k]; roundRect(g, b.x, b.y, b.w, b.h, 22); g.fill();
+      g.fillStyle = "#fff"; g.font = `bold ${Math.min(44, b.h * 0.5)}px sans-serif`; g.fillText(Q.arr[b.k], b.x + b.w / 2, b.y + b.h / 2 + 2);
+    }
+    drawFx(g, this.fx);
+  }
+};
+
+/* ---- やじるしスワイプ ---- */
+GAMES.swipe = {
+  name: "やじるしスワイプ", icon: "👆", timeLimit: 20, coop: 16,
+  desc: "<b style='color:#1c7ed6'>青い矢印</b>はその向きに、<b style='color:#e03131'>赤い矢印</b>は反対向きにスワイプ！<br>あたり+1、はずれ-1。",
+  init(W, H, rng) {
+    this.W = W; this.H = H; this.score = 0; this.fx = []; this.lock = 0; this.flash = 0; this.anim = 0;
+    this.q = []; for (let i = 0; i < 150; i++) this.q.push({ d: rng.int(4), rev: rng() < 0.35 });
+    this.i = 0; this.sx = null;
+  },
+  update(dt) { stepFx(this.fx, dt); this.lock = Math.max(0, this.lock - dt); this.flash = Math.max(0, this.flash - dt); this.anim = Math.max(0, this.anim - dt * 5); },
+  down(x, y) { this.sx = x; this.sy = y; },
+  up(x, y) {
+    if (this.sx == null) return;
+    const dx = x - this.sx, dy = y - this.sy; this.sx = null;
+    if (this.lock > 0 || Math.hypot(dx, dy) < 30) return;
+    const d = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0);
+    const Q = this.q[this.i % this.q.length], want = Q.rev ? (Q.d + 2) % 4 : Q.d;
+    if (d === want) { this.score++; Snd.good(); Native.haptic("light"); }
+    else { this.score = Math.max(0, this.score - 1); this.lock = 0.4; this.flash = 0.3; Snd.bad(); Native.haptic("soft"); }
+    this.i++; this.anim = 1;
+  },
+  draw(g) {
+    const { W, H } = this, Q = this.q[this.i % this.q.length];
+    g.fillStyle = this.flash > 0 ? "#ffc9c9" : "#f3f0ff"; g.fillRect(0, 0, W, H);
+    const cx = W / 2, cy = H * 0.5, R = Math.min(W * 0.36, 150) * (1 - this.anim * 0.15);
+    const col = Q.rev ? "#fa5252" : "#339af0";
+    g.fillStyle = "#fff"; g.beginPath(); g.arc(cx, cy, R + 16, 0, 7); g.fill();
+    g.fillStyle = col; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.fill();
+    g.save(); g.translate(cx, cy); g.rotate((Q.d * Math.PI) / 2);
+    g.fillStyle = "#fff"; g.beginPath();
+    g.moveTo(0, -R * 0.7); g.lineTo(R * 0.5, -R * 0.1); g.lineTo(R * 0.18, -R * 0.1); g.lineTo(R * 0.18, R * 0.62);
+    g.lineTo(-R * 0.18, R * 0.62); g.lineTo(-R * 0.18, -R * 0.1); g.lineTo(-R * 0.5, -R * 0.1); g.closePath(); g.fill();
+    g.restore();
+    g.fillStyle = col; g.font = "bold 24px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(Q.rev ? "はんたいにスワイプ！" : "このむきにスワイプ！", cx, cy + R + 50);
+    drawFx(g, this.fx);
+  }
+};
+
+/* ---- おぼえてパネル ---- */
+GAMES.memory = {
+  name: "おぼえてパネル", icon: "🧠", timeLimit: 0, maxTime: 80, coop: 30,
+  desc: "光ったパネルの場所をおぼえて、同じところをタップ！<br>まちがえるとその回はおわり。全7回、ぜんぶ当てると+3。",
+  init(W, H, rng) {
+    this.W = W; this.H = H; this.score = 0; this.fx = []; this.done = false;
+    this.rounds = []; for (let r = 0; r < 7; r++) this.rounds.push(shuffle([...Array(16).keys()], rng).slice(0, 3 + r));
+    this.r = 0; this.st = "show"; this.t = 0; this.got = {}; this.bad = -1; this.clear = false;
+    this.size = Math.min(W - 40, H * 0.55); this.ox = (W - this.size) / 2; this.oy = H * 0.3;
+  },
+  showTime() { return 1.0 + 0.12 * this.rounds[this.r].length; },
+  update(dt) {
+    stepFx(this.fx, dt); if (this.done) return; this.t += dt;
+    if (this.st === "show" && this.t > this.showTime()) { this.st = "input"; this.t = 0; Snd.tick(); }
+    else if (this.st === "input" && this.t > 8) this.endRound(false);
+    else if (this.st === "res" && this.t > 1.1) {
+      this.r++;
+      if (this.r >= this.rounds.length) this.done = true;
+      else { this.st = "show"; this.t = 0; this.got = {}; this.bad = -1; }
+    }
+  },
+  endRound(clear) {
+    this.st = "res"; this.t = 0; this.clear = clear;
+    if (clear) { this.score += 3; Snd.fanfare(); Native.haptic("success"); floatText(this.fx, this.W / 2, this.oy - 10, "パーフェクト +3", "#ffe066"); }
+  },
+  down(x, y) {
+    if (this.st !== "input") return;
+    const c = this.size / 4, cx = Math.floor((x - this.ox) / c), cy = Math.floor((y - this.oy) / c);
+    if (cx < 0 || cy < 0 || cx > 3 || cy > 3) return;
+    const i = cy * 4 + cx, R = this.rounds[this.r];
+    if (this.got[i]) return;
+    if (R.includes(i)) {
+      this.got[i] = 1; this.score++; Snd.tone(500 + Object.keys(this.got).length * 60, 0.1, "triangle", 0.15); Native.haptic("light");
+      if (Object.keys(this.got).length === R.length) this.endRound(true);
+    } else { this.bad = i; Snd.bad(); Native.haptic("soft"); this.endRound(false); }
+  },
+  draw(g) {
+    const { W, H } = this;
+    const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, "#e5dbff"); gr.addColorStop(1, "#b197fc");
+    g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    const R = this.rounds[Math.min(this.r, this.rounds.length - 1)];
+    g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle"; g.font = "bold 20px sans-serif";
+    g.fillText(`${Math.min(this.r + 1, 7)} / 7 回目（${R.length}こ）`, W / 2, this.oy - 60);
+    const msg = this.done ? "おわり！" : this.st === "show" ? "おぼえて！" : this.st === "input" ? "タップ！" : this.clear ? "パーフェクト！" : "ざんねん…";
+    g.font = "bold 28px sans-serif"; g.fillText(msg, W / 2, this.oy - 28);
+    const c = this.size / 4;
+    for (let i = 0; i < 16; i++) {
+      const x = this.ox + (i % 4) * c, y = this.oy + Math.floor(i / 4) * c, s = c - 10;
+      let col = "#ffffff";
+      if (this.st === "show" && R.includes(i)) col = "#ffd43b";
+      if (this.got[i]) col = "#69db7c";
+      if (this.st === "res" && R.includes(i) && !this.got[i]) col = "#ffe8a1";
+      if (this.bad === i && this.st === "res") col = "#ff8787";
+      g.fillStyle = "#7048e8"; roundRect(g, x + 5, y + 9, s, s, 14); g.fill();
+      g.fillStyle = col; roundRect(g, x + 5, y + 5, s, s, 14); g.fill();
+      if (col === "#ffd43b") { g.fillStyle = "#fff8"; roundRect(g, x + 12, y + 10, s - 14, 8, 4); g.fill(); }
+    }
+    drawFx(g, this.fx);
+  }
+};
+
 const GAME_IDS = Object.keys(GAMES);
 
 /* --- 描画ヘルパー --- */
@@ -813,7 +1133,7 @@ const Runner = {
       if (lim) $("tbarI").style.transform = `scaleX(${clamp(1 - this.elapsed / lim, 0, 1)})`;
       $("hudScore").textContent = gm.score;
       if (this.liveCb && Math.floor(this.elapsed * 2) !== this.lastLive) { this.lastLive = Math.floor(this.elapsed * 2); this.liveCb(gm.score); }
-      if ((lim && this.elapsed >= lim) || gm.done || this.elapsed > 40) { this.state = "end"; this.endT = 0; this.showOverlay("そこまで！", "mid"); Snd.fanfare(); Native.haptic("success"); }
+      if ((lim && this.elapsed >= lim) || gm.done || this.elapsed > (GAMES[this.id].maxTime || 40)) { this.state = "end"; this.endT = 0; this.showOverlay("そこまで！", "mid"); Snd.fanfare(); Native.haptic("success"); }
       gm.draw(this.g); return;
     }
     if (this.state === "end") {
@@ -1140,7 +1460,7 @@ const Party = {
       if (this.phase !== "wait" || this.i !== i) return;
       for (const id of this.players.keys()) if (this.scores[i][id] == null) this.scores[i][id] = 0;
       this.checkRound();
-    }, 25000);
+    }, 90000);
   },
   gotScore(from, i, s) {
     if (!this.scores[i]) this.scores[i] = {};
@@ -1257,6 +1577,7 @@ window.__gcEvent = (e) => { try { Party.onEvent(typeof e === "string" ? JSON.par
   cv.addEventListener("pointerup", (e) => { e.preventDefault(); Runner.input("up", e); });
   document.addEventListener("touchmove", (e) => { if (UI.cur === "game") e.preventDefault(); }, { passive: false });
   document.addEventListener("gesturestart", (e) => e.preventDefault());
+  CHARS.forEach((c, i) => { charImg(i); charImg(i, "happy"); charImg(i, "surprise"); });
   UI.go("title");
   Native.send("ready");
 })();
