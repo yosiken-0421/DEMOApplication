@@ -983,11 +983,12 @@ function drawDashMole(g, x, groundY, s, ph, speed, happy, scarf, t) {
 
 /* ---- れんだダッシュ ---- */
 GAMES.rapid = {
-  name: "れんだダッシュ", icon: "🏃", timeLimit: 10, coop: 55,
-  desc: "画面を連打して<b>モグピー</b>を走らせよう！<br>10秒間で何回タップできるかな？",
-  init(W, H) { this.W = W; this.H = H; this.score = 0; this.fx = []; this.t = 0; this.goal = 80; this.kick = 0; this.me = Save.d.char; this.goalHit = false; this.ph = 0; this.vel = 0; this.dust = []; },
+  name: "れんだダッシュ", icon: "🏃", timeLimit: 15, coop: 140,
+  desc: "画面を連打して<b>モグピー</b>を100m先のゴールまで走らせよう！<br>早くゴールするほど高得点。ゴールしたら終わりだよ。",
+  init(W, H) { this.W = W; this.H = H; this.score = 0; this.taps = 0; this.fx = []; this.t = 0; this.goal = 60; this.kick = 0; this.me = Save.d.char; this.goalHit = false; this.finishT = 0; this.endWait = 0; this.ph = 0; this.vel = 0; this.dust = []; },
   update(dt) {
     this.t += dt; stepFx(this.fx, dt); this.kick = Math.max(0, this.kick - dt * 5);
+    if (this.goalHit) { this.endWait += dt; if (this.endWait > 1.6) this.done = true; }
     this.vel = Math.max(0, this.vel - dt * 3);
     if (!this.goalHit) this.ph += dt * (3 + Math.min(this.vel, 8) * 2.4);
     this.dustT = (this.dustT || 0) - dt;
@@ -996,12 +997,16 @@ GAMES.rapid = {
     this.dust = this.dust.filter((d) => d.life > 0);
   },
   down(x, y) {
-    this.score++; this.kick = 1; this.vel += 1;
-    Snd.tone(300 + (this.score % 8) * 45, 0.05, "square", 0.05);
-    if (this.score % 10 === 0) { floatText(this.fx, x, y - 30, this.score + "!", "#ffe066"); Native.haptic("light"); }
-    if (this.score === this.goal && !this.goalHit) {
-      this.goalHit = true; Snd.fanfare(); Native.haptic("success");
-      burst(this.fx, this.W * 0.86, this.H * 0.55, "#ffe066", 30); floatText(this.fx, this.W / 2, this.H * 0.42, "ゴール！", "#ffe066");
+    if (this.goalHit) return;
+    this.taps++; this.score = this.taps; this.kick = 1; this.vel += 1;
+    Snd.tone(300 + (this.taps % 8) * 45, 0.05, "square", 0.05);
+    const left = Math.ceil(100 * (1 - this.taps / this.goal));
+    if (this.taps % 15 === 0 && left > 0) { floatText(this.fx, this.W / 2, this.H * 0.58, `あと${left}m!`, "#ffe066"); Native.haptic("light"); }
+    if (this.taps >= this.goal) {
+      this.goalHit = true; this.finishT = this.t;
+      this.score = 100 + Math.max(0, Math.round((this.timeLimit - this.t) * 10));
+      Snd.fanfare(); Native.haptic("success");
+      burst(this.fx, this.W * 0.86, this.H * 0.55, "#ffe066", 30);
     }
   },
   draw(g) {
@@ -1010,7 +1015,7 @@ GAMES.rapid = {
     gr.addColorStop(0, "#74c0fc"); gr.addColorStop(0.56, "#e7f5ff"); gr.addColorStop(0.56, "#8ce99a"); gr.addColorStop(1, "#40c057");
     g.fillStyle = gr; g.fillRect(0, 0, W, H);
     cloud(g, W * 0.15, H * 0.16, 0.8); cloud(g, W * 0.7, H * 0.24, 1);
-    const p = Math.min(1, this.score / this.goal);
+    const p = Math.min(1, this.taps / this.goal);
     const ty = H * 0.64, th = H * 0.1;
     g.fillStyle = "#e8590c"; g.fillRect(0, ty, W, th);
     g.fillStyle = "#ffffff55"; for (let i = 0; i < 12; i++) { const mx = ((i * 70 - p * 900) % (W + 70) + W + 70) % (W + 70) - 35; g.fillRect(mx, ty + th / 2 - 2, 34, 4); }
@@ -1027,8 +1032,12 @@ GAMES.rapid = {
     for (const d of this.dust) { g.fillStyle = `rgba(255,240,220,${Math.max(0, d.life * 1.4)})`; g.beginPath(); g.arc(d.x, d.y, d.r, 0, 7); g.fill(); }
     drawDashMole(g, rx, groundY - jump, hh * 2.2, this.ph, this.vel, this.goalHit, CHARS[this.me].color, this.t);
     g.textAlign = "center"; g.textBaseline = "middle"; g.lineWidth = 8; g.strokeStyle = "#1c7ed6";
-    g.font = `bold ${Math.min(90, W * 0.22)}px sans-serif`; g.strokeText(this.score, W / 2, H * 0.34); g.fillStyle = "#fff"; g.fillText(this.score, W / 2, H * 0.34);
-    g.font = "bold 20px sans-serif"; g.lineWidth = 5; g.strokeText("れんだ！れんだ！", W / 2, H * 0.34 + 62); g.fillText("れんだ！れんだ！", W / 2, H * 0.34 + 62);
+    const big = this.goalHit ? `${this.finishT.toFixed(2)}秒` : `あと${Math.ceil(100 * (1 - p))}m`;
+    const small = this.goalHit ? `ゴール！ ${this.score}点` : "れんだ！れんだ！";
+    if (this.goalHit) g.strokeStyle = "#e8590c";
+    g.font = `bold ${Math.min(76, W * 0.19)}px sans-serif`; g.strokeText(big, W / 2, H * 0.34); g.fillStyle = "#fff"; g.fillText(big, W / 2, H * 0.34);
+    g.font = "bold 22px sans-serif"; g.lineWidth = 5; g.strokeText(small, W / 2, H * 0.34 + 60); g.fillText(small, W / 2, H * 0.34 + 60);
+    g.font = "bold 16px sans-serif"; g.lineWidth = 4; g.strokeStyle = "#1c7ed6"; const tt = `タイム ${(this.goalHit ? this.finishT : this.t).toFixed(2)}秒`; g.strokeText(tt, W / 2, H * 0.34 + 92); g.fillText(tt, W / 2, H * 0.34 + 92);
     drawFx(g, this.fx);
   }
 };
