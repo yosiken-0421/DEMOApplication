@@ -93,19 +93,34 @@ jobs:
                   score+=10*sum(bool(g.get('attributes',{}).get('isInternalGroup')) for g in groups)
                   ranked.append((score,tester['id'],tester))
               ranked.sort(key=lambda x:(-x[0],x[1]))
-              matches=[ranked[0][2]]
+              matches=[entry[2] for entry in ranked]
               print('PIKOPIA account-holder recipient resolved; existing tester record selected')
           group_builds=listing('/betaGroups/'+GROUP+'/builds',{'limit':200})
           if not any(b['id']==bid for b in group_builds):
               print('Assigning PIKOPIA build to internal group')
               call('POST','/betaGroups/'+GROUP+'/relationships/builds',payload={'data':[{'type':'builds','id':bid}]})
-          if matches:
-              tid=matches[0]['id']
-              current=listing('/betaGroups/'+GROUP+'/betaTesters',{'limit':200})
-              if not any(t['id']==tid for t in current):
-                  print('Assigning resolved tester to internal group')
-                  call('POST','/betaGroups/'+GROUP+'/relationships/betaTesters',payload={'data':[{'type':'betaTesters','id':tid}]})
-          else:
+          tid=None
+          current=listing('/betaGroups/'+GROUP+'/betaTesters',{'limit':200})
+          for tester in matches:
+              candidate=tester['id']
+              if any(t['id']==candidate for t in current):
+                  tid=candidate
+                  break
+              # Duplicate records belong to the same resolved email. Apple
+              # validates whether an existing record is eligible for this app.
+              response=s.post(base+'/betaGroups/'+GROUP+'/relationships/betaTesters',
+                  json={'data':[{'type':'betaTesters','id':candidate}]},timeout=40)
+              if response.ok:
+                  tid=candidate
+                  print('Resolved account-holder tester assigned')
+                  break
+              errors=response.json().get('errors',[])
+              if response.status_code==409 and all(e.get('code')=='STATE_ERROR' for e in errors):
+                  continue
+              raise SystemExit('Existing tester assignment failed: HTTP '+str(response.status_code))
+          if tid is None:
+              # No record for this app is eligible. Create only a tester entry
+              # for the same existing account holder and this internal group.
               attributes={'email':email}
               for name in ['firstName','lastName']:
                   if admin.get(name): attributes[name]=admin[name]
