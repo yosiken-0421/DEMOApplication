@@ -1572,7 +1572,7 @@ const Party = {
   renderEntry() {
     const box = $("onlineBox");
     if (!Native.ok) {
-      box.innerHTML = `<div class="note">オンライン対戦は iPhone アプリ版で遊べます。<br>（このブラウザ表示では「ひとりであそぶ」を試せます）</div>`;
+      box.innerHTML = `<div class="note">オンライン対戦は iPhone アプリ版で遊べます。<br>（ブラウザ版では「ひとりで遊ぶ」を楽しめます）</div>`;
       return;
     }
     if (this.auth.state === "idle") { this.auth.state = "pending"; Native.send("gc_auth"); }
