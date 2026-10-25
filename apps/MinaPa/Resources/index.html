@@ -935,10 +935,96 @@ GAMES.rapid = {
   }
 };
 
+
+/* ---- ひょっこりタッチの生き物（オリジナル） ---- */
+function drawMogu(g, cx, top, s, kind, hit, t) {
+  const LINE = "#3a2528", by = top + s * 0.62, rx = s * 0.42, ry = s * 0.58;
+  g.save(); g.lineJoin = "round"; g.lineCap = "round"; g.lineWidth = Math.max(2, s * 0.03); g.strokeStyle = LINE;
+  if (kind === "spike") {
+    // トゲボー：トゲトゲのいたずら者
+    g.fillStyle = "#5b3cc4"; g.beginPath();
+    const n = 18;
+    for (let i = 0; i <= n * 2; i++) {
+      const a = (i / (n * 2)) * Math.PI * 2, r = i % 2 ? rx * 1.32 : rx * 1.0;
+      g.lineTo(cx + Math.cos(a) * r, by + Math.sin(a) * r * 1.2);
+    }
+    g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = "#7c5cff"; g.beginPath(); g.ellipse(cx, by, rx, ry, 0, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = "#ffffff30"; g.beginPath(); g.ellipse(cx - rx * 0.35, by - ry * 0.5, rx * 0.28, ry * 0.18, -0.5, 0, 7); g.fill();
+    const ey = by - s * 0.1;
+    for (const k of [-1, 1]) {
+      g.fillStyle = "#fff"; g.beginPath(); g.ellipse(cx + k * s * 0.14, ey, s * 0.075, s * 0.085, 0, 0, 7); g.fill(); g.stroke();
+      g.fillStyle = "#e03131"; g.beginPath(); g.arc(cx + k * s * 0.14, ey + s * 0.015, s * 0.035, 0, 7); g.fill();
+      g.beginPath(); g.moveTo(cx + k * s * 0.24, ey - s * 0.13); g.lineTo(cx + k * s * 0.06, ey - s * 0.07); g.lineWidth = Math.max(2.5, s * 0.04); g.stroke();
+      g.lineWidth = Math.max(2, s * 0.03);
+    }
+    g.fillStyle = "#fff"; g.beginPath(); g.moveTo(cx - s * 0.12, by + s * 0.08);
+    for (let i = 0; i <= 6; i++) g.lineTo(cx - s * 0.12 + i * s * 0.04, by + s * (i % 2 ? 0.13 : 0.08));
+    g.lineTo(cx + s * 0.12, by + s * 0.17); g.lineTo(cx - s * 0.12, by + s * 0.17); g.closePath(); g.fill(); g.stroke();
+    if (hit) { g.fillStyle = "#fff"; g.font = `bold ${s * 0.35}px sans-serif`; g.textAlign = "center"; g.fillText("イタッ!", cx, top - s * 0.05); }
+    g.restore(); return;
+  }
+  const gold = kind === "gold";
+  const body = gold ? "#f2c14e" : "#8a5a3c", face = gold ? "#ffe9a8" : "#e2b48a";
+  // 体
+  g.fillStyle = body; g.beginPath(); g.ellipse(cx, by, rx, ry, 0, 0, 7); g.fill(); g.stroke();
+  g.fillStyle = "#ffffff28"; g.beginPath(); g.ellipse(cx - rx * 0.4, by - ry * 0.45, rx * 0.25, ry * 0.16, -0.5, 0, 7); g.fill();
+  // 顔のもよう
+  g.fillStyle = face; g.beginPath(); g.ellipse(cx, by + s * 0.04, rx * 0.72, ry * 0.5, 0, 0, 7); g.fill();
+  // 目
+  const ey = by - s * 0.1;
+  for (const k of [-1, 1]) {
+    const ex = cx + k * s * 0.15;
+    if (hit) {
+      g.beginPath(); g.moveTo(ex - s * 0.04, ey - s * 0.04); g.lineTo(ex + s * 0.04, ey + s * 0.04); g.moveTo(ex + s * 0.04, ey - s * 0.04); g.lineTo(ex - s * 0.04, ey + s * 0.04); g.stroke();
+    } else {
+      g.fillStyle = "#1a1014"; g.beginPath(); g.ellipse(ex, ey, s * 0.035, s * 0.05, 0, 0, 7); g.fill();
+      g.fillStyle = "#fff"; g.beginPath(); g.arc(ex - s * 0.012, ey - s * 0.02, s * 0.014, 0, 7); g.fill();
+    }
+  }
+  // ほっぺ
+  g.fillStyle = "#ff8fa3aa"; for (const k of [-1, 1]) { g.beginPath(); g.ellipse(cx + k * s * 0.24, by + s * 0.03, s * 0.055, s * 0.03, 0, 0, 7); g.fill(); }
+  // 鼻とひげ
+  g.fillStyle = "#ff7b9c"; g.beginPath(); g.ellipse(cx, by - s * 0.01, s * 0.075, s * 0.055, 0, 0, 7); g.fill(); g.stroke();
+  g.fillStyle = "#fff"; g.beginPath(); g.arc(cx - s * 0.025, by - s * 0.025, s * 0.016, 0, 7); g.fill();
+  g.lineWidth = Math.max(1.2, s * 0.016);
+  for (const k of [-1, 1]) for (const d of [-1, 0, 1]) { g.beginPath(); g.moveTo(cx + k * s * 0.11, by + d * s * 0.025); g.lineTo(cx + k * s * 0.3, by + d * s * 0.05 - s * 0.01); g.stroke(); }
+  g.lineWidth = Math.max(2, s * 0.03);
+  // 口
+  g.beginPath(); g.moveTo(cx - s * 0.05, by + s * 0.07); g.quadraticCurveTo(cx - s * 0.025, by + s * 0.1, cx, by + s * 0.07); g.quadraticCurveTo(cx + s * 0.025, by + s * 0.1, cx + s * 0.05, by + s * 0.07); g.stroke();
+  // 手（穴のふちをつかむ）
+  g.fillStyle = gold ? "#ffe9a8" : "#f3c3a5";
+  for (const k of [-1, 1]) {
+    const px = cx + k * rx * 0.72, py = by + s * 0.3;
+    g.beginPath(); g.ellipse(px, py, s * 0.1, s * 0.065, 0, 0, 7); g.fill(); g.stroke();
+    g.beginPath(); for (const d of [-1, 0, 1]) { g.moveTo(px + d * s * 0.035, py + s * 0.01); g.lineTo(px + d * s * 0.04, py + s * 0.06); } g.stroke();
+  }
+  if (gold) {
+    // 王冠
+    const cy = top + s * 0.06;
+    g.fillStyle = "#ffd43b"; g.beginPath();
+    g.moveTo(cx - s * 0.2, cy + s * 0.12); g.lineTo(cx - s * 0.22, cy - s * 0.04); g.lineTo(cx - s * 0.11, cy + s * 0.04); g.lineTo(cx, cy - s * 0.09); g.lineTo(cx + s * 0.11, cy + s * 0.04); g.lineTo(cx + s * 0.22, cy - s * 0.04); g.lineTo(cx + s * 0.2, cy + s * 0.12); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = "#e03131"; g.beginPath(); g.arc(cx, cy + s * 0.05, s * 0.03, 0, 7); g.fill();
+    g.fillStyle = "#fff"; for (let i = 0; i < 3; i++) { const a = t * 3 + i * 2.1; const x = cx + Math.cos(a) * rx * 1.15, y = by - ry * 0.6 + Math.sin(a) * s * 0.12; g.font = `${s * 0.16}px sans-serif`; g.textAlign = "center"; g.fillText("✦", x, y); }
+  } else {
+    // 炭鉱ヘルメット
+    const hy = top + s * 0.14;
+    g.fillStyle = "#ffc93c"; g.beginPath(); g.arc(cx, hy + s * 0.12, rx * 0.88, Math.PI, 0); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = "#f08c00"; g.beginPath(); g.ellipse(cx, hy + s * 0.12, rx * 1.0, s * 0.045, 0, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = "#fff9db"; g.beginPath(); g.arc(cx, hy + s * 0.01, s * 0.06, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = "#ffffff55"; g.beginPath(); g.ellipse(cx - rx * 0.4, hy - s * 0.02, rx * 0.2, s * 0.04, -0.4, 0, 7); g.fill();
+  }
+  if (hit) {
+    g.fillStyle = "#ffe066";
+    for (let i = 0; i < 3; i++) { const a = t * 8 + i * 2.1; g.font = `${s * 0.2}px sans-serif`; g.textAlign = "center"; g.fillText("★", cx + Math.cos(a) * rx * 0.9, top + s * 0.05 + Math.sin(a) * s * 0.06); }
+  }
+  g.restore();
+}
+
 /* ---- ひょっこりタッチ ---- */
 GAMES.popup = {
   name: "ひょっこりタッチ", icon: "🕳️", timeLimit: 20, coop: 170,
-  desc: "穴から顔を出したなかまをタップ！<br>⭐は+30点、👻おばけは-20点。",
+  desc: "穴から顔を出す<b>モグピー</b>をタップ！<br>王冠の<b>キンモグ</b>は+30点、トゲトゲの<b>トゲボー</b>はさわると-20点。",
   init(W, H, rng) {
     this.W = W; this.H = H; this.score = 0; this.fx = []; this.t = 0;
     const cell = Math.min((W - 32) / 3, (H * 0.62) / 3);
@@ -1000,8 +1086,7 @@ GAMES.popup = {
       const h = this.holes[a.h], p = this.pop(a); if (p <= 0) continue;
       g.save(); g.beginPath(); g.rect(h.x - s, h.y - s * 2, s * 2, s * 2); g.clip();
       const top = h.y - s * 1.05 * p;
-      if (a.type === "pal") drawImg(g, charImg(a.c, a.hit ? "surprise" : "happy"), h.x - s * 0.45, top, s * 0.9, s * 1.125);
-      else { g.font = `${s * 0.72}px sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(a.type === "star" ? "⭐" : "👻", h.x, top + s * 0.5); }
+      drawMogu(g, h.x, top, s, a.type === "star" ? "gold" : a.type === "ghost" ? "spike" : "mole", !!a.hit, this.t);
       g.restore();
     }
     for (const h of this.holes) {
