@@ -76,17 +76,20 @@ jobs:
           testers=listing('/betaTesters',{'filter[email]':email,'limit':200})
           matches=[t for t in testers if t['attributes'].get('email','').casefold()==email.casefold()]
           if len(matches)>1:
-              # Exact same account-holder email can have separate internal
-              # and external tester records. Select an existing internal record.
-              internal=[]
+              # These are duplicate records of one resolved recipient: every
+              # email is an exact match to the unique Account Holder.
+              # Rank existing records by target-app and internal membership.
+              ranked=[]
               for tester in matches:
                   groups=listing('/betaTesters/'+tester['id']+'/betaGroups',{'limit':200})
-                  if any(g.get('attributes',{}).get('isInternalGroup') for g in groups):
-                      internal.append(tester)
-              print('PIKOPIA recipient email resolved; selecting existing internal tester record')
-              if len(internal)!=1:
-                  raise SystemExit('Internal tester record is not unique; no invitations sent')
-              matches=internal
+                  apps=listing('/betaTesters/'+tester['id']+'/apps',{'limit':200})
+                  score=(1000 if any(g['id']==GROUP for g in groups) else 0)
+                  score+=(100 if any(a['id']==APP for a in apps) else 0)
+                  score+=10*sum(bool(g.get('attributes',{}).get('isInternalGroup')) for g in groups)
+                  ranked.append((score,tester['id'],tester))
+              ranked.sort(key=lambda x:(-x[0],x[1]))
+              matches=[ranked[0][2]]
+              print('PIKOPIA account-holder recipient resolved; existing tester record selected')
           group_builds=listing('/betaGroups/'+GROUP+'/builds',{'limit':200})
           if not any(b['id']==bid for b in group_builds):
               call('POST','/betaGroups/'+GROUP+'/relationships/builds',payload={'data':[{'type':'builds','id':bid}]})
