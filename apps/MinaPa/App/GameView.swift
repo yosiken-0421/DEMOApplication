@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import WebKit
+import AVFoundation
 
 /// ゲーム本体(Resources/index.html)を全画面で表示する。
 /// ゲーム側は window.webkit.messageHandlers.app.postMessage(JSON文字列) で
@@ -51,6 +52,31 @@ struct GameView: UIViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, WKScriptMessageHandler {
         let gameCenter = GameCenterManager()
+        private let speech = AVSpeechSynthesizer()
+
+        /// キャラのセリフを iPhone の読み上げ音声でしゃべらせる
+        private func speak(_ text: String, pitch: Float, rate: Float, male: Bool) {
+            if speech.isSpeaking { speech.stopSpeaking(at: .immediate) }
+            let utterance = AVSpeechUtterance(string: text)
+            let voice = Coordinator.japaneseVoice(male: male)
+            utterance.voice = voice
+            var p = pitch
+            // 男性の声が入っていない iPhone では、女性の声を低めにして代わりにする
+            if male, let voice, voice.gender != .male { p *= 0.72 }
+            utterance.pitchMultiplier = max(0.5, min(2.0, p))
+            utterance.rate = max(AVSpeechUtteranceMinimumSpeechRate,
+                                 min(AVSpeechUtteranceMaximumSpeechRate, AVSpeechUtteranceDefaultSpeechRate * rate))
+            utterance.volume = 1.0
+            speech.speak(utterance)
+        }
+
+        private static func japaneseVoice(male: Bool) -> AVSpeechSynthesisVoice? {
+            let ja = AVSpeechSynthesisVoice.speechVoices()
+                .filter { $0.language == "ja-JP" }
+                .sorted { $0.quality.rawValue > $1.quality.rawValue }
+            let want: AVSpeechSynthesisVoiceGender = male ? .male : .female
+            return ja.first(where: { $0.gender == want }) ?? ja.first ?? AVSpeechSynthesisVoice(language: "ja-JP")
+        }
 
         func userContentController(_ userContentController: WKUserContentController,
                                    didReceive message: WKScriptMessage) {
@@ -70,6 +96,12 @@ struct GameView: UIViewRepresentable {
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                 } else {
                     UIImpactFeedbackGenerator(style: kind == "soft" ? .soft : .light).impactOccurred()
+                }
+            case "speak":
+                if let text = obj["text"] as? String {
+                    let pitch = (obj["pitch"] as? NSNumber)?.floatValue ?? 1.0
+                    let rate = (obj["rate"] as? NSNumber)?.floatValue ?? 1.0
+                    speak(text, pitch: pitch, rate: rate, male: (obj["g"] as? String) == "m")
                 }
             case "ready":
                 // 起動時に Game Center へサインイン（招待通知から起動した場合もここで受け取れるように）
