@@ -302,25 +302,44 @@ function portrait(h, size){
   const topGirl=`C50,58 72,32 100,32 C128,32 150,58 142,98`;
   const topBoy =`C50,62 62,34 86,28 C85,21 90,15 97,12 C98,19 101,23 106,25 C112,18 121,15 131,17 C127,22 126,28 128,33 C138,33 145,37 151,42 C145,45 142,49 142,54 C148,66 148,80 142,94`;
   const bangD = h.style==='spiky' ? fringePath(topBoy, boyTips) : fringePath(topGirl, girlTips);
-  const bangs = `<path d="${bangD}" fill="${h.hair2}" opacity=".28" transform="translate(0,5)"/>
-    <path d="${bangD}" fill="url(#${id}h)" stroke="${h.hair2}" stroke-width="1.6" stroke-linejoin="round"/>`;
-  const sideLen = male?124:148;
-  const sides=`<path d="M60,74 C52,106 54,${sideLen-12} 61,${sideLen} C65,${sideLen-20} 66,106 70,88 Z" fill="url(#${id}h)"/>
-               <path d="M140,74 C148,106 146,${sideLen-12} 139,${sideLen} C135,${sideLen-20} 134,106 130,88 Z" fill="url(#${id}h)"/>`;
-  const ery = male?11:14, iry = male?9.5:12, irx= male?8:9;
-  const eye=(cx,mir)=>`<g transform="translate(${cx},108) scale(${mir},1)">
-     <ellipse cx="0" cy="1" rx="11.5" ry="${ery}" fill="#fff"/>
-     <ellipse cx="0" cy="2" rx="${irx}" ry="${iry}" fill="url(#${id}e)"/>
-     <ellipse cx="0" cy="3" rx="4.2" ry="${male?5:6}" fill="#2D2038" opacity=".85"/>
-     <circle cx="-3.6" cy="-3.5" r="${male?2.6:3.4}" fill="#fff"/>
-     <circle cx="3.2" cy="6" r="1.6" fill="#fff" opacity=".9"/>
-     <path d="${male?'M-14,-2 C-8,-12 6,-13 14,-7 C15,-8 15.6,-9 16,-10 C15.4,-7.5 14.6,-5.6 13,-4.4 C6,-9.5 -6,-9 -12,0 Z':'M-14.5,-4 C-8,-17 6,-18 14,-9.5 C15.5,-10.5 16.6,-11.6 17.4,-13 C16.6,-9.6 15.4,-7 13.2,-5.2 C6,-12.8 -6,-12 -12.4,-1 Z'}" fill="#3B2A3A"/>
-     <path d="M-8,${ery+1} Q0,${ery+3} 7,${ery}" stroke="#7B5A6B" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-     <path d="M-10,${male?-22:-25} Q0,${male?-27:-29} 11,${male?-23:-24}" stroke="${h.hair2}" stroke-width="${male?2.6:2}" fill="none" stroke-linecap="round"/>
+  const tips = h.style==='spiky' ? boyTips : girlTips;
+  const line = shade(h.hair2,-38);                 // 髪の線画（地毛より濃い色）
+  const hairShadow = shade(h.hair2,-12);
+  const eyeLite = shade(h.eye,70), eyeDark = shade(h.eye,-70);
+  // 前髪の束の線（根元から毛先へ）
+  const strands = tips.filter((_,k)=>k%2===0).slice(1,-1).map(t=>{ const sx=100+(t[0]-100)*0.45, sy=38;
+    return `<path d="M${sx},${sy} C${sx+(t[0]-sx)*0.2},${sy+18} ${t[0]+(sx-t[0])*0.15},${t[1]-22} ${t[0]},${t[1]-3}" stroke="${line}" stroke-width="1" fill="none" opacity=".55" stroke-linecap="round"/>`; }).join('');
+  // 束の付け根にできる影（アニメ塗りの段差）
+  const strandShade = tips.filter((_,k)=>k%2===1).map(v=>`<path d="M${v[0]-5},${v[1]-14} C${v[0]-3},${v[1]-4} ${v[0]+3},${v[1]-4} ${v[0]+5},${v[1]-14} C${v[0]+2},${v[1]-9} ${v[0]-2},${v[1]-9} ${v[0]-5},${v[1]-14} Z" fill="${hairShadow}" opacity=".55"/>`).join('');
+  // 天使の輪（つやのハイライト）
+  const ring = [[70,62,-28],[82,53,-16],[95,49,-4],[108,49,6],[121,53,16],[132,61,28]].map(([x,y,a],k)=>
+    `<path d="M${x-5},${y} C${x-2.5},${y-2.6} ${x+2.5},${y-2.6} ${x+5},${y} C${x+2.5},${y+1.2} ${x-2.5},${y+1.2} ${x-5},${y} Z" fill="#fff" opacity="${k%2?.45:.7}" transform="rotate(${a} ${x} ${y})"/>`).join('');
+  const bangs = `<path d="${bangD}" fill="${hairShadow}" opacity=".35" transform="translate(0,6)"/>
+    <path d="${bangD}" fill="url(#${id}h)" stroke="${line}" stroke-width="1.5" stroke-linejoin="round"/>
+    ${strandShade}${strands}${ring}`;
+  const sideLen = male?124:150;
+  const sides=`<g stroke="${line}" stroke-width="1.3" stroke-linejoin="round">
+    <path d="M60,74 C52,106 54,${sideLen-12} 61,${sideLen} C65,${sideLen-20} 66,106 70,88 Z" fill="url(#${id}h)"/>
+    <path d="M140,74 C148,106 146,${sideLen-12} 139,${sideLen} C135,${sideLen-20} 134,106 130,88 Z" fill="url(#${id}h)"/></g>`;
+  // ---- 瞳（アニメ調：大きな虹彩・二重線・まつ毛の跳ね・複数のハイライト）----
+  const eye=(cx,mir)=>`<g transform="translate(${cx},109) scale(${mir*(male?.96:1)},${male?.84:1})">
+     <path d="M-13,-6 C-8,-13 8,-14 14,-8 C15.5,2 12,12.5 0,15 C-12,13.5 -15.5,3 -13,-6 Z" fill="#fff"/>
+     <path d="M-13,-5.5 C-8,-12.5 8,-13.5 14,-7.5 C8,-8 -6,-8.5 -13,-1.5 Z" fill="#B9AED6" opacity=".55"/>
+     <ellipse cx=".5" cy="2.5" rx="9.6" ry="12.4" fill="url(#${id}e)" stroke="${eyeDark}" stroke-width="1"/>
+     <ellipse cx=".5" cy="7.5" rx="6.6" ry="4.6" fill="${eyeLite}" opacity=".75"/>
+     <ellipse cx=".5" cy="1" rx="4.1" ry="6.2" fill="#24182E"/>
+     <ellipse cx="-3.6" cy="-3.6" rx="3.4" ry="4.4" fill="#fff" transform="rotate(-18 -3.6 -3.6)"/>
+     <circle cx="4.4" cy="8.2" r="1.9" fill="#fff"/>
+     <circle cx="5" cy="-3.4" r="1" fill="#fff" opacity=".9"/>
+     <path d="M-15,-4 C-10,-15.5 6,-17.5 14,-10 C16,-11 18,-12.6 19.6,-15.2 C18.6,-11.2 17,-8.2 15,-6.6 C15.8,-5.2 16,-3.6 15.6,-2 C13.6,-4.6 11,-6.6 8,-8 C1,-10.6 -8,-9.2 -13.6,-1.6 Z" fill="#33222F"/>
+     <path d="M14.5,-9.6 C17,-10.4 19,-9.8 20.6,-8.2 C18.4,-8.6 16.6,-8.2 15.2,-7.2 Z" fill="#33222F"/>
+     <path d="M-10.5,-15.5 C-3,-21 7,-20.6 13,-15" stroke="#C98478" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+     <path d="M-8,14.6 C-2,16.6 5,16.2 10,12.6" stroke="#9A6A78" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+     <path d="M-10,${male?-25:-27} C-3,${male?-30:-31} 6,${male?-30:-31} 12,${male?-26:-27}" stroke="${line}" stroke-width="${male?2.4:1.7}" fill="none" stroke-linecap="round"/>
    </g>`;
   const mouth = male
-    ? `<path d="M94,134 Q100,137 106,133" stroke="#C0606A" stroke-width="2" fill="none" stroke-linecap="round"/>`
-    : `<path d="M93,132 Q100,140 107,132 Q100,135 93,132 Z" fill="#E0707E"/>`;
+    ? `<path d="M94.5,135 C97.5,137.4 102.5,137.4 105.5,134.6" stroke="#B85868" stroke-width="1.6" fill="none" stroke-linecap="round"/>`
+    : `<path d="M94.5,133.5 C97.5,138.6 102.5,138.6 105.5,133.5 C102.5,134.8 97.5,134.8 94.5,133.5 Z" fill="#D45A6C"/><path d="M97.6,136.4 C99.2,137.4 100.8,137.4 102.4,136.4" stroke="#FF9AAA" stroke-width="1" fill="none"/>`;
   const acc={
     ribbon:`<g transform="translate(138,56) rotate(18)"><path d="M0,0 L-20,-12 L-18,12 Z" fill="${h.trim}"/><path d="M0,0 L20,-12 L18,12 Z" fill="${h.trim}"/><circle r="5" fill="#fff"/></g>`,
     hat:`<path d="M30,70 Q100,46 170,70 Q100,84 30,70 Z" fill="${h.accC}"/><path d="M66,66 L112,-2 Q118,8 120,16 L136,62 Q100,54 66,66 Z" fill="${h.accC}"/><path d="M68,64 Q100,52 134,60 L136,68 Q100,60 70,72 Z" fill="${h.trim}"/><circle cx="114" cy="2" r="5" fill="${h.trim}"/>`,
@@ -341,26 +360,27 @@ function portrait(h, size){
   return `<svg viewBox="0 0 200 200" ${size?`width="${size}" height="${size}"`:''} xmlns="http://www.w3.org/2000/svg">
   <defs>
    <linearGradient id="${id}h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${h.hair}"/><stop offset="1" stop-color="${h.hair2}"/></linearGradient>
-   <linearGradient id="${id}e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2D2038"/><stop offset=".45" stop-color="${h.eye}"/><stop offset="1" stop-color="#FFFFFF" stop-opacity=".9"/></linearGradient>
+   <linearGradient id="${id}e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shade(h.eye,-90)}"/><stop offset=".38" stop-color="${shade(h.eye,-20)}"/><stop offset=".72" stop-color="${h.eye}"/><stop offset="1" stop-color="${shade(h.eye,60)}"/></linearGradient>
    <radialGradient id="${id}b" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="${h.bg}"/></radialGradient>
   </defs>
   <rect width="200" height="200" fill="url(#${id}b)"/>
-  <g stroke="${h.hair2}" stroke-width="1.6" stroke-linejoin="round">${backs[h.style]||backs.short}</g>
-  <path d="M88,138 L88,166 L112,166 L112,138 Z" fill="${SKIN2}"/>
-  <path d="M26,200 C30,172 60,160 86,158 L114,158 C140,160 170,172 174,200 Z" fill="${h.outfit}"/>
+  <g stroke="${shade(h.hair2,-38)}" stroke-width="1.5" stroke-linejoin="round">${backs[h.style]||backs.short}</g>
+  <path d="M88,136 L88,166 L112,166 L112,136 Z" fill="${SKIN}" stroke="#E3A493" stroke-width="1.2"/>
+  <path d="M88,138 C94,150 106,150 112,138 L112,152 C106,158 94,158 88,152 Z" fill="${SKIN2}"/>
+  <path d="M26,200 C30,172 60,160 86,158 L114,158 C140,160 170,172 174,200 Z" fill="${h.outfit}" stroke="${shade(h.outfit,-60)}" stroke-width="1.3"/>
+  <path d="M40,200 C44,184 56,174 70,168 C66,178 64,190 66,200 Z M160,200 C156,184 144,174 130,168 C134,178 136,190 134,200 Z" fill="${shade(h.outfit,-28)}" opacity=".45"/>
   <path d="M84,158 L100,182 L116,158 Z" fill="${SKIN}"/>
   <path d="M78,158 C86,168 93,178 100,186 C107,178 114,168 122,158 C120,157.5 118,157 116,157 C111,164 106,170 100,176 C94,170 89,164 84,157 C82,157 80,157.5 78,158 Z" fill="${h.trim}"/>
   ${accNeck}
-  <path d="M62,84 C60,118 76,140 100,152 C124,140 140,118 138,84 C138,52 120,40 100,40 C80,40 62,52 62,84 Z" fill="${SKIN}"/>
-  <ellipse cx="62" cy="106" rx="5" ry="9" fill="${SKIN2}"/><ellipse cx="138" cy="106" rx="5" ry="9" fill="${SKIN2}"/>
-  <ellipse cx="77" cy="126" rx="9" ry="4.5" fill="#FF9EB5" opacity=".45"/><ellipse cx="123" cy="126" rx="9" ry="4.5" fill="#FF9EB5" opacity=".45"/>
+  <ellipse cx="62.5" cy="106" rx="5" ry="9" fill="${SKIN2}" stroke="#E3A493" stroke-width="1.1"/><ellipse cx="137.5" cy="106" rx="5" ry="9" fill="${SKIN2}" stroke="#E3A493" stroke-width="1.1"/>
+  <path d="M63,82 C62,104 66,121 77,134 C85,143 93,149.5 100,151 C107,149.5 115,143 123,134 C134,121 138,104 137,82 C137,52 120,40 100,40 C80,40 63,52 63,82 Z" fill="${SKIN}" stroke="#E3A493" stroke-width="1.3"/>
+  <ellipse cx="77" cy="127" rx="9.5" ry="4.6" fill="#FF8FAA" opacity=".38"/><ellipse cx="123" cy="127" rx="9.5" ry="4.6" fill="#FF8FAA" opacity=".38"/>
+  ${male?'':`<path d="M72,128 l2.4,-3.4 M76,128.4 l2.4,-3.4 M80,128.4 l2.4,-3.4 M118,128.4 l2.4,-3.4 M122,128.4 l2.4,-3.4 M126,128 l2.4,-3.4" stroke="#FF7F9C" stroke-width="1" stroke-linecap="round" opacity=".7"/>`}
   ${eye(81,-1)}${eye(119,1)}
-  <path d="M100,119 L98.5,123.5 L101,123.5" stroke="#E0A090" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+  <path d="M100.6,120.5 C100.2,122.4 99.6,123.6 98.8,124.4" stroke="#DB9886" stroke-width="1.2" fill="none" stroke-linecap="round"/>
   ${mouth}
   ${sides}
   ${bangs}
-  <path d="M70,60 Q86,50 98,50" stroke="#fff" stroke-width="4" fill="none" opacity=".45" stroke-linecap="round"/>
-  <path d="M106,50 Q118,51 128,58" stroke="#fff" stroke-width="4" fill="none" opacity=".35" stroke-linecap="round"/>
   ${twinTies}
   ${accFront}
   </svg>`;
