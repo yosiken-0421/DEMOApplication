@@ -18,7 +18,7 @@ jobs:
         run: |
           python3 -m venv "$RUNNER_TEMP/pikopia-api"
           "$RUNNER_TEMP/pikopia-api/bin/pip" install --quiet pyjwt cryptography requests
-      - name: Verify processed build and add only the existing account administrator
+      - name: Verify processed build and add only the existing account holder
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
@@ -67,12 +67,12 @@ jobs:
           print('PIKOPIA app version: '+version)
           print('PIKOPIA internal build state: '+str(detail.get('internalBuildState','UNKNOWN')))
           users=listing('/users',{'limit':200})
-          admins=[u for u in users if 'ADMIN' in u.get('attributes',{}).get('roles',[])]
-          # Earlier account UI established exactly one administrator: the
-          # signed-in account owner. Do not guess when that is no longer unique.
-          if len(admins)!=1: raise SystemExit('Administrator recipient is ambiguous; no invitations sent')
+          admins=[u for u in users if 'ACCOUNT_HOLDER' in u.get('attributes',{}).get('roles',[])]
+          # Account Holder uniquely identifies the owner of this individual
+          # developer account. Do not select another role or guess.
+          if len(admins)!=1: raise SystemExit('Account Holder recipient is ambiguous; no invitations sent')
           admin=admins[0]['attributes'];email=admin.get('username','')
-          if not email or '@' not in email: raise SystemExit('Administrator has no usable email; no invitations sent')
+          if not email or '@' not in email: raise SystemExit('Account Holder has no usable email; no invitations sent')
           testers=listing('/betaTesters',{'filter[email]':email,'limit':200})
           matches=[t for t in testers if t['attributes'].get('email','').casefold()==email.casefold()]
           if len(matches)>1: raise SystemExit('Tester identity is ambiguous; no invitations sent')
@@ -97,7 +97,7 @@ jobs:
           detail=call('GET','/builds/'+bid+'/buildBetaDetail')['data']['attributes']
           state=detail.get('internalBuildState','UNKNOWN')
           print('PIKOPIA build-to-group assignment: VERIFIED')
-          print('Requested administrator tester assignment: VERIFIED')
+          print('Requested account-holder tester assignment: VERIFIED')
           print('PIKOPIA internal build state after assignment: '+state)
           print('PIKOPIA TESTFLIGHT DELIVERY '+('READY' if state=='IN_BETA_TESTING' else 'ASSIGNED_PENDING_STATE'))
           # No emails, user IDs, account records, keys, or tokens in public logs.
