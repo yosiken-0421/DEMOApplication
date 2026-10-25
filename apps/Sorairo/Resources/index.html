@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>そらいろ冒険隊</title>
+<style>
+:root{
+  --ink:#4A3550; --ink2:#7A6283; --ink3:#A996B0;
+  --pink:#FF8FB8; --pink2:#FFC2D8; --pink3:#FFE8F1;
+  --lav:#B9A8F5; --lav2:#DCD3FF; --mint:#8EDDC4; --mint2:#D3F5EA;
+  --sky:#9FD3FF; --lemon:#FFE08A; --peach:#FFC9A8;
+  --card:#FFFFFF; --panel:#FFF7FB; --line:#F3DCE8;
+  --font:"Hiragino Maru Gothic ProN","Hiragino Maru Gothic Pro","M PLUS Rounded 1c","Rounded Mplus 1c",system-ui,sans-serif;
+  --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+html,body{margin:0;height:100%;overflow:hidden;background:#FFE8F1;font-family:var(--font);color:var(--ink);touch-action:manipulation}
+button{font-family:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+#app{position:fixed;inset:0;display:flex;flex-direction:column}
+
+/* ---------- top bar ---------- */
+#top{padding:calc(var(--st) + 10px) 12px 6px;display:flex;gap:8px;align-items:center;z-index:5;background:linear-gradient(#FFE8F1,#FFE8F1cc)}
+.pill{display:flex;align-items:center;gap:6px;background:#fff;border-radius:999px;padding:5px 12px 5px 6px;font-weight:700;font-size:15px;box-shadow:0 2px 0 #F3C9DA}
+.pill .ic{width:22px;height:22px;flex:none}
+#goldPill{flex:1.4;min-width:0}
+#goldTxt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#gemPill{flex:.9}
+#featherPill{flex:.8}
+#setBtn{width:34px;height:34px;border-radius:50%;background:#fff;box-shadow:0 2px 0 #F3C9DA;display:flex;align-items:center;justify-content:center;flex:none}
+.bump{animation:bump .25s ease-out}
+@keyframes bump{40%{transform:scale(1.12)}100%{transform:scale(1)}}
+
+/* ---------- battle ---------- */
+#battle{position:relative;height:44vh;min-height:300px;margin:4px 10px 0;border-radius:26px;overflow:hidden;box-shadow:0 4px 0 #F3C9DA, inset 0 0 0 3px #fff}
+#sky{position:absolute;inset:0;transition:background 1s}
+#ground{position:absolute;left:-10%;right:-10%;bottom:-38%;height:62%;border-radius:50%;transition:background 1s}
+.cloud{position:absolute;background:#fff;border-radius:999px;opacity:.75;animation:drift linear infinite}
+.cloud:before,.cloud:after{content:"";position:absolute;background:#fff;border-radius:50%}
+.cloud:before{width:55%;height:160%;left:15%;top:-70%}
+.cloud:after{width:40%;height:130%;right:12%;top:-45%}
+@keyframes drift{from{transform:translateX(-140px)}to{transform:translateX(520px)}}
+#stageBar{position:absolute;left:12px;right:12px;top:10px;display:flex;align-items:center;gap:8px;z-index:3}
+#areaName{background:#ffffffd9;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700;color:var(--ink2)}
+#stageNo{background:var(--ink);color:#fff;border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700}
+#dots{display:flex;gap:4px;margin-left:auto;background:#ffffffd9;border-radius:999px;padding:6px 9px}
+#dots i{width:8px;height:8px;border-radius:50%;background:#EBDDE6;display:block;transition:background .2s,transform .2s}
+#dots i.on{background:var(--pink);transform:scale(1.15)}
+#bossTimer{position:absolute;left:12px;right:12px;top:44px;height:10px;border-radius:6px;background:#ffffffb0;overflow:hidden;display:none;z-index:3}
+#bossTimer div{height:100%;background:linear-gradient(90deg,#FF8FB8,#FFB37A);border-radius:6px}
+#enemyBox{position:absolute;left:50%;top:17%;width:46%;max-width:210px;transform:translateX(-30%);z-index:2}
+#enemyName{text-align:center;font-size:13px;font-weight:700;margin-bottom:2px;text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff}
+#hpBar{height:12px;border-radius:7px;background:#fff;box-shadow:0 2px 0 #00000014;overflow:hidden;margin:0 8%}
+#hpFill{height:100%;width:100%;background:linear-gradient(90deg,#FF8FB8,#FF6F9E);border-radius:7px;transition:width .12s}
+#hpTxt{display:table;margin:3px auto 0;font-size:11px;font-weight:700;color:var(--ink2);background:#ffffffcc;border-radius:999px;padding:0 8px}
+#enemy{position:relative;width:100%;aspect-ratio:1;margin-top:2px}
+#enemy svg{width:100%;height:100%;display:block;filter:drop-shadow(0 6px 0 #00000014)}
+#enemy .bob{animation:bob 2.2s ease-in-out infinite;transform-origin:50% 90%;width:100%;height:100%}
+@keyframes bob{50%{transform:translateY(-5px) scale(1.02,.98)}}
+#enemy.hit .squ{animation:squ .16s ease-out}
+@keyframes squ{40%{transform:scale(1.12,.86)}100%{transform:scale(1)}}
+#enemy .squ{width:100%;height:100%;transform-origin:50% 90%}
+#enemy.flash svg{filter:brightness(1.6) drop-shadow(0 6px 0 #00000014)}
+#enemy.die .squ{animation:pop .32s ease-in forwards}
+@keyframes pop{30%{transform:scale(1.2,.8)}100%{transform:scale(0);opacity:0}}
+#enemy.spawn .squ{animation:spawn .35s cubic-bezier(.3,1.6,.5,1)}
+@keyframes spawn{from{transform:scale(.2);opacity:0}}
+#party{position:absolute;left:0;right:0;bottom:12px;display:flex;justify-content:center;gap:8px;z-index:3;padding:0 10px}
+.hero{width:21%;max-width:66px;position:relative;transition:transform .2s}
+.hero .face{width:100%;aspect-ratio:1;border-radius:50%;overflow:hidden;background:#fff;box-shadow:0 0 0 3px #fff,0 4px 0 3px #00000018}
+.hero .face svg{width:100%;height:100%;display:block}
+.hero .tag{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);background:#fff;border-radius:999px;font-size:10px;font-weight:700;padding:1px 7px;white-space:nowrap;color:var(--ink2)}
+.hero.atk{animation:hop .28s ease-out}
+@keyframes hop{40%{transform:translateY(-10px) rotate(-4deg)}100%{transform:none}}
+.hero.idle{animation:breathe 3s ease-in-out infinite}
+@keyframes breathe{50%{transform:translateY(-2px)}}
+#fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4}
+#floatLayer{position:absolute;inset:0;pointer-events:none;z-index:5;overflow:hidden}
+.dmg{position:absolute;font-weight:800;font-size:18px;color:#fff;white-space:nowrap;transform:translate(-50%,-50%);
+  text-shadow:0 2px 0 var(--c,#E0558A),2px 0 0 var(--c,#E0558A),-2px 0 0 var(--c,#E0558A),0 -2px 0 var(--c,#E0558A),2px 2px 0 var(--c,#E0558A),-2px 2px 0 var(--c,#E0558A);
+  animation:floatUp .9s ease-out forwards}
+.dmg.crit{font-size:28px;--c:#FF7A3D;animation:floatCrit 1s ease-out forwards}
+.dmg.gold{--c:#E6A817;font-size:15px}
+.dmg.sm{font-size:13px;--c:#9C7FD9}
+@keyframes floatUp{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}15%{opacity:1;transform:translate(-50%,-70%) scale(1.15)}30%{transform:translate(-50%,-90%) scale(1)}100%{opacity:0;transform:translate(-50%,-220%)}}
+@keyframes floatCrit{0%{opacity:0;transform:translate(-50%,-40%) scale(.4) rotate(-8deg)}18%{opacity:1;transform:translate(-50%,-80%) scale(1.35) rotate(4deg)}35%{transform:translate(-50%,-95%) scale(1.1) rotate(0)}100%{opacity:0;transform:translate(-50%,-230%) scale(1)}}
+.slash{position:absolute;width:90px;height:16px;border-radius:50%;background:radial-gradient(closest-side,#fff,#ffffff00);transform:translate(-50%,-50%) rotate(var(--r));animation:slash .22s ease-out forwards;pointer-events:none}
+@keyframes slash{from{opacity:1;width:20px}to{opacity:0;width:130px}}
+.coinFly{position:fixed;width:22px;height:22px;z-index:50;pointer-events:none;will-change:transform}
+#skills{position:absolute;right:10px;top:62px;display:flex;flex-direction:column;gap:8px;z-index:6}
+.skill{width:52px;height:52px;border-radius:18px;background:#fff;box-shadow:0 3px 0 #E8C3D4;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:9px;font-weight:700;color:var(--ink2)}
+.skill svg{width:26px;height:26px}
+.skill .cd{position:absolute;left:0;right:0;bottom:0;background:#4A355055;transition:height .2s}
+.skill .cdt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:800;text-shadow:0 1px 2px #0006}
+.skill.active{box-shadow:0 0 0 3px var(--lemon),0 3px 0 #E8C3D4;animation:glow 1s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:0 0 0 6px #FFE08A99,0 3px 0 #E8C3D4}}
+#bossBtn{position:absolute;left:12px;top:44px;z-index:6;display:none;background:linear-gradient(#FF9DC2,#FF7AA8);color:#fff;font-weight:800;font-size:13px;padding:8px 14px;border-radius:999px;box-shadow:0 3px 0 #D9558A;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.06)}}
+#banner{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);z-index:7;pointer-events:none;font-size:26px;font-weight:800;color:#fff;white-space:nowrap;opacity:0;
+  text-shadow:0 3px 0 #E0558A,3px 0 0 #E0558A,-3px 0 0 #E0558A,0 -3px 0 #E0558A,3px 3px 0 #E0558A,-3px 3px 0 #E0558A}
+#banner.show{animation:banner 1.6s ease-out forwards}
+@keyframes banner{0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}15%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}25%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-80%)}}
+#battle.shake{animation:shake .25s}
+@keyframes shake{20%{transform:translate(-4px,2px)}40%{transform:translate(4px,-2px)}60%{transform:translate(-3px,1px)}80%{transform:translate(2px,0)}}
+#tapHint{position:absolute;left:50%;top:58%;transform:translateX(-50%);z-index:7;background:#fff;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:800;color:var(--pink);box-shadow:0 3px 0 #F3C9DA;pointer-events:none;animation:pulse 1s infinite;display:none}
+
+/* ---------- dps row ---------- */
+#dpsRow{display:flex;justify-content:center;gap:14px;font-size:12px;font-weight:700;color:var(--ink2);padding:6px 0 4px}
+#dpsRow b{color:var(--ink);font-size:14px}
+#boostTag{display:none;background:var(--lemon);color:#7A5A00;border-radius:999px;padding:1px 8px}
+
+/* ---------- panel ---------- */
+#panel{flex:1;min-height:0;margin:0 10px;background:var(--panel);border-radius:24px 24px 0 0;box-shadow:0 -2px 0 #F3C9DA;display:flex;flex-direction:column;overflow:hidden}
+#panelHead{display:flex;align-items:center;padding:10px 14px 6px;gap:8px}
+#panelTitle{font-size:16px;font-weight:800}
+#mulBox{margin-left:auto;display:flex;background:#fff;border-radius:999px;padding:3px;box-shadow:0 2px 0 #F3C9DA}
+#mulBox button{font-size:12px;font-weight:800;padding:4px 9px;border-radius:999px;color:var(--ink3)}
+#mulBox button.on{background:var(--pink);color:#fff}
+#list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:2px 10px 14px}
+.row{display:flex;align-items:center;gap:10px;background:#fff;border-radius:18px;padding:8px 10px;margin-bottom:8px;box-shadow:0 2px 0 var(--line)}
+.row .av{width:52px;height:52px;border-radius:50%;overflow:hidden;flex:none;box-shadow:0 0 0 2px #fff,0 0 0 4px var(--pink3);position:relative}
+.row .av svg{width:100%;height:100%;display:block}
+.row .info{flex:1;min-width:0}
+.row .nm{font-weight:800;font-size:14px;display:flex;align-items:center;gap:6px}
+.row .nm small{font-size:11px;color:var(--ink3);font-weight:700}
+.row .sub{font-size:11px;color:var(--ink2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog{height:6px;border-radius:4px;background:#F6E8EF;margin-top:4px;overflow:hidden}
+.prog div{height:100%;background:linear-gradient(90deg,#B9A8F5,#FF8FB8);border-radius:4px;transition:width .2s}
+.buy{min-width:86px;padding:7px 8px;border-radius:14px;background:linear-gradient(#FFA9CB,#FF84B0);color:#fff;font-weight:800;font-size:13px;box-shadow:0 3px 0 #D9558A;line-height:1.15;text-align:center;transition:transform .08s}
+.buy small{display:block;font-size:10px;opacity:.95}
+.buy.no{background:#EADDE4;box-shadow:0 3px 0 #D3C1CB;color:#fff}
+.buy.mint{background:linear-gradient(#9BE6CE,#6FD3B4);box-shadow:0 3px 0 #3FAE8C}
+.buy.lav{background:linear-gradient(#C8B9FF,#A893F2);box-shadow:0 3px 0 #7D69C9}
+.buy:active,.press:active{transform:scale(.93) translateY(2px)}
+.stars{color:#FFC94D;font-size:11px;letter-spacing:-1px}
+.badgeNew{background:var(--pink);color:#fff;font-size:9px;border-radius:999px;padding:1px 6px}
+.lockAv{filter:brightness(0) opacity(.18)}
+.sec{font-size:13px;font-weight:800;color:var(--ink2);margin:10px 4px 6px;display:flex;align-items:center;gap:6px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.cell{background:#fff;border-radius:16px;padding:6px 4px;text-align:center;box-shadow:0 2px 0 var(--line);font-size:10px;font-weight:700;color:var(--ink2)}
+.cell .pic{width:100%;aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--pink3)}
+.cell .pic svg{width:100%;height:100%;display:block}
+.cell .cnt{font-size:9px;color:var(--ink3)}
+.card{background:#fff;border-radius:20px;padding:14px;box-shadow:0 2px 0 var(--line);margin-bottom:10px}
+.big{font-size:22px;font-weight:800}
+.note{font-size:12px;color:var(--ink2);line-height:1.6}
+
+/* ---------- tabs ---------- */
+#tabs{display:flex;background:#fff;margin:0 10px;padding:6px 4px calc(var(--sb) + 6px);border-top:1px solid var(--line)}
+#tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;font-weight:800;color:var(--ink3);position:relative;padding:4px 0;border-radius:14px}
+#tabs button svg{width:24px;height:24px}
+#tabs button.on{color:var(--pink);background:var(--pink3)}
+#tabs .dot{position:absolute;top:2px;right:22%;width:9px;height:9px;border-radius:50%;background:#FF5C8D;box-shadow:0 0 0 2px #fff;display:none}
+
+/* ---------- modal ---------- */
+#modal{position:fixed;inset:0;background:#4A355066;z-index:40;display:none;align-items:center;justify-content:center;padding:24px}
+#modal.show{display:flex}
+#mbox{background:#fff;border-radius:28px;width:100%;max-width:360px;padding:22px 18px 18px;text-align:center;box-shadow:0 6px 0 #E8C3D4;animation:mIn .35s cubic-bezier(.3,1.5,.5,1);max-height:86vh;overflow-y:auto}
+@keyframes mIn{from{transform:scale(.6);opacity:0}}
+#mbox h2{margin:0 0 6px;font-size:20px}
+#mbox .mbtns{display:flex;gap:10px;margin-top:16px;justify-content:center}
+#mbox .mbtns .buy{min-width:120px;padding:11px 14px;font-size:15px}
+.ray{width:120px;height:120px;margin:0 auto 6px;position:relative}
+.ray:before{content:"";position:absolute;inset:-20px;background:repeating-conic-gradient(#FFE08A55 0 12deg,#ffffff00 12deg 24deg);border-radius:50%;animation:spin 8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ray > *{position:relative}
+.loginRow{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:12px 0 4px}
+.loginRow div{border-radius:12px;background:var(--pink3);padding:6px 0;font-size:10px;font-weight:800;color:var(--ink2)}
+.loginRow div.done{background:var(--mint2);color:#2E8B6F}
+.loginRow div.today{background:var(--pink);color:#fff;animation:pulse 1s infinite}
+#toast{position:fixed;left:50%;top:calc(var(--st) + 54px);transform:translate(-50%,-140%);z-index:60;background:#fff;border-radius:999px;padding:9px 16px;font-size:13px;font-weight:800;box-shadow:0 4px 0 #E8C3D4;transition:transform .35s cubic-bezier(.3,1.5,.5,1),opacity .2s;opacity:0;white-space:nowrap;display:flex;gap:6px;align-items:center;pointer-events:none}
+#toast.show{transform:translate(-50%,0);opacity:1}
+.toggle{width:52px;height:30px;border-radius:999px;background:#EADDE4;position:relative;transition:background .2s;flex:none}
+.toggle:after{content:"";position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 2px #0002}
+.toggle.on{background:var(--mint)}
+.toggle.on:after{left:25px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <div class="pill" id="goldPill"><span class="ic" id="coinIcon"></span><span id="goldTxt">0</span></div>
+    <div class="pill" id="gemPill"><span class="ic" id="gemIcon"></span><span id="gemTxt">0</span></div>
+    <div class="pill" id="featherPill"><span class="ic" id="featherIcon"></span><span id="featherTxt">0</span></div>
+    <button id="setBtn" class="press" aria-label="設定"></button>
+  </div>
+
+  <div id="battle">
+    <div id="sky"></div>
+    <div id="clouds"></div>
+    <div id="ground"></div>
+    <div id="stageBar"><span id="stageNo">1</span><span id="areaName">花の丘</span><div id="dots"></div></div>
+    <div id="bossTimer"><div></div></div>
+    <button id="bossBtn" class="press">ボスに挑む！</button>
+    <div id="skills"></div>
+    <div id="enemyBox">
+      <div id="enemyName"></div>
+      <div id="hpBar"><div id="hpFill"></div></div>
+      <div id="hpTxt"></div>
+      <div id="enemy"><div class="squ"><div class="bob" id="enemySvg"></div></div></div>
+    </div>
+    <div id="party"></div>
+    <canvas id="fx"></canvas>
+    <div id="floatLayer"></div>
+    <div id="banner"></div>
+    <div id="tapHint">タップしてこうげき！</div>
+  </div>
+
+  <div id="dpsRow"><span>毎秒 <b id="dpsTxt">0</b></span><span>タップ <b id="tapTxt">1</b></span><span id="boostTag"></span></div>
+
+  <div id="panel">
+    <div id="panelHead"><div id="panelTitle">仲間</div>
+      <div id="mulBox"><button data-m="1" class="on">×1</button><button data-m="10">×10</button><button data-m="25">×25</button><button data-m="0">MAX</button></div>
+    </div>
+    <div id="list"></div>
+  </div>
+  <div id="tabs"></div>
+</div>
+
+<div id="modal"><div id="mbox"></div></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* =====================================================================
+   そらいろ冒険隊 — 放置×キャラ育成
+   ===================================================================== */
+
+/* ---------- 端末とのやりとり（セーブ・振動・通知） ---------- */
+const Native = {
+  ok: !!(window.ReactNativeWebView && window.ReactNativeWebView.postMessage),
+  send(o){ try{ if(this.ok) window.ReactNativeWebView.postMessage(JSON.stringify(o)); }catch(e){} },
+  lastHaptic: 0,
+  haptic(kind){ const n=performance.now(); if(kind==='light' && n-this.lastHaptic<70) return; this.lastHaptic=n;
+    if(!S || S.set.haptic) this.send({type:'haptic',kind}); }
+};
+
+/* ---------- 数字の表示（万・億・兆…） ---------- */
+const UNITS=['','万','億','兆','京','垓','秭','穣','溝','澗','正','載','極'];
+function fmt(n){
+  if(!isFinite(n)) return '∞';
+  n=Math.floor(n);
+  if(n<10000) return n.toLocaleString('ja-JP');
+  const e=Math.floor(Math.log10(n)/4);
+  if(e<UNITS.length){ const v=n/Math.pow(10,e*4); return (v>=1000?Math.floor(v).toString():v>=100?v.toFixed(1):v.toFixed(2)).replace(/\.0+$/,'').replace(/(\.\d*?)0+$/,'$1')+UNITS[e]; }
+  return n.toExponential(2).replace('e+','e');
+}
+function fmtTime(sec){ sec=Math.max(0,Math.floor(sec)); const h=Math.floor(sec/3600), m=Math.floor(sec%3600/60), s=sec%60;
+  return h? `${h}時間${m}分` : m? `${m}分${s}秒` : `${s}秒`; }
+const $=id=>document.getElementById(id);
+function setH(el,h){ if(el && el._h!==h){ el._h=h; el.innerHTML=h; } }
+function setT(el,t){ if(el && el.textContent!==t) el.textContent=t; }
+function setC(el,c){ if(el && el.className!==c) el.className=c; }
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const rnd=(a,b)=>a+Math.random()*(b-a);
+function todayStr(t=Date.now()){ const d=new Date(t); return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
+
+/* =====================================================================
+   キャラクター（アニメ調・バストアップ）
+   ===================================================================== */
+const HEROES=[
+ {name:'ミル',  role:'剣士',     cost:10,    dps:1,     hair:'#FF9EC4',hair2:'#E8679B',eye:'#3BB7A8',style:'long', acc:'ribbon', accC:'#FFFFFF',outfit:'#FFFFFF',trim:'#FF8FB8',bg:'#FFE3EE'},
+ {name:'ソラ',  role:'魔法使い', cost:75,    dps:5,     hair:'#8EC9FF',hair2:'#4E8FD9',eye:'#7A6CE0',style:'short',acc:'hat',    accC:'#8B7CF0',outfit:'#9F92F5',trim:'#FFE08A',bg:'#E3EEFF',male:1},
+ {name:'リコ',  role:'弓使い',   cost:550,   dps:24,    hair:'#8FD9A8',hair2:'#4FAE76',eye:'#E89A3C',style:'pony', acc:'leaf',   accC:'#6CC48F',outfit:'#FFF1D6',trim:'#6CC48F',bg:'#E3F7EA'},
+ {name:'カイ',  role:'騎士',     cost:4e3,   dps:110,   hair:'#FFD86B',hair2:'#E0A62E',eye:'#3D7FE0',style:'spiky',acc:'band',   accC:'#5B8FF0',outfit:'#DDE6F5',trim:'#5B8FF0',bg:'#FFF4D6',male:1},
+ {name:'ユメ',  role:'癒し手',   cost:3.2e4, dps:560,   hair:'#C9B2FF',hair2:'#9179E0',eye:'#FF6FA2',style:'twin', acc:'flower', accC:'#FFB3CF',outfit:'#FFFFFF',trim:'#C9B2FF',bg:'#F0E8FF'},
+ {name:'レン',  role:'忍び',     cost:2.8e5, dps:3e3,   hair:'#5E6B9E',hair2:'#363F6B',eye:'#E2556F',style:'spiky',acc:'scarf',  accC:'#E2556F',outfit:'#4B5480',trim:'#E2556F',bg:'#E2E6F5',male:1},
+ {name:'ハル',  role:'吟遊詩人', cost:2.6e6, dps:1.7e4, hair:'#FFB27A',hair2:'#E57E3F',eye:'#3FAE7A',style:'bob',  acc:'beret',  accC:'#E86A6A',outfit:'#FFF6E8',trim:'#E86A6A',bg:'#FFEBDD'},
+ {name:'シオン',role:'星読み',   cost:2.6e7, dps:1e5,   hair:'#E3E6F2',hair2:'#AEB4CE',eye:'#8E6CE6',style:'long', acc:'star',   accC:'#FFD45E',outfit:'#5F5BA8',trim:'#FFD45E',bg:'#E8E4FF',male:1},
+ {name:'モモ',  role:'獣の子',   cost:2.8e8, dps:6.2e5, hair:'#FFC0A8',hair2:'#F08A6C',eye:'#E3A21A',style:'bob',  acc:'ears',   accC:'#FFC0A8',outfit:'#FFFFFF',trim:'#F08A6C',bg:'#FFEDE3'},
+ {name:'アオイ',role:'槍使い',   cost:3.2e9, dps:4e6,   hair:'#6FA8F0',hair2:'#3D6FC0',eye:'#2F9E9E',style:'pony', acc:'glasses',accC:'#7A6283',outfit:'#E8F2FF',trim:'#3D6FC0',bg:'#E3F0FF'},
+ {name:'ジン',  role:'錬金術師', cost:4e10,  dps:2.7e7, hair:'#B58A6A',hair2:'#80583E',eye:'#2FA36B',style:'short',acc:'goggles',accC:'#E0A62E',outfit:'#F1E3D3',trim:'#B07A4A',bg:'#F5EBDF',male:1},
+ {name:'ルナ',  role:'月の巫女', cost:5.2e11,dps:1.9e8, hair:'#FFFFFF',hair2:'#D6D2EE',eye:'#E8B23C',style:'long', acc:'tiara',  accC:'#FFD45E',outfit:'#FFFFFF',trim:'#E85C7A',bg:'#FFF6DA'},
+];
+const SKIN='#FFE4D6', SKIN2='#F7C8B4';
+let _pid=0;
+function portrait(h, size){
+  const id='p'+(_pid++);
+  const male=!!h.male;
+  const backs={
+    long:`<path d="M54,78 C40,130 40,182 48,200 L152,200 C160,182 160,130 146,78 Z" fill="url(#${id}h)"/>`,
+    twin:`<path d="M58,82 C50,110 52,130 58,140 L142,140 C148,130 150,110 142,82 Z" fill="url(#${id}h)"/>
+          <path d="M52,70 C18,100 16,160 34,200 L60,200 C48,160 52,118 66,92 Z" fill="url(#${id}h)"/>
+          <path d="M148,70 C182,100 184,160 166,200 L140,200 C152,160 148,118 134,92 Z" fill="url(#${id}h)"/>`,
+    pony:`<path d="M56,82 C50,112 54,130 60,138 L140,138 C146,130 150,112 144,82 Z" fill="url(#${id}h)"/>
+          <path d="M128,44 C178,46 192,120 170,192 C166,140 158,104 132,84 Z" fill="url(#${id}h)"/>`,
+    bob:`<path d="M52,80 C44,118 46,142 58,156 L142,156 C154,142 156,118 148,80 Z" fill="url(#${id}h)"/>`,
+    short:`<path d="M56,82 C52,108 54,124 60,132 L140,132 C146,124 148,108 144,82 Z" fill="url(#${id}h)"/>`,
+    spiky:`<path d="M56,82 C52,108 54,124 60,132 L140,132 C146,124 148,108 144,82 Z" fill="url(#${id}h)"/>`
+  };
+  const bangs = h.style==='spiky'
+   ? `<path d="M58,96 C50,60 66,30 98,26 L106,10 L114,28 L132,16 L130,36 L150,34 L140,52 C148,64 148,82 142,96 L134,76 L128,96 L118,66 L110,92 L100,62 L92,92 L82,66 L74,94 L66,74 Z" fill="url(#${id}h)"/>`
+   : `<path d="M58,98 C50,58 72,32 100,32 C128,32 150,58 142,98 L135,78 L131,98 L121,64 L113,90 L102,60 L94,88 L84,62 L76,92 L69,72 Z" fill="url(#${id}h)"/>`;
+  const sideLen = male?124:148;
+  const sides=`<path d="M60,74 C52,106 54,${sideLen-12} 61,${sideLen} C65,${sideLen-20} 66,106 70,88 Z" fill="url(#${id}h)"/>
+               <path d="M140,74 C148,106 146,${sideLen-12} 139,${sideLen} C135,${sideLen-20} 134,106 130,88 Z" fill="url(#${id}h)"/>`;
+  const ery = male?11:14, iry = male?9.5:12, irx= male?8:9;
+  const eye=(cx,mir)=>`<g transform="translate(${cx},108) scale(${mir},1)">
+     <ellipse cx="0" cy="1" rx="11.5" ry="${ery}" fill="#fff"/>
+     <ellipse cx="0" cy="2" rx="${irx}" ry="${iry}" fill="url(#${id}e)"/>
+     <ellipse cx="0" cy="3" rx="4.2" ry="${male?5:6}" fill="#2D2038" opacity=".85"/>
+     <circle cx="-3.6" cy="-3.5" r="${male?2.6:3.4}" fill="#fff"/>
+     <circle cx="3.2" cy="6" r="1.6" fill="#fff" opacity=".9"/>
+     <path d="M-14,${male?-2:-4} Q-2,${male?-15:-19} 14,${male?-7:-9} L${male?15:17},${male?-9:-12} L13,-5 Q-2,${male?-11:-14} -12,${male?0:-1} Z" fill="#3B2A3A"/>
+     <path d="M-8,${ery+1} Q0,${ery+3} 7,${ery}" stroke="#7B5A6B" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+     <path d="M-10,${male?-22:-25} Q0,${male?-27:-29} 11,${male?-23:-24}" stroke="${h.hair2}" stroke-width="${male?2.6:2}" fill="none" stroke-linecap="round"/>
+   </g>`;
+  const mouth = male
+    ? `<path d="M94,134 Q100,137 106,133" stroke="#C0606A" stroke-width="2" fill="none" stroke-linecap="round"/>`
+    : `<path d="M93,132 Q100,140 107,132 Q100,135 93,132 Z" fill="#E0707E"/>`;
+  const acc={
+    ribbon:`<g transform="translate(138,56) rotate(18)"><path d="M0,0 L-20,-12 L-18,12 Z" fill="${h.trim}"/><path d="M0,0 L20,-12 L18,12 Z" fill="${h.trim}"/><circle r="5" fill="#fff"/></g>`,
+    hat:`<path d="M30,70 Q100,46 170,70 Q100,84 30,70 Z" fill="${h.accC}"/><path d="M66,66 L112,-2 Q118,8 120,16 L136,62 Q100,54 66,66 Z" fill="${h.accC}"/><path d="M68,64 Q100,52 134,60 L136,68 Q100,60 70,72 Z" fill="${h.trim}"/><circle cx="114" cy="2" r="5" fill="${h.trim}"/>`,
+    leaf:`<g transform="translate(70,58) rotate(-30)"><ellipse rx="12" ry="6" fill="${h.accC}"/><path d="M-11,0 L11,0" stroke="#3E8E5E" stroke-width="1.5"/></g><g transform="translate(80,52) rotate(-70)"><ellipse rx="9" ry="5" fill="#9BE0B3"/></g>`,
+    band:`<path d="M58,66 Q100,46 142,66 L142,74 Q100,54 58,74 Z" fill="${h.accC}"/><circle cx="100" cy="56" r="5" fill="#FFE08A"/>`,
+    flower:`<g transform="translate(136,58)">${[0,72,144,216,288].map(a=>`<ellipse rx="6" ry="10" fill="${h.accC}" transform="rotate(${a}) translate(0,-8)"/>`).join('')}<circle r="5" fill="#FFE08A"/></g>`,
+    scarf:`<path d="M66,150 Q100,170 134,150 L140,170 Q100,190 60,170 Z" fill="${h.accC}"/><path d="M128,166 L146,198 L130,200 L120,172 Z" fill="${h.accC}"/>`,
+    beret:`<ellipse cx="110" cy="40" rx="48" ry="15" fill="${h.accC}" transform="rotate(-12 110 40)"/><circle cx="118" cy="24" r="4" fill="${h.accC}"/>`,
+    star:`<path transform="translate(134,56) scale(1.1)" d="M0,-12 L3.5,-4 L12,-3.7 L5.5,2 L7.4,10.5 L0,6 L-7.4,10.5 L-5.5,2 L-12,-3.7 L-3.5,-4 Z" fill="${h.accC}"/>`,
+    ears:`<path d="M62,58 L54,16 L88,42 Z" fill="${h.hair}"/><path d="M66,52 L61,28 L80,42 Z" fill="#FFD6E2"/><path d="M138,58 L146,16 L112,42 Z" fill="${h.hair}"/><path d="M134,52 L139,28 L120,42 Z" fill="#FFD6E2"/>`,
+    glasses:`<g fill="none" stroke="${h.accC}" stroke-width="2.2"><rect x="67" y="96" width="28" height="24" rx="9"/><rect x="105" y="96" width="28" height="24" rx="9"/><path d="M95,106 L105,106"/></g>`,
+    goggles:`<path d="M58,58 Q100,40 142,58 L142,66 Q100,48 58,66 Z" fill="#7A5A44"/><circle cx="84" cy="50" r="11" fill="${h.accC}"/><circle cx="84" cy="50" r="7" fill="#BFE9FF"/><circle cx="116" cy="50" r="11" fill="${h.accC}"/><circle cx="116" cy="50" r="7" fill="#BFE9FF"/>`,
+    tiara:`<path d="M72,42 L80,26 L90,38 L100,18 L110,38 L120,26 L128,42 Q100,36 72,42 Z" fill="${h.accC}"/><circle cx="100" cy="30" r="4" fill="#FF8FB8"/>`
+  };
+  const accFront = h.acc==='scarf' ? '' : (acc[h.acc]||'');
+  const accNeck  = h.acc==='scarf' ? acc.scarf : '';
+  const twinTies = h.style==='twin' ? `<circle cx="56" cy="80" r="6" fill="${h.trim}"/><circle cx="144" cy="80" r="6" fill="${h.trim}"/>` : '';
+  return `<svg viewBox="0 0 200 200" ${size?`width="${size}" height="${size}"`:''} xmlns="http://www.w3.org/2000/svg">
+  <defs>
+   <linearGradient id="${id}h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${h.hair}"/><stop offset="1" stop-color="${h.hair2}"/></linearGradient>
+   <linearGradient id="${id}e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2D2038"/><stop offset=".45" stop-color="${h.eye}"/><stop offset="1" stop-color="#FFFFFF" stop-opacity=".9"/></linearGradient>
+   <radialGradient id="${id}b" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="${h.bg}"/></radialGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#${id}b)"/>
+  ${backs[h.style]||backs.short}
+  <path d="M88,138 L88,166 L112,166 L112,138 Z" fill="${SKIN2}"/>
+  <path d="M26,200 C30,172 60,160 86,158 L114,158 C140,160 170,172 174,200 Z" fill="${h.outfit}"/>
+  <path d="M84,158 L100,182 L116,158 Z" fill="${SKIN}"/>
+  <path d="M78,158 L100,186 L122,158 L116,157 L100,176 L84,157 Z" fill="${h.trim}"/>
+  ${accNeck}
+  <path d="M62,84 C60,118 76,140 100,152 C124,140 140,118 138,84 C138,52 120,40 100,40 C80,40 62,52 62,84 Z" fill="${SKIN}"/>
+  <ellipse cx="62" cy="106" rx="5" ry="9" fill="${SKIN2}"/><ellipse cx="138" cy="106" rx="5" ry="9" fill="${SKIN2}"/>
+  <ellipse cx="77" cy="126" rx="9" ry="4.5" fill="#FF9EB5" opacity=".45"/><ellipse cx="123" cy="126" rx="9" ry="4.5" fill="#FF9EB5" opacity=".45"/>
+  ${eye(81,-1)}${eye(119,1)}
+  <path d="M100,119 L98.5,123.5 L101,123.5" stroke="#E0A090" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+  ${mouth}
+  ${sides}
+  ${bangs}
+  <path d="M70,60 Q86,50 98,50" stroke="#fff" stroke-width="4" fill="none" opacity=".45" stroke-linecap="round"/>
+  <path d="M106,50 Q118,51 128,58" stroke="#fff" stroke-width="4" fill="none" opacity=".35" stroke-linecap="round"/>
+  ${twinTies}
+  ${accFront}
+  </svg>`;
+}
+const portraitCache={};
+function heroPic(i){ return portraitCache[i] || (portraitCache[i]=portrait(HEROES[i])); }
+
+/* =====================================================================
+   まもの（かわいいモンスター）
+   ===================================================================== */
+const AREAS=[
+ {name:'花の丘',     sky:'linear-gradient(#BFE3FF,#FFE6F0 75%)', ground:'#BDE8C8', pre:'はなびら', col:['#FF9EC4','#FFD06B','#9BE0B3','#C9B2FF'], shapes:[0,1,2,4]},
+ {name:'星の湖',     sky:'linear-gradient(#B8B0F0,#BFE6F2 75%)', ground:'#9FD8E0', pre:'ほしくず', col:['#8EC9FF','#C9B2FF','#7FE0D2','#FFE08A'], shapes:[0,3,4,5]},
+ {name:'雲のお城',   sky:'linear-gradient(#D6ECFF,#FFFFFF 80%)', ground:'#DDE7F5', pre:'くもの',   col:['#FFFFFF','#B8DAFF','#FFD1E3','#D9D2FF'], shapes:[1,3,4,0]},
+ {name:'お菓子の森', sky:'linear-gradient(#FFD9E6,#FFF3D6 75%)', ground:'#F7CFA8', pre:'あまい',   col:['#FFB3CF','#C98E66','#FFE08A','#9BE0B3'], shapes:[2,0,1,5]},
+ {name:'月夜の塔',   sky:'linear-gradient(#5B54A0,#A898E0 80%)', ground:'#7A70B8', pre:'つきよの', col:['#C9B2FF','#FFE08A','#8EC9FF','#FF9EC4'], shapes:[3,5,4,1]},
+ {name:'虹の果て',   sky:'linear-gradient(#FFD0E4,#D0F2FF 75%)', ground:'#D8F0C8', pre:'にじいろ', col:['#FF9EC4','#8EC9FF','#FFD06B','#9BE0B3'], shapes:[5,2,3,0]},
+];
+const SHAPE_NAMES=['スライム','ふわもこ','キノコ','おばけ','ことり','クリスタル'];
+const BOSS_NAMES=['花かんむりのクイーン','みずうみの主','雲の王さま','お菓子の大魔王','月夜の番人','虹のドラゴン'];
+function shade(hex,amt){ let c=parseInt(hex.slice(1),16); let r=(c>>16)+amt,g=(c>>8&255)+amt,b=(c&255)+amt; r=clamp(r,0,255);g=clamp(g,0,255);b=clamp(b,0,255); return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1); }
+let _mid=0;
+function monster(shape,col,boss,areaBoss){
+  const id='m'+(_mid++), d=shade(col,-50), l=shade(col,40);
+  const face=(cx,cy,s,nm)=>`<g transform="translate(${cx},${cy}) scale(${s})">
+    <ellipse cx="-16" cy="0" rx="6" ry="9" fill="#3B2A3A"/><ellipse cx="16" cy="0" rx="6" ry="9" fill="#3B2A3A"/>
+    <circle cx="-18" cy="-3" r="2.6" fill="#fff"/><circle cx="14" cy="-3" r="2.6" fill="#fff"/>
+    ${boss?'<path d="M-26,-16 L-8,-9 M26,-16 L8,-9" stroke="#3B2A3A" stroke-width="3.5" stroke-linecap="round"/>':''}
+    ${nm?'':`<path d="M-6,8 Q0,${boss?11:14} 6,8" stroke="#3B2A3A" stroke-width="2.6" fill="none" stroke-linecap="round"/>`}
+    <ellipse cx="-26" cy="10" rx="7" ry="4" fill="#FF7FA6" opacity=".5"/><ellipse cx="26" cy="10" rx="7" ry="4" fill="#FF7FA6" opacity=".5"/></g>`;
+  let body='';
+  switch(shape){
+   case 0: body=`<path d="M28,168 C26,100 60,52 100,52 C140,52 174,100 172,168 C172,182 28,182 28,168 Z" fill="url(#${id}g)" stroke="${d}" stroke-width="4"/>
+     <ellipse cx="72" cy="86" rx="16" ry="10" fill="#fff" opacity=".6" transform="rotate(-30 72 86)"/>${face(100,124,1.1)}`; break;
+   case 1: body=`${[[100,70,40],[62,92,32],[138,92,32],[56,132,32],[144,132,32],[100,150,40],[76,150,28],[124,150,28]].map(c=>`<circle cx="${c[0]}" cy="${c[1]}" r="${c[2]}" fill="url(#${id}g)"/>`).join('')}
+     <circle cx="100" cy="112" r="56" fill="url(#${id}g)"/><circle cx="80" cy="80" r="10" fill="#fff" opacity=".6"/>
+     <path d="M80,176 L80,188 M120,176 L120,188" stroke="${d}" stroke-width="8" stroke-linecap="round"/>${face(100,116,1)}`; break;
+   case 2: body=`<path d="M70,110 L74,176 Q100,186 126,176 L130,110 Z" fill="#FFF4E6" stroke="#E8CBB0" stroke-width="3"/>
+     <path d="M22,112 C22,52 60,30 100,30 C140,30 178,52 178,112 C150,122 50,122 22,112 Z" fill="url(#${id}g)" stroke="${d}" stroke-width="4"/>
+     <circle cx="66" cy="70" r="11" fill="#fff" opacity=".9"/><circle cx="118" cy="56" r="8" fill="#fff" opacity=".9"/><circle cx="146" cy="88" r="9" fill="#fff" opacity=".9"/>${face(100,146,.8)}`; break;
+   case 3: body=`<path d="M40,170 L40,96 C40,56 66,36 100,36 C134,36 160,56 160,96 L160,170 L144,158 L128,172 L112,158 L100,172 L88,158 L72,172 L56,158 Z" fill="url(#${id}g)" stroke="${d}" stroke-width="4" stroke-linejoin="round"/>
+     <path d="M40,110 Q20,100 22,124 M160,110 Q180,100 178,124" stroke="${d}" stroke-width="5" fill="none" stroke-linecap="round"/>
+     <ellipse cx="74" cy="70" rx="12" ry="8" fill="#fff" opacity=".6" transform="rotate(-30 74 70)"/>${face(100,104,1)}`; break;
+   case 4: body=`<path d="M40,112 Q14,92 26,128 Q32,142 50,138 Z" fill="${d}"/><path d="M160,112 Q186,92 174,128 Q168,142 150,138 Z" fill="${d}"/>
+     <ellipse cx="100" cy="116" rx="62" ry="58" fill="url(#${id}g)" stroke="${d}" stroke-width="4"/>
+     <ellipse cx="100" cy="138" rx="36" ry="28" fill="#fff" opacity=".7"/>
+     <path d="M90,54 Q96,34 104,52 Q112,38 112,58" stroke="${d}" stroke-width="5" fill="none" stroke-linecap="round"/>
+     <path d="M92,118 L108,118 L100,130 Z" fill="#FFB347"/>
+     <path d="M84,172 L84,186 M116,172 L116,186" stroke="#FFB347" stroke-width="6" stroke-linecap="round"/>${face(100,104,.9,true)}`; break;
+   default: body=`<path d="M100,24 L162,64 L162,140 L100,182 L38,140 L38,64 Z" fill="url(#${id}g)" stroke="${d}" stroke-width="4" stroke-linejoin="round"/>
+     <path d="M100,24 L100,182 M38,64 L162,140 M162,64 L38,140" stroke="#fff" stroke-width="2" opacity=".35"/>
+     <path d="M60,74 L84,58" stroke="#fff" stroke-width="7" opacity=".7" stroke-linecap="round"/>${face(100,112,1)}`;
+  }
+  const crown = boss ? `<g transform="translate(100,${shape===2?28:shape===5?22:44}) scale(${areaBoss?1.3:1})"><path d="M-30,10 L-34,-22 L-14,-6 L0,-30 L14,-6 L34,-22 L30,10 Z" fill="#FFD45E" stroke="#E0A62E" stroke-width="3" stroke-linejoin="round"/><circle cx="0" cy="-2" r="5" fill="#FF8FB8"/></g>` : '';
+  return `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="${id}g" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="${l}"/><stop offset="1" stop-color="${col}"/></radialGradient></defs>
+    <ellipse cx="100" cy="186" rx="60" ry="9" fill="#00000016"/>${body}${crown}</svg>`;
+}
+
+/* ---------- アイコン ---------- */
+const ICON={
+ coin:`<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#FFD45E" stroke="#E6A817" stroke-width="2"/><circle cx="12" cy="12" r="6" fill="none" stroke="#FFF2B8" stroke-width="2"/><path d="M9,8 L9,16" stroke="#fff" stroke-width="2" opacity=".7" stroke-linecap="round"/></svg>`,
+ gem:`<svg viewBox="0 0 24 24"><path d="M6,3 L18,3 L22,9 L12,22 L2,9 Z" fill="#C9B2FF" stroke="#8B73E6" stroke-width="2" stroke-linejoin="round"/><path d="M2,9 L22,9 M8,3 L12,22 L16,3" stroke="#fff" stroke-width="1.3" fill="none" opacity=".7"/></svg>`,
+ feather:`<svg viewBox="0 0 24 24"><path d="M19,3 C10,4 5,11 5,19 L8,16 C12,16 17,12 19,3 Z" fill="#9FD3FF" stroke="#4E8FD9" stroke-width="1.8" stroke-linejoin="round"/><path d="M5,21 L14,9" stroke="#4E8FD9" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+ gear:`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#A996B0" stroke-width="2"><circle cx="12" cy="12" r="3.2"/><path d="M12,2.5 L12,5 M12,19 L12,21.5 M2.5,12 L5,12 M19,12 L21.5,12 M5.3,5.3 L7,7 M17,17 L18.7,18.7 M5.3,18.7 L7,17 M17,7 L18.7,5.3" stroke-linecap="round"/><circle cx="12" cy="12" r="7"/></svg>`,
+ party:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5,20 C3,15.5 6,13.5 9,13.5 C12,13.5 15,15.5 15.5,20"/><circle cx="17" cy="9" r="2.6"/><path d="M17,13.5 C19.5,13.5 21.5,15.5 21.5,19"/></svg>`,
+ up:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6,3 L18,3 L22,9 L12,21 L2,9 Z"/><path d="M12,8 L12,15 M9,11 L12,8 L15,11"/></svg>`,
+ book:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4,4.5 C4,3.7 4.7,3 5.5,3 L19,3 L19,18 L5.5,18 C4.7,18 4,18.7 4,19.5 Z"/><path d="M4,19.5 C4,20.3 4.7,21 5.5,21 L19,21 L19,18"/><path d="M11.5,7.5 L12.5,9.5 L14.7,9.8 L13.1,11.3 L13.5,13.5 L11.5,12.4 L9.5,13.5 L9.9,11.3 L8.3,9.8 L10.5,9.5 Z"/></svg>`,
+ mission:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3.5" width="16" height="18" rx="3"/><path d="M8.5,9 L10.5,11 L15.5,6.5 M8.5,15.5 L15.5,15.5"/></svg>`,
+ moon:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20,14.5 A8.5,8.5 0 1 1 9.5,4 A6.5,6.5 0 0 0 20,14.5 Z"/><path d="M17,3 L17,6 M15.5,4.5 L18.5,4.5"/></svg>`,
+ sword:`<svg viewBox="0 0 24 24" fill="none" stroke="#FF6F9E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5,4 L20,4 L20,9.5 L10,19.5 L4.5,14 Z"/><path d="M7,17 L4,20 M11,13 L13,15"/></svg>`,
+ rain:`<svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="5" fill="#FFD45E" stroke="#E6A817" stroke-width="1.8"/><circle cx="16" cy="14" r="5" fill="#FFD45E" stroke="#E6A817" stroke-width="1.8"/><path d="M5,20 L6,18 M19,5 L18,7 M12,21 L12.5,19" stroke="#E6A817" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+ bolt:`<svg viewBox="0 0 24 24"><path d="M13,2 L4,14 L11,14 L10,22 L20,9 L13,9 Z" fill="#9FD3FF" stroke="#4E8FD9" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
+};
+
+/* =====================================================================
+   数値の設計
+   ===================================================================== */
+const ENEMIES_PER_STAGE=8, BOSS_TIME=30, HP_RATE=1.38, COST_RATE=1.07;
+const isBossStage=s=>s%5===0, isAreaBoss=s=>s%25===0;
+const areaIdx=s=>Math.floor((s-1)/25)%AREAS.length;
+const areaLoop=s=>Math.floor((s-1)/(25*AREAS.length));
+function enemyHP(s){ return 10*Math.pow(HP_RATE,s-1)*(isAreaBoss(s)?10:isBossStage(s)?6:1); }
+function enemyGold(s){ return Math.ceil(10*Math.pow(HP_RATE,s-1)/6*(isBossStage(s)?3:1)+1); }
+function milestoneMult(L){ let m=1; if(L>=10)m*=2; for(let t=25;t<=L;t+=25)m*=3; return m; }
+function nextMilestone(L){ return L<10?10:(Math.floor(L/25)+1)*25; }
+function heroCost(i,L){ return HEROES[i].cost*Math.pow(COST_RATE,L); }
+function heroCostN(i,L,n){ return HEROES[i].cost*Math.pow(COST_RATE,L)*(Math.pow(COST_RATE,n)-1)/(COST_RATE-1); }
+function heroMaxN(i,L,gold){ const c=heroCost(i,L); return Math.max(0,Math.floor(Math.log(gold*(COST_RATE-1)/c+1)/Math.log(COST_RATE))); }
+function leadCost(L){ return 5*Math.pow(1.08,L-1); }
+function leadCostN(L,n){ return 5*Math.pow(1.08,L-1)*(Math.pow(1.08,n)-1)/0.08; }
+function leadMaxN(L,gold){ const c=leadCost(L); return Math.max(0,Math.floor(Math.log(gold*0.08/c+1)/Math.log(1.08))); }
+function feathersFor(m){ return m<40?0:Math.floor(Math.pow((m-20)/4,1.6)); }
+const PERMS=[
+ {key:'dmg',  name:'みんなの勇気',   desc:lv=>`全員のダメージ +${lv*25}%`,             cost:lv=>10+lv*10, max:40},
+ {key:'gold', name:'幸運のポシェット', desc:lv=>`手に入るコイン +${lv*20}%`,          cost:lv=>10+lv*10, max:40},
+ {key:'offH', name:'ふかふかの寝袋',   desc:lv=>`放置で貯まる時間 ${8+lv*2}時間まで`,   cost:lv=>30+lv*30, max:8},
+ {key:'offR', name:'夢の宝箱',         desc:lv=>`放置中のコイン ${50+lv*10}%`,         cost:lv=>25+lv*25, max:5},
+ {key:'tap',  name:'リーダーの心得',   desc:lv=>`タップのダメージ +${lv*50}%`,          cost:lv=>8+lv*8,   max:40},
+ {key:'boss', name:'砂時計のお守り',   desc:lv=>`ボス戦の時間 ${BOSS_TIME+lv*3}秒`,      cost:lv=>20+lv*20, max:5},
+];
+const AWAKEN_COST=star=>15+star*15;  // 覚醒（★）1つにつき ×2
+
+/* =====================================================================
+   セーブデータ
+   ===================================================================== */
+const SAVE_KEY='sorairo_v1';
+function freshState(){
+  return {v:1, gold:0, gems:0, feathers:0, feathersTotal:0, stage:1, maxStage:1, kills:0, farm:false,
+    lead:1, heroes:HEROES.map(()=>({lv:0,star:0})), perm:{dmg:0,gold:0,offH:0,offR:0,tap:0,boss:0},
+    stats:{taps:0,kills:0,bossKills:0,gold:0,prestige:0,lvups:0,playSec:0},
+    dex:{}, firstBoss:{}, ach:{},
+    daily:{day:'',p:{tap:0,kill:0,lvup:0,boss:0},got:{},bonus:false},
+    login:{last:'',streak:0},
+    skill:{rageEnd:0,rageReady:0,rainEnd:0,rainReady:0,boltReady:0},
+    tut:0, askedNotify:false, set:{sound:true,haptic:true}, savedAt:Date.now(), created:Date.now()};
+}
+function loadState(){
+  let raw=null;
+  try{ raw = window.__SR_SAVE__ || localStorage.getItem(SAVE_KEY); }catch(e){}
+  const base=freshState();
+  if(!raw) return base;
+  try{
+    const o=JSON.parse(raw);
+    const merge=(a,b)=>{ for(const k in b){ if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])&&a[k]&&typeof a[k]==='object') merge(a[k],b[k]); else if(b[k]!==undefined) a[k]=b[k]; } return a; };
+    merge(base,o);
+    while(base.heroes.length<HEROES.length) base.heroes.push({lv:0,star:0});
+    return base;
+  }catch(e){ return base; }
+}
+let S=loadState();
+function save(){
+  S.savedAt=Date.now();
+  const s=JSON.stringify(S);
+  try{ localStorage.setItem(SAVE_KEY,s); }catch(e){}
+  Native.send({type:'save',data:s});
+}
+
+/* =====================================================================
+   計算
+   ===================================================================== */
+function featherMult(){ return 1+0.1*S.feathers; }
+function heroDps(i){ const h=S.heroes[i]; if(!h.lv) return 0;
+  return HEROES[i].dps*h.lv*milestoneMult(h.lv)*Math.pow(2,h.star)*featherMult()*(1+S.perm.dmg*0.25); }
+function rageMult(){ return now()<S.skill.rageEnd?3:1; }
+function totalDps(){ let t=0; for(let i=0;i<HEROES.length;i++) t+=heroDps(i); return t*rageMult(); }
+function tapDmg(){ const base=S.lead*2+Math.floor(S.lead/25)*S.lead*2; return (base+totalDps()*0.04)*(1+S.perm.tap*0.5)*featherMult()*rageMult(); }
+function goldMult(){ return (1+S.perm.gold*0.2)*(now()<S.skill.rainEnd?3:1); }
+function offlineCapSec(){ return (8+S.perm.offH*2)*3600; }
+function offlineRate(){ return 0.5+S.perm.offR*0.1; }
+function bossTime(){ return BOSS_TIME+S.perm.boss*3; }
+function goldPerSec(){ // 放置中の目安
+  const s=Math.max(1,S.farm||isBossStage(S.stage)?S.stage-(isBossStage(S.stage)?1:0):S.stage);
+  let d=0; for(let i=0;i<HEROES.length;i++) d+=heroDps(i);
+  if(d<=0) return 0;
+  const tKill=enemyHP(s)/d+0.6;
+  return enemyGold(s)/tKill*(1+S.perm.gold*0.2);
+}
+function now(){ return Date.now(); }
+
+/* =====================================================================
+   効果音（やさしい音）
+   ===================================================================== */
+const Snd={ctx:null,
+  init(){ if(this.ctx) { if(this.ctx.state==='suspended') this.ctx.resume(); return; } try{ this.ctx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} },
+  tone(freq,dur,type='sine',vol=.08,delay=0,slide=0){ if(!S.set.sound||!this.ctx) return; const c=this.ctx,t=c.currentTime+delay;
+    const o=c.createOscillator(),g=c.createGain(); o.type=type; o.frequency.setValueAtTime(freq,t); if(slide) o.frequency.exponentialRampToValueAtTime(freq*slide,t+dur);
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t+dur+0.02); },
+  tap(){ this.tone(rnd(520,640),.08,'triangle',.05,0,1.6); },
+  crit(){ this.tone(880,.12,'square',.035,0,1.5); this.tone(1320,.15,'triangle',.05,.04); },
+  coin(){ this.tone(1568,.07,'sine',.04); this.tone(2093,.12,'sine',.04,.05); },
+  buy(){ this.tone(660,.06,'triangle',.05); this.tone(990,.1,'triangle',.05,.05); },
+  milestone(){ [523,659,784,1047].forEach((f,i)=>this.tone(f,.16,'triangle',.06,i*.07)); },
+  win(){ [523,659,784,659,784,1047].forEach((f,i)=>this.tone(f,.18,'triangle',.06,i*.09)); },
+  pop(){ this.tone(300,.12,'sine',.06,0,.4); },
+  fail(){ [440,392,330].forEach((f,i)=>this.tone(f,.2,'triangle',.05,i*.12)); },
+};
+
+/* =====================================================================
+   画面づくり
+   ===================================================================== */
+$('coinIcon').innerHTML=ICON.coin; $('gemIcon').innerHTML=ICON.gem; $('featherIcon').innerHTML=ICON.feather; $('setBtn').innerHTML=ICON.gear;
+// 雲
+(function(){ const c=$('clouds'); for(let i=0;i<4;i++){ const d=document.createElement('div'); d.className='cloud';
+  const w=rnd(60,110); d.style.cssText=`width:${w}px;height:${w*.32}px;top:${rnd(18,40)}%;animation-duration:${rnd(28,48)}s;animation-delay:${-rnd(0,40)}s`; c.appendChild(d);} })();
+
+const TABS=[{k:'party',n:'仲間',ic:ICON.party},{k:'up',n:'強化',ic:ICON.up},{k:'dex',n:'図鑑',ic:ICON.book},{k:'mission',n:'ミッション',ic:ICON.mission},{k:'rest',n:'おやすみ',ic:ICON.moon}];
+let tab='party', mul=1;
+$('tabs').innerHTML=TABS.map(t=>`<button data-t="${t.k}" class="${t.k===tab?'on':''}">${t.ic}<span>${t.n}</span><i class="dot" id="dot-${t.k}"></i></button>`).join('');
+$('tabs').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; setTab(b.dataset.t); Native.haptic('soft'); Snd.init(); Snd.tone(700,.05,'triangle',.04); });
+$('mulBox').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; mul=+b.dataset.m; [...$('mulBox').children].forEach(x=>x.classList.toggle('on',x===b)); renderList(); });
+function setTab(k){ tab=k; [...$('tabs').children].forEach(b=>b.classList.toggle('on',b.dataset.t===k));
+  $('panelTitle').textContent=TABS.find(t=>t.k===k).n; $('mulBox').style.display=k==='party'?'flex':'none'; $('list').scrollTop=0; renderList(); }
+
+/* ---------- 戦闘の表示 ---------- */
+let enemy=null, bossLeft=0, partyIdx=[], heroTimers=HEROES.map((_,i)=>i*0.13), spawnLock=0;
+function stageInfo(){ const s=S.stage, a=AREAS[areaIdx(s)];
+  $('stageNo').textContent=`ステージ ${s}`; $('areaName').textContent=a.name+(areaLoop(s)?'＋'.repeat(Math.min(3,areaLoop(s))):'');
+  $('sky').style.background=a.sky; $('ground').style.background=a.ground;
+  const night=areaIdx(s)===4; $('areaName').style.color=night?'#5B54A0':'';
+  const dots=$('dots');
+  if(isBossStage(s)){ dots.style.display='none'; }
+  else { dots.style.display='flex'; dots.innerHTML=Array.from({length:ENEMIES_PER_STAGE},(_,i)=>`<i class="${i<S.kills?'on':''}"></i>`).join(''); }
+  $('bossBtn').style.display = S.farm ? 'block':'none';
+}
+function spawnEnemy(){
+  const s=S.stage, a=AREAS[areaIdx(s)], boss=isBossStage(s), ab=isAreaBoss(s);
+  const k=Math.floor(Math.random()*4);
+  const shape= ab?5: a.shapes[boss?(s/5)%4:k];
+  const col= ab? a.col[0] : a.col[boss?(s/5)%4:k];
+  const key= ab?`${areaIdx(s)}-B`:`${areaIdx(s)}-${a.shapes.indexOf(shape)}`;
+  const name= ab? BOSS_NAMES[areaIdx(s)] : (boss?'ボス・':'')+a.pre+SHAPE_NAMES[shape];
+  const hp=enemyHP(s);
+  enemy={hp,max:hp,boss,ab,key,name,stage:s};
+  $('enemySvg').innerHTML=monster(shape,col,boss,ab);
+  $('enemyName').textContent=name;
+  $('enemyBox').style.width = boss?'54%':'46%';
+  const el=$('enemy'); el.classList.remove('die'); el.classList.add('spawn'); setTimeout(()=>el.classList.remove('spawn'),360);
+  if(boss && !S.farm){ bossLeft=bossTime(); $('bossTimer').style.display='block'; banner(ab?'大ボス あらわる！':'ボス あらわる！'); Native.haptic('soft'); }
+  else { bossLeft=0; $('bossTimer').style.display='none'; }
+  updateHp();
+}
+function updateHp(){ if(!enemy) return; const p=clamp(enemy.hp/enemy.max,0,1); $('hpFill').style.width=(p*100)+'%'; $('hpTxt').textContent=fmt(Math.max(0,Math.ceil(enemy.hp)))+' / '+fmt(enemy.max); }
+function buildParty(){
+  const order=HEROES.map((_,i)=>i).filter(i=>S.heroes[i].lv>0).sort((a,b)=>heroDps(b)-heroDps(a)).slice(0,4).sort((a,b)=>a-b);
+  if(order.join()===partyIdx.join()) return;
+  partyIdx=order;
+  $('party').innerHTML = order.length ? order.map(i=>`<div class="hero idle" id="ph${i}" style="animation-delay:${-i*.4}s"><div class="face">${heroPic(i)}</div><div class="tag">${HEROES[i].name}</div></div>`).join('')
+    : `<div class="hero" style="opacity:.55"><div class="face" style="background:#ffffffaa;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;color:#E8B3C8">？</div><div class="tag">仲間募集中</div></div>`;
+}
+
+/* ---------- エフェクト ---------- */
+const fx=$('fx'), fctx=fx.getContext('2d'); let parts=[];
+function resizeFx(){ const r=$('battle').getBoundingClientRect(), d=Math.min(2,window.devicePixelRatio||1); fx.width=r.width*d; fx.height=r.height*d; fctx.setTransform(d,0,0,d,0,0); }
+window.addEventListener('resize',resizeFx);
+function burst(x,y,n,cols,spd=4,star=false){ for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, v=rnd(spd*.4,spd);
+  parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-1.5,life:1,dec:rnd(.018,.035),r:rnd(2.5,5.5),c:cols[i%cols.length],star}); } }
+function drawStar(ctx,x,y,r){ ctx.beginPath(); for(let i=0;i<10;i++){ const rr=i%2?r*.45:r, a=i*Math.PI/5-Math.PI/2; ctx.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr);} ctx.closePath(); ctx.fill(); }
+function stepFx(){ fctx.clearRect(0,0,fx.width,fx.height);
+  for(const p of parts){ p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; p.vx*=0.98; p.life-=p.dec; fctx.globalAlpha=Math.max(0,p.life); fctx.fillStyle=p.c;
+    if(p.star) drawStar(fctx,p.x,p.y,p.r*1.4); else { fctx.beginPath(); fctx.arc(p.x,p.y,p.r*p.life+0.5,0,7); fctx.fill(); } }
+  fctx.globalAlpha=1; parts=parts.filter(p=>p.life>0); }
+function enemyCenter(){ const b=$('battle').getBoundingClientRect(), e=$('enemy').getBoundingClientRect(); return {x:e.left-b.left+e.width/2, y:e.top-b.top+e.height*.55, w:e.width}; }
+let floatCount=0;
+function floatText(x,y,txt,cls){ if(floatCount>22) return; floatCount++; const d=document.createElement('div'); d.className='dmg '+(cls||''); d.textContent=txt; d.style.left=x+'px'; d.style.top=y+'px';
+  $('floatLayer').appendChild(d); setTimeout(()=>{d.remove();floatCount--;},1000); }
+function slashAt(x,y){ const d=document.createElement('div'); d.className='slash'; d.style.left=x+'px'; d.style.top=y+'px'; d.style.setProperty('--r',rnd(-50,20)+'deg'); $('floatLayer').appendChild(d); setTimeout(()=>d.remove(),240); }
+function hitEnemy(){ const e=$('enemy'); e.classList.remove('hit','flash'); void e.offsetWidth; e.classList.add('hit','flash'); clearTimeout(hitEnemy.t); hitEnemy.t=setTimeout(()=>e.classList.remove('flash'),60); }
+function shake(){ const b=$('battle'); b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); }
+function banner(t){ const b=$('banner'); b.textContent=t; b.classList.remove('show'); void b.offsetWidth; b.classList.add('show'); }
+function flyCoins(x,y,n){ const br=$('battle').getBoundingClientRect(), tr=$('coinIcon').getBoundingClientRect();
+  for(let i=0;i<n;i++){ const c=document.createElement('div'); c.className='coinFly'; c.innerHTML=ICON.coin; document.body.appendChild(c);
+    const sx=br.left+x+rnd(-30,30), sy=br.top+y+rnd(-20,20), mx=sx+rnd(-60,60), my=sy-rnd(40,90), ex=tr.left, ey=tr.top;
+    const t0=performance.now()+i*45, dur=650+rnd(0,200);
+    (function anim(t){ const k=clamp((t-t0)/dur,0,1); if(t<t0){ c.style.transform=`translate(${sx}px,${sy}px) scale(0)`; requestAnimationFrame(anim); return; }
+      const e=k<.35? k/.35 : 1, k2= k<.35?0:(k-.35)/.65, ease=k2*k2;
+      const px= k<.35? sx+(mx-sx)*(1-Math.pow(1-e,2)) : mx+(ex-mx)*ease, py= k<.35? sy+(my-sy)*(1-Math.pow(1-e,2)) : my+(ey-my)*ease;
+      c.style.transform=`translate(${px}px,${py}px) scale(${k<.1?k*10:1-.3*k2})`;
+      if(k<1) requestAnimationFrame(anim); else { c.remove(); if(i===n-1){ $('goldPill').classList.remove('bump'); void $('goldPill').offsetWidth; $('goldPill').classList.add('bump'); Snd.coin(); } } })(performance.now()); } }
+
+/* ---------- ダメージ処理 ---------- */
+function dealDamage(dmg){
+  if(!enemy || enemy.hp<=0) return false;
+  enemy.hp-=dmg; updateHp();
+  if(enemy.hp<=0){ killEnemy(); return true; }
+  return false;
+}
+function killEnemy(){
+  const e=enemy, c=enemyCenter();
+  const g=Math.ceil(enemyGold(e.stage)*goldMult());
+  S.gold+=g; S.stats.gold+=g; S.stats.kills++; S.daily.p.kill++;
+  S.dex[e.key]=(S.dex[e.key]||0)+1;
+  if(S.dex[e.key]===1){ S.gems+=1; toast(`図鑑に「${e.name.replace('ボス・','')}」を登録！ ${ICON.gem}+1`); }
+  $('enemy').classList.add('die'); Snd.pop(); burst(c.x,c.y,e.boss?40:16,['#FFD45E','#FF9EC4','#FFFFFF','#C9B2FF'],e.boss?7:4.5,true);
+  floatText(c.x,c.y-c.w*.35,'+'+fmt(g),'gold'); flyCoins(c.x,c.y,e.boss?8:3);
+  if(e.boss){
+    S.stats.bossKills++; S.daily.p.boss++; Native.haptic('success'); Snd.win(); bossLeft=0; $('bossTimer').style.display='none';
+    if(!S.firstBoss[e.stage]){ S.firstBoss[e.stage]=1; const gem=e.ab?5:1; S.gems+=gem; setTimeout(()=>toast(`はじめての撃破！ ${ICON.gem}+${gem}`),900); }
+    banner(e.ab?'大ボス撃破！':'ボス撃破！');
+    if(!S.askedNotify && S.stats.bossKills>=1){ S.askedNotify=true; setTimeout(()=>Native.send({type:'askNotify'}),2500); }
+    advanceStage();
+  } else {
+    if(!S.farm){ S.kills++; if(S.kills>=ENEMIES_PER_STAGE) advanceStage(); }
+    else { S.kills=Math.min(ENEMIES_PER_STAGE,S.kills+1); }
+  }
+  enemy=null; spawnLock=performance.now()+330;
+  setTimeout(()=>{ stageInfo(); spawnEnemy(); },330);
+  checkAch();
+}
+function advanceStage(){
+  S.stage++; S.kills=0;
+  if(S.stage>S.maxStage){ S.maxStage=S.stage; if(S.stage%25===1 && S.stage>1) setTimeout(()=>banner(`新しい場所：${AREAS[areaIdx(S.stage)].name}`),700); }
+  S.farm=false; buildSkills();
+}
+function bossFail(){
+  Snd.fail(); Native.haptic('soft'); banner('時間切れ…'); S.stage=Math.max(1,S.stage-1); S.kills=0; S.farm=true;
+  setTimeout(()=>toast('仲間を強くして「ボスに挑む」をタップ！'),900);
+  enemy=null; setTimeout(()=>{ stageInfo(); spawnEnemy(); },500);
+}
+$('bossBtn').addEventListener('click',e=>{ e.stopPropagation(); S.farm=false; S.stage++; S.kills=0; enemy=null; Native.haptic('soft'); stageInfo(); spawnEnemy(); });
+
+/* タップ攻撃 */
+let tapHintShown=false;
+$('battle').addEventListener('pointerdown',e=>{
+  if(e.target.closest('.skill,#bossBtn')) return;
+  Snd.init();
+  if(!enemy || enemy.hp<=0) return;
+  const r=$('battle').getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top;
+  const crit=Math.random()<0.06; let d=tapDmg()*(crit?5:1);
+  S.stats.taps++; S.daily.p.tap++;
+  const c=enemyCenter();
+  slashAt(c.x+rnd(-c.w*.2,c.w*.2), c.y+rnd(-c.w*.2,c.w*.1)); hitEnemy();
+  burst(c.x+rnd(-20,20),c.y+rnd(-20,10),crit?14:6,crit?['#FFB347','#FFE08A','#fff']:['#fff','#FFC2D8'],crit?5:3);
+  floatText(x+rnd(-14,14), y-24, fmt(d)+(crit?'!':''), crit?'crit':'');
+  if(crit){ shake(); Snd.crit(); Native.haptic('soft'); } else { Snd.tap(); Native.haptic('light'); }
+  if(S.tut===0 && S.stats.taps>=3){ S.tut=1; $('tapHint').style.display='none'; }
+  dealDamage(d);
+});
+
+/* ---------- スキル ---------- */
+const SKILLS=[
+ {k:'rage', name:'全力', unlock:10, ic:ICON.sword, dur:30, cd:300, desc:'30秒間 ダメージ3倍'},
+ {k:'rain', name:'金の雨', unlock:20, ic:ICON.rain, dur:20, cd:480, desc:'20秒間 コイン3倍'},
+ {k:'bolt', name:'星の矢', unlock:35, ic:ICON.bolt, dur:0, cd:180, desc:'毎秒ダメージ×60を一撃'},
+];
+function buildSkills(){
+  const html=SKILLS.filter(s=>S.maxStage>=s.unlock).map(s=>`<button class="skill press" data-k="${s.k}">${s.ic}<span>${s.name}</span><div class="cd" id="cd-${s.k}"></div><div class="cdt" id="cdt-${s.k}"></div></button>`).join('');
+  if($('skills').dataset.h!==html){ $('skills').innerHTML=html; $('skills').dataset.h=html; }
+}
+$('skills').addEventListener('pointerdown',e=>{ e.stopPropagation(); });
+$('skills').addEventListener('click',e=>{
+  const b=e.target.closest('.skill'); if(!b) return; const sk=SKILLS.find(s=>s.k===b.dataset.k); const t=now();
+  if(t<S.skill[sk.k+'Ready']){ toast(`あと ${fmtTime((S.skill[sk.k+'Ready']-t)/1000)} で使えます`); return; }
+  S.skill[sk.k+'Ready']=t+sk.cd*1000; if(sk.dur) S.skill[sk.k+'End']=t+sk.dur*1000;
+  Native.haptic('success'); Snd.milestone(); banner(sk.name+'！');
+  if(sk.k==='bolt' && enemy){ const c=enemyCenter(); const d=totalDps()*60; burst(c.x,c.y,30,['#9FD3FF','#fff','#C9B2FF'],7,true); shake(); floatText(c.x,c.y-30,fmt(d)+'!','crit'); dealDamage(d); }
+  save();
+});
+function updateSkills(){
+  const t=now();
+  for(const sk of SKILLS){ const cd=$('cd-'+sk.k); if(!cd) continue; const ready=S.skill[sk.k+'Ready'], end=S.skill[sk.k+'End']||0;
+    const btn=cd.parentElement; const active=t<end; btn.classList.toggle('active',active);
+    const left=Math.max(0,ready-t); cd.style.height=(left>0? (left/(sk.cd*1000))*100:0)+'%';
+    $('cdt-'+sk.k).textContent= active? Math.ceil((end-t)/1000)+'s' : left>0? (left>60000? Math.ceil(left/60000)+'分': Math.ceil(left/1000)+'s') : ''; }
+  const tags=[]; if(t<S.skill.rageEnd) tags.push('ダメージ×3'); if(t<S.skill.rainEnd) tags.push('コイン×3');
+  const bt=$('boostTag'); bt.style.display=tags.length?'inline':'none'; bt.textContent=tags.join(' ');
+}
+
+/* =====================================================================
+   一覧（タブの中身）
+   ===================================================================== */
+let listDyn=[];
+function renderList(){
+  const L=$('list'); listDyn=[];
+  if(tab==='party') L.innerHTML=partyHTML();
+  else if(tab==='up') L.innerHTML=upHTML();
+  else if(tab==='dex') L.innerHTML=dexHTML();
+  else if(tab==='mission') L.innerHTML=missionHTML();
+  else L.innerHTML=restHTML();
+  refreshList();
+}
+function buyN(kind,i){ // 今の倍率で買う数とコスト
+  if(kind==='lead'){ const L=S.lead; const n= mul? mul : Math.max(1,leadMaxN(L,S.gold)); return {n,c:leadCostN(L,n)}; }
+  const L=S.heroes[i].lv; const n= mul? mul : Math.max(1,heroMaxN(i,L,S.gold)); return {n,c:heroCostN(i,L,n)};
+}
+function partyHTML(){
+  let h=`<div class="row"><div class="av" style="background:var(--pink3);display:flex;align-items:center;justify-content:center">${ICON.sword.replace('viewBox','width="30" height="30" viewBox')}</div>
+   <div class="info"><div class="nm">リーダー（あなた）<small id="lv-lead"></small></div><div class="sub" id="sub-lead"></div></div>
+   <button class="buy" data-buy="lead" id="b-lead"></button></div>`;
+  let shownLocked=0;
+  for(let i=0;i<HEROES.length;i++){
+    const H=HEROES[i], st=S.heroes[i];
+    if(!st.lv){ if(shownLocked>=1){ h+=`<div class="row" style="opacity:.6"><div class="av lockAv">${heroPic(i)}</div><div class="info"><div class="nm">？？？</div><div class="sub">先の仲間を雇うと出会えます</div></div></div>`; break; } shownLocked++; }
+    h+=`<div class="row" id="row-${i}"><div class="av" data-hero="${i}">${heroPic(i)}</div>
+      <div class="info" data-hero="${i}"><div class="nm">${st.lv?H.name:H.name} <small>${H.role}</small> <span class="stars" id="st-${i}"></span></div>
+      <div class="sub" id="sub-${i}"></div><div class="prog"><div id="pg-${i}"></div></div></div>
+      <button class="buy" data-buy="${i}" id="b-${i}"></button></div>`;
+  }
+  h+=`<div class="note" style="text-align:center;margin-top:6px">顔をタップすると覚醒（★）できます</div>`;
+  return h;
+}
+function upHTML(){
+  return `<div class="note" style="margin:2px 4px 8px">${ICON.gem.replace('viewBox','width="14" height="14" style="vertical-align:-2px" viewBox')} 星のかけらで、おやすみしても消えない強化ができます。かけらはボス初撃破・図鑑登録・ミッションで手に入ります。</div>`+
+  PERMS.map(p=>`<div class="row"><div class="info"><div class="nm">${p.name} <small id="plv-${p.key}"></small></div><div class="sub" id="pd-${p.key}"></div></div><button class="buy lav" data-perm="${p.key}" id="pb-${p.key}"></button></div>`).join('');
+}
+function dexHTML(){
+  const heroesGot=S.heroes.filter(h=>h.lv>0).length;
+  let monTotal=0, monGot=0, cells='';
+  AREAS.forEach((a,ai)=>{
+    if(ai>0 && !Object.keys(S.dex).some(k=>k.startsWith(ai+'-'))){ cells+=`<div class="sec" style="opacity:.5">？？？（ステージ${ai*25+1}〜）</div>`; return; }
+    cells+=`<div class="sec">${a.name}</div><div class="grid">`;
+    a.shapes.forEach((sh,si)=>{ const k=`${ai}-${si}`, n=S.dex[k]||0; monTotal++; if(n) monGot++;
+      cells+=`<div class="cell"><div class="pic ${n?'':'lockAv'}">${monster(sh,a.col[si],false,false)}</div>${n? a.pre+SHAPE_NAMES[sh] : '？？？'}<div class="cnt">${n? n.toLocaleString()+'体':''}</div></div>`; });
+    const k=`${ai}-B`, n=S.dex[k]||0; monTotal++; if(n) monGot++;
+    cells+=`<div class="cell"><div class="pic ${n?'':'lockAv'}">${monster(5,a.col[0],true,true)}</div>${n? BOSS_NAMES[ai] : '大ボス'}<div class="cnt">${n? n+'体':''}</div></div></div>`;
+  });
+  return `<div class="card" style="display:flex;gap:12px;align-items:center"><div style="flex:1"><div class="note">仲間</div><div class="big">${heroesGot}<small style="font-size:13px"> / ${HEROES.length}</small></div></div>
+    <div style="flex:1"><div class="note">まもの</div><div class="big">${Object.keys(S.dex).length}<small style="font-size:13px"> / 30</small></div></div>
+    <div style="flex:1"><div class="note">最高ステージ</div><div class="big">${S.maxStage}</div></div></div>
+    <div class="sec">仲間</div><div class="grid">${HEROES.map((H,i)=>`<div class="cell" data-hero="${S.heroes[i].lv?i:''}"><div class="pic ${S.heroes[i].lv?'':'lockAv'}">${heroPic(i)}</div>${S.heroes[i].lv?H.name:'？？？'}<div class="cnt stars">${'★'.repeat(S.heroes[i].star)}</div></div>`).join('')}</div>${cells}`;
+}
+const DAILY=[{k:'tap',n:'500回タップする',goal:500,gem:5},{k:'kill',n:'まものを150体たおす',goal:150,gem:5},{k:'lvup',n:'仲間を30回レベルアップ',goal:30,gem:5},{k:'boss',n:'ボスを3体たおす',goal:3,gem:5}];
+const ACH=[
+ {k:'s10',n:'ステージ10に到達',chk:()=>S.maxStage>=10,gem:5},{k:'s25',n:'ステージ25に到達',chk:()=>S.maxStage>=25,gem:10},
+ {k:'s50',n:'ステージ50に到達',chk:()=>S.maxStage>=50,gem:15},{k:'s75',n:'ステージ75に到達',chk:()=>S.maxStage>=75,gem:20},
+ {k:'s100',n:'ステージ100に到達',chk:()=>S.maxStage>=100,gem:30},{k:'s150',n:'ステージ150に到達',chk:()=>S.maxStage>=150,gem:50},
+ {k:'h6',n:'仲間を6人集める',chk:()=>S.heroes.filter(h=>h.lv).length>=6,gem:10},{k:'h12',n:'仲間を全員集める',chk:()=>S.heroes.every(h=>h.lv),gem:30},
+ {k:'t1k',n:'1,000回タップ',chk:()=>S.stats.taps>=1000,gem:5},{k:'t10k',n:'10,000回タップ',chk:()=>S.stats.taps>=10000,gem:15},
+ {k:'k1k',n:'まものを1,000体',chk:()=>S.stats.kills>=1000,gem:5},{k:'k10k',n:'まものを10,000体',chk:()=>S.stats.kills>=10000,gem:15},
+ {k:'p1',n:'はじめてのおやすみ',chk:()=>S.stats.prestige>=1,gem:10},{k:'p5',n:'おやすみ5回',chk:()=>S.stats.prestige>=5,gem:20},
+ {k:'a1',n:'仲間をはじめて覚醒',chk:()=>S.heroes.some(h=>h.star>0),gem:5},{k:'d30',n:'まもの図鑑を15種',chk:()=>Object.keys(S.dex).length>=15,gem:15},
+];
+function missionHTML(){
+  const allDone=DAILY.every(d=>S.daily.got[d.k]);
+  let h=`<div class="sec">今日のミッション <span class="note" style="font-weight:700">（毎日0時に入れ替わり）</span></div>`;
+  h+=DAILY.map(d=>`<div class="row"><div class="info"><div class="nm">${d.n}</div><div class="prog"><div id="mp-${d.k}"></div></div><div class="sub" id="ms-${d.k}"></div></div><button class="buy mint" data-daily="${d.k}" id="mb-${d.k}"></button></div>`).join('');
+  h+=`<div class="row"><div class="info"><div class="nm">ぜんぶクリア ボーナス</div><div class="sub">4つのミッションを達成</div></div><button class="buy mint" data-daily="bonus" id="mb-bonus"></button></div>`;
+  h+=`<div class="sec">ログイン</div><div class="card note" style="text-align:center">連続 <b class="big" style="font-size:18px">${S.login.streak}</b> 日目　7日目は ${ICON.gem.replace('viewBox','width="14" height="14" style="vertical-align:-2px" viewBox')}50！</div>`;
+  h+=`<div class="sec">実績</div>`+ACH.map(a=>`<div class="row"><div class="info"><div class="nm">${a.n}</div><div class="sub">${ICON.gem.replace('viewBox','width="12" height="12" style="vertical-align:-2px" viewBox')} ${a.gem}</div></div><button class="buy mint" data-ach="${a.k}" id="ab-${a.k}"></button></div>`).join('');
+  return h;
+}
+function restHTML(){
+  const gain=feathersFor(S.maxStage);
+  return `<div class="card" style="text-align:center">
+   <div class="ray" style="width:90px;height:90px">${ICON.moon.replace('stroke="currentColor"','stroke="#8B73E6"').replace('viewBox','width="90" height="90" viewBox')}</div>
+   <div class="note">冒険隊はひと休みして、夢の中で強くなります。<br>ステージ・コイン・仲間のレベルは最初からに戻りますが、<br><b>そらの羽</b>1枚につき <b>ダメージ+10%</b> がずっと続きます。</div>
+   <div style="display:flex;justify-content:center;gap:18px;margin:14px 0 4px">
+     <div><div class="note">いまの羽</div><div class="big">${fmt(S.feathers)}</div></div>
+     <div><div class="note">もらえる羽</div><div class="big" style="color:#4E8FD9" id="rest-gain">+${fmt(gain)}</div></div>
+   </div>
+   <div class="note">最高ステージ ${S.maxStage}（ステージ40から おやすみできます）<br>覚醒（★）と強化はそのまま残ります</div>
+   <div style="margin-top:14px"><button class="buy ${gain>0?'lav':'no'}" id="restBtn" style="padding:12px 26px;font-size:15px">おやすみする</button></div></div>
+   <div class="note" style="text-align:center">目安：ステージ50で ${feathersFor(50)}枚 ／ 70で ${feathersFor(70)}枚 ／ 100で ${feathersFor(100)}枚</div>`;
+}
+
+/* 一覧の数字だけ更新（毎フレームは重いので 0.15秒ごと） */
+function refreshList(){
+  if(tab==='party'){
+    const lb=buyN('lead'); const bl=$('b-lead'); if(bl){ $('lv-lead').textContent='Lv.'+S.lead; $('sub-lead').textContent=`タップ ${fmt(tapDmg()/rageMult())}`;
+      setH(bl,`Lv+${lb.n}<small>${fmt(lb.c)}</small>`); bl.classList.toggle('no',S.gold<lb.c); }
+    for(let i=0;i<HEROES.length;i++){ const b=$('b-'+i); if(!b) continue; const st=S.heroes[i]; const q=buyN('hero',i);
+      if(!st.lv){ setH(b,`雇う<small>${fmt(heroCost(i,0))}</small>`); b.classList.toggle('no',S.gold<heroCost(i,0)); $('sub-'+i).textContent=`毎秒 ${fmt(HEROES[i].dps*featherMult()*(1+S.perm.dmg*.25)*Math.pow(2,st.star))} のちから`; $('pg-'+i).style.width='0%'; continue; }
+      setH(b,`Lv+${q.n}<small>${fmt(q.c)}</small>`); b.classList.toggle('no',S.gold<q.c);
+      const nm=nextMilestone(st.lv), prev= st.lv<10?0: nm-25 < 10 ? 10 : nm-25;
+      $('sub-'+i).textContent=`Lv.${st.lv}　毎秒 ${fmt(heroDps(i))}　Lv${nm}で×${nm===10?2:3}`;
+      $('pg-'+i).style.width=clamp((st.lv-prev)/(nm-prev)*100,0,100)+'%';
+      $('st-'+i).textContent='★'.repeat(st.star); }
+  } else if(tab==='up'){
+    for(const p of PERMS){ const lv=S.perm[p.key], b=$('pb-'+p.key); if(!b) continue; $('plv-'+p.key).textContent=`Lv.${lv}`; $('pd-'+p.key).textContent=p.desc(lv)+(lv<p.max?` → ${p.desc(lv+1).replace(/^.*?(\+?\d+.*)$/,'$1')}`:'');
+      if(lv>=p.max){ setH(b,'MAX'); b.classList.add('no'); } else { setH(b,`強化<small>${ICON.gem.replace('viewBox','width="11" height="11" style="vertical-align:-1px" viewBox')} ${p.cost(lv)}</small>`); b.classList.toggle('no',S.gems<p.cost(lv)); } }
+  } else if(tab==='mission'){
+    for(const d of DAILY){ const v=Math.min(d.goal,S.daily.p[d.k]), b=$('mb-'+d.k); if(!b) continue; $('mp-'+d.k).style.width=(v/d.goal*100)+'%'; $('ms-'+d.k).textContent=`${v} / ${d.goal}`;
+      if(S.daily.got[d.k]){ setH(b,'受け取り済み'); setC(b,'buy no'); } else { setH(b,`受け取る<small>${ICON.gem.replace('viewBox','width="11" height="11" viewBox')} ${d.gem}</small>`); setC(b,'buy mint'+(v>=d.goal?'':' no')); } }
+    const bb=$('mb-bonus'); if(bb){ const ok=DAILY.every(d=>S.daily.got[d.k]); if(S.daily.bonus){ setH(bb,'受け取り済み'); setC(bb,'buy no'); } else { setH(bb,`受け取る<small>${ICON.gem.replace('viewBox','width="11" height="11" viewBox')} 10</small>`); setC(bb,'buy mint'+(ok?'':' no')); } }
+    for(const a of ACH){ const b=$('ab-'+a.k); if(!b) continue; if(S.ach[a.k]){ setH(b,'受け取り済み'); setC(b,'buy no'); } else { const ok=a.chk(); setH(b,ok?'受け取る':'未達成'); setC(b,'buy mint'+(ok?'':' no')); } }
+  }
+}
+
+/* 一覧のタップ */
+$('list').addEventListener('click',e=>{
+  Snd.init();
+  const t=e.target.closest('[data-buy],[data-perm],[data-daily],[data-ach],[data-hero],#restBtn'); if(!t) return;
+  if(t.id==='restBtn') return askRest();
+  if(t.dataset.hero!==undefined && t.dataset.hero!=='' && !t.dataset.buy) return heroModal(+t.dataset.hero);
+  if(t.dataset.buy!==undefined){
+    if(t.dataset.buy==='lead'){ const q=buyN('lead'); if(S.gold<q.c) return nope(t); S.gold-=q.c; S.lead+=q.n; Snd.buy(); Native.haptic('light'); pressFx(t); refreshList(); return; }
+    const i=+t.dataset.buy, st=S.heroes[i];
+    if(!st.lv){ const c=heroCost(i,0); if(S.gold<c) return nope(t); S.gold-=c; st.lv=1; S.daily.p.lvup++; S.stats.lvups++; Snd.milestone(); Native.haptic('success'); buildParty(); renderList(); welcome(i); if(S.tut===1) S.tut=2; checkAch(); save(); return; }
+    const q=buyN('hero',i); if(S.gold<q.c) return nope(t);
+    const before=st.lv; S.gold-=q.c; st.lv+=q.n; S.daily.p.lvup+=q.n; S.stats.lvups+=q.n;
+    if(nextMilestone(before)<=st.lv){ Snd.milestone(); Native.haptic('success'); toast(`${HEROES[i].name}のちからが大きく上がった！`); sparkleRow(i); } else { Snd.buy(); Native.haptic('light'); }
+    pressFx(t); buildParty(); refreshList(); return; }
+  if(t.dataset.perm){ const p=PERMS.find(x=>x.key===t.dataset.perm), lv=S.perm[p.key]; if(lv>=p.max) return; if(S.gems<p.cost(lv)) return nope(t,'星のかけらが足りません');
+    S.gems-=p.cost(lv); S.perm[p.key]++; Snd.milestone(); Native.haptic('success'); pressFx(t); refreshList(); save(); return; }
+  if(t.dataset.daily){ const k=t.dataset.daily;
+    if(k==='bonus'){ if(S.daily.bonus || !DAILY.every(d=>S.daily.got[d.k])) return nope(t); S.daily.bonus=true; gainGems(10,t); }
+    else { const d=DAILY.find(x=>x.k===k); if(S.daily.got[k]||S.daily.p[k]<d.goal) return nope(t); S.daily.got[k]=1; gainGems(d.gem,t); }
+    refreshList(); save(); return; }
+  if(t.dataset.ach){ const a=ACH.find(x=>x.k===t.dataset.ach); if(S.ach[a.k]||!a.chk()) return nope(t); S.ach[a.k]=1; gainGems(a.gem,t); refreshList(); save(); return; }
+});
+function nope(el,msg){ el.animate([{transform:'translateX(0)'},{transform:'translateX(-5px)'},{transform:'translateX(5px)'},{transform:'translateX(0)'}],{duration:200}); Native.haptic('light'); if(msg) toast(msg); }
+function pressFx(el){ const r=el.getBoundingClientRect(); for(let i=0;i<6;i++){ const s=document.createElement('div'); s.className='coinFly'; s.style.width='10px'; s.style.height='10px';
+  s.innerHTML='<svg viewBox="0 0 10 10"><path d="M5,0 L6.3,3.7 L10,5 L6.3,6.3 L5,10 L3.7,6.3 L0,5 L3.7,3.7 Z" fill="#FFD45E"/></svg>'; document.body.appendChild(s);
+  const a=Math.random()*6.28, d=rnd(20,40); s.animate([{transform:`translate(${r.left+r.width/2}px,${r.top+r.height/2}px) scale(1)`,opacity:1},{transform:`translate(${r.left+r.width/2+Math.cos(a)*d}px,${r.top+r.height/2+Math.sin(a)*d}px) scale(.2)`,opacity:0}],{duration:450,easing:'ease-out'}).onfinish=()=>s.remove(); } }
+function sparkleRow(i){ const r=$('row-'+i); if(!r) return; r.animate([{boxShadow:'0 0 0 0 #FFE08A'},{boxShadow:'0 0 0 6px #FFE08A'},{boxShadow:'0 2px 0 #F3DCE8'}],{duration:600}); }
+function gainGems(n,el){ S.gems+=n; Snd.win(); Native.haptic('success'); if(el) pressFx(el); $('gemPill').classList.remove('bump'); void $('gemPill').offsetWidth; $('gemPill').classList.add('bump'); }
+
+/* =====================================================================
+   モーダル
+   ===================================================================== */
+let modalCb=null;
+function modal(html,cb){ $('mbox').innerHTML=html; $('modal').classList.add('show'); modalCb=cb||null; }
+function closeModal(){ $('modal').classList.remove('show'); const cb=modalCb; modalCb=null; if(cb) cb(); }
+$('modal').addEventListener('click',e=>{ const b=e.target.closest('[data-act]'); if(b){ Snd.init(); const a=b.dataset.act; if(a==='close') closeModal(); else if(modalActs[a]) modalActs[a](b); } });
+const modalActs={};
+function toast(html){ const t=$('toast'); t.innerHTML=html.replace(/<svg viewBox/g,'<svg width="16" height="16" viewBox'); t.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(()=>t.classList.remove('show'),2200); }
+
+function welcome(i){ const H=HEROES[i];
+  const lines=['よろしくね！いっしょに空の果てまで行こう！','ぼくの魔法、見ててね。','狙った獲物は外さないよ！','このカイが みんなを守る！','けがしたら すぐ言ってね。','……影から支える。','旅には歌が必要でしょ？','星が きみを選んだみたいだ。','モモもいっしょに行くー！','槍のさばき、見せてあげる。','おもしろい発明、できたよ！','月の光が みちびいてくれます。'];
+  modal(`<div class="ray"><div style="width:120px;height:120px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 4px #fff,0 0 0 7px var(--pink2)">${heroPic(i)}</div></div>
+   <h2>${H.name}が仲間になった！</h2><div class="note">${H.role}</div><div class="card" style="margin:12px 0 0;background:var(--pink3);box-shadow:none;font-weight:700">「${lines[i]}」</div>
+   <div class="mbtns"><button class="buy" data-act="close">よろしく！</button></div>`);
+}
+function heroModal(i){
+  const H=HEROES[i], st=S.heroes[i]; if(!st.lv) return;
+  const c=AWAKEN_COST(st.star), can=st.star<5;
+  modal(`<div style="width:150px;height:150px;margin:0 auto 8px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 4px #fff,0 0 0 7px var(--lav2)">${heroPic(i)}</div>
+   <h2>${H.name} <span class="stars" style="font-size:16px">${'★'.repeat(st.star)}${'☆'.repeat(5-st.star)}</span></h2>
+   <div class="note">${H.role}　Lv.${st.lv}　毎秒 ${fmt(heroDps(i))}</div>
+   <div class="card" style="margin:12px 0 0;background:var(--lav2);box-shadow:none"><div style="font-weight:800">覚醒</div><div class="note">★1つにつき ${H.name}のダメージ ×2。おやすみしても消えません。</div></div>
+   <div class="mbtns"><button class="buy no" data-act="close" style="min-width:90px">とじる</button>
+   ${can?`<button class="buy lav" data-act="awaken" data-i="${i}">覚醒する<small>${ICON.gem.replace('viewBox','width="11" height="11" viewBox')} ${c}</small></button>`:'<button class="buy no">最大まで覚醒</button>'}</div>`);
+}
+modalActs.awaken=b=>{ const i=+b.dataset.i, st=S.heroes[i], c=AWAKEN_COST(st.star); if(S.gems<c){ nope(b,'星のかけらが足りません'); return; }
+  S.gems-=c; st.star++; Snd.win(); Native.haptic('success'); pressFx(b); save(); heroModal(i); refreshList(); checkAch(); };
+
+function askRest(){ const gain=feathersFor(S.maxStage);
+  if(gain<=0){ toast('ステージ40まで進むと おやすみできます'); return; }
+  modal(`<div class="ray" style="width:90px;height:90px">${ICON.feather.replace('viewBox','width="90" height="90" viewBox')}</div><h2>おやすみしますか？</h2>
+   <div class="note">そらの羽を <b style="font-size:18px;color:#4E8FD9">+${fmt(gain)}</b> 枚もらえます。<br>（ダメージ +${fmt(gain*10)}%）<br>ステージ・コイン・仲間のレベルは最初に戻ります。</div>
+   <div class="mbtns"><button class="buy no" data-act="close" style="min-width:90px">やめる</button><button class="buy lav" data-act="doRest">おやすみ</button></div>`); }
+modalActs.doRest=()=>{ const gain=feathersFor(S.maxStage); if(gain<=0) return;
+  S.feathers+=gain; S.feathersTotal+=gain; S.stats.prestige++;
+  S.gold=0; S.stage=1; S.maxStage=1; S.kills=0; S.farm=false; S.lead=1; S.heroes.forEach(h=>h.lv=0);
+  S.skill.rageEnd=S.skill.rainEnd=0;
+  closeModal(); save(); partyIdx=[]; buildParty(); buildSkills(); stageInfo(); enemy=null; spawnEnemy(); setTab('party'); banner('おはよう！'); Snd.win(); Native.haptic('success'); checkAch(); };
+
+/* ---------- 設定 ---------- */
+$('setBtn').addEventListener('click',()=>{ Snd.init(); settings(); });
+function settings(){ modal(`<h2>せってい</h2>
+  <div class="row" style="box-shadow:none;background:var(--pink3)"><div class="info"><div class="nm">効果音</div></div><button class="toggle ${S.set.sound?'on':''}" data-act="tgSound"></button></div>
+  <div class="row" style="box-shadow:none;background:var(--pink3)"><div class="info"><div class="nm">振動</div></div><button class="toggle ${S.set.haptic?'on':''}" data-act="tgHaptic"></button></div>
+  <div class="note" style="text-align:left;margin-top:6px">あそんだ時間 ${fmtTime(S.stats.playSec)}<br>たおしたまもの ${S.stats.kills.toLocaleString()}体<br>タップ ${S.stats.taps.toLocaleString()}回<br>おやすみ ${S.stats.prestige}回</div>
+  <div class="mbtns"><button class="buy" data-act="close">とじる</button></div>`); }
+modalActs.tgSound=b=>{ S.set.sound=!S.set.sound; b.classList.toggle('on',S.set.sound); save(); };
+modalActs.tgHaptic=b=>{ S.set.haptic=!S.set.haptic; b.classList.toggle('on',S.set.haptic); save(); };
+
+/* =====================================================================
+   おかえり報酬・ログイン
+   ===================================================================== */
+const LOGIN_GEMS=[10,10,20,10,10,20,50];
+function dayRollover(){
+  const d=todayStr();
+  if(S.daily.day!==d){ S.daily={day:d,p:{tap:0,kill:0,lvup:0,boss:0},got:{},bonus:false}; }
+}
+function checkLogin(after){
+  const d=todayStr(); if(S.login.last===d || $('modal').classList.contains('show')){ after&&after(); return; }
+  const y=todayStr(Date.now()-86400000);
+  S.login.streak = S.login.last===y ? S.login.streak+1 : 1; S.login.last=d;
+  const idx=(S.login.streak-1)%7, g=LOGIN_GEMS[idx];
+  modal(`<h2>ログインボーナス</h2><div class="note">連続 ${S.login.streak} 日目</div>
+   <div class="loginRow">${LOGIN_GEMS.map((v,i)=>`<div class="${i<idx?'done':i===idx?'today':''}">${i+1}日<br>${v}</div>`).join('')}</div>
+   <div class="ray" style="width:80px;height:80px;margin-top:14px">${ICON.gem.replace('viewBox','width="80" height="80" viewBox')}</div>
+   <div class="big">+${g}</div>
+   <div class="mbtns"><button class="buy mint" data-act="close">受け取る</button></div>`, ()=>{ gainGems(g); save(); after&&after(); });
+}
+function offlineReward(){
+  const away=(Date.now()-S.savedAt)/1000;
+  if(away<60 || S.heroes.every(h=>!h.lv)) return null;
+  const sec=Math.min(away,offlineCapSec());
+  const gold=Math.floor(goldPerSec()*sec*offlineRate());
+  if(gold<=0) return null;
+  // 留守中のちょっとしたおみやげ（毎回ちがう）
+  const gifts=[];
+  if(away>=3600 && Math.random()<0.5) gifts.push({t:'gem',n:Math.min(5,1+Math.floor(away/7200))});
+  return {away,sec,gold,gifts};
+}
+function showWelcomeBack(r,after){
+  const lead=partyIdx.length? partyIdx[partyIdx.length-1] : 0;
+  const capped = r.away>r.sec;
+  const said=['おかえり！ みんなで がんばったよ！','おかえりなさい。宝箱、いっぱいです。','おかえり！ 待ってたよ！'][Math.floor(Math.random()*3)];
+  const giftHtml=r.gifts.map(g=>`<div class="note" style="margin-top:6px">おみやげ：${ICON.gem.replace('viewBox','width="14" height="14" style="vertical-align:-2px" viewBox')} 星のかけら ×${g.n}</div>`).join('');
+  modal(`<div class="ray"><div style="width:120px;height:120px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 4px #fff,0 0 0 7px var(--pink2)">${heroPic(lead)}</div></div>
+    <h2>${said}</h2>
+    <div class="note">${fmtTime(r.away)} のあいだに</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin:8px 0">${ICON.coin.replace('viewBox','width="34" height="34" viewBox')}<span class="big" style="font-size:28px">+${fmt(r.gold)}</span></div>
+    ${capped?`<div class="note" style="color:#E0558A">宝箱がいっぱいでした（最大 ${fmtTime(offlineCapSec())}）</div>`:''}${giftHtml}
+    <div class="mbtns"><button class="buy" data-act="close">受け取る</button><button class="buy lav" data-act="double">2倍にする<small>${ICON.gem.replace('viewBox','width="11" height="11" viewBox')} 10</small></button></div>`,
+    ()=>{ S.gold+=r.gold*(r.doubled?2:1); S.stats.gold+=r.gold; r.gifts.forEach(g=>{ if(g.t==='gem') S.gems+=g.n; }); const c=enemyCenter(); flyCoins(c.x,c.y,10); Native.haptic('success'); save(); after&&after(); });
+  modalActs.double=b=>{ if(S.gems<10){ nope(b,'星のかけらが足りません'); return; } S.gems-=10; r.doubled=true; closeModal(); };
+}
+
+/* =====================================================================
+   実績・バッジ
+   ===================================================================== */
+function checkAch(){ /* バッジだけ更新（受け取りは手動） */ }
+function updateDots(){
+  const affordable = (()=>{ for(let i=0;i<HEROES.length;i++){ const st=S.heroes[i]; if(!st.lv){ if(i===0||S.heroes[i-1].lv) return S.gold>=heroCost(i,0); return false; } } return false; })();
+  $('dot-party').style.display = affordable?'block':'none';
+  const mis = DAILY.some(d=>!S.daily.got[d.k]&&S.daily.p[d.k]>=d.goal) || (!S.daily.bonus&&DAILY.every(d=>S.daily.got[d.k])) || ACH.some(a=>!S.ach[a.k]&&a.chk());
+  $('dot-mission').style.display = mis?'block':'none';
+  $('dot-up').style.display = PERMS.some(p=>S.perm[p.key]<p.max&&S.gems>=p.cost(S.perm[p.key])) ? 'block':'none';
+  $('dot-rest').style.display = feathersFor(S.maxStage)>=Math.max(5,S.feathers*0.5) ? 'block':'none';
+}
+
+/* =====================================================================
+   メインループ
+   ===================================================================== */
+let last=performance.now(), acc10=0, accSave=0, dispGold=S.gold, dispGems=S.gems;
+function frame(t){
+  let dt=Math.min(0.1,(t-last)/1000); last=t;
+  dayRollover();
+  if(enemy && enemy.hp>0 && t>spawnLock){
+    // 仲間それぞれが自分のペースで攻撃
+    const rm=rageMult();
+    for(let i=0;i<HEROES.length;i++){ if(!S.heroes[i].lv) continue; heroTimers[i]-=dt;
+      if(heroTimers[i]<=0){ const iv=1+(i%4)*0.12; heroTimers[i]+=iv; const d=heroDps(i)*rm*iv;
+        const el=$('ph'+i);
+        if(el){ el.classList.remove('atk','idle'); void el.offsetWidth; el.classList.add('atk'); setTimeout(()=>el.classList.add('idle'),300);
+          const c=enemyCenter(); const br=$('battle').getBoundingClientRect(), hr=el.getBoundingClientRect();
+          burst(c.x+rnd(-15,15),c.y+rnd(-15,15),4,[HEROES[i].hair,'#fff'],3); floatText(c.x+rnd(-c.w*.45,c.w*.45), c.y-c.w*.05+rnd(-c.w*.25,c.w*.15), fmt(d),'sm');
+          if(Math.random()<0.5) hitEnemy(); }
+        if(dealDamage(d)) break; } }
+    if(bossLeft>0){ bossLeft-=dt; $('bossTimer').firstElementChild.style.width=clamp(bossLeft/bossTime()*100,0,100)+'%'; if(bossLeft<=0 && enemy && enemy.hp>0) bossFail(); }
+  }
+  stepFx();
+  // 数字はなめらかに
+  dispGold += (S.gold-dispGold)*Math.min(1,dt*10); if(Math.abs(S.gold-dispGold)<1) dispGold=S.gold;
+  dispGems += (S.gems-dispGems)*Math.min(1,dt*10); if(Math.abs(S.gems-dispGems)<.5) dispGems=S.gems;
+  $('goldTxt').textContent=fmt(dispGold); $('gemTxt').textContent=fmt(Math.round(dispGems)); $('featherTxt').textContent=fmt(S.feathers);
+  acc10+=dt; accSave+=dt; S.stats.playSec+=dt;
+  if(acc10>0.15){ acc10=0; $('dpsTxt').textContent=fmt(totalDps()); $('tapTxt').textContent=fmt(tapDmg()); refreshList(); updateSkills(); updateDots();
+    if(S.tut===1 && S.gold>=10 && tab==='party'){ toast('コインが貯まった！「雇う」で仲間をむかえよう'); S.tut=1.5; } }
+  if(accSave>10){ accSave=0; save(); }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- アプリの表示・非表示 ---------- */
+function scheduleNotices(){
+  const cap=offlineCapSec(); const items=[];
+  if(S.heroes.some(h=>h.lv)) items.push({id:'full',after:cap,title:'そらいろ冒険隊',body:'宝箱がいっぱいになったよ！ コインを受け取りに来てね'});
+  const n=new Date(); const t=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1,19,30); items.push({id:'daily',after:Math.floor((t-n)/1000),title:'そらいろ冒険隊',body:'今日のミッションとログインボーナスが待ってるよ'});
+  Native.send({type:'schedule',items});
+}
+let hiddenAt=0;
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){ hiddenAt=Date.now(); save(); scheduleNotices(); }
+  else { Native.send({type:'clearNotify'}); dayRollover(); const r=offlineReward(); last=performance.now(); if(r && !$('modal').classList.contains('show')) showWelcomeBack(r,()=>checkLogin()); else checkLogin(); }
+});
+window.addEventListener('pagehide',save);
+
+/* ---------- はじまり ---------- */
+function start(){
+  resizeFx(); dayRollover(); buildParty(); buildSkills(); stageInfo(); spawnEnemy(); setTab('party');
+  if(S.tut===0){ $('tapHint').style.display='block'; }
+  const r=offlineReward();
+  const first = S.stats.taps===0 && S.heroes.every(h=>!h.lv) && S.stats.prestige===0;
+  const after=()=>checkLogin();
+  if(first){
+    modal(`<div class="ray"><div style="width:120px;height:120px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 4px #fff,0 0 0 7px var(--pink2)">${heroPic(0)}</div></div>
+      <h2>そらいろ冒険隊へようこそ！</h2><div class="note">まものをタップしてコインを集め、仲間を雇おう。<br>仲間はアプリを閉じていても戦ってくれます。<br>空の果てを目指して、のんびり冒険しよう！</div>
+      <div class="mbtns"><button class="buy" data-act="close">はじめる</button></div>`, after);
+  } else if(r) showWelcomeBack(r,after); else after();
+  requestAnimationFrame(t=>{ last=t; requestAnimationFrame(frame); });
+}
+start();
+</script>
+</body>
+</html>
