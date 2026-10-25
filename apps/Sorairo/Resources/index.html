@@ -322,7 +322,7 @@ function portrait(h, size){
     <path d="M60,74 C52,106 54,${sideLen-12} 61,${sideLen} C65,${sideLen-20} 66,106 70,88 Z" fill="url(#${id}h)"/>
     <path d="M140,74 C148,106 146,${sideLen-12} 139,${sideLen} C135,${sideLen-20} 134,106 130,88 Z" fill="url(#${id}h)"/></g>`;
   // ---- 瞳（アニメ調：大きな虹彩・二重線・まつ毛の跳ね・複数のハイライト）----
-  const eye=(cx,mir)=>`<g transform="translate(${cx},109) scale(${mir*(male?.96:1)},${male?.84:1})">
+  const eye=(cx,mir)=>`<g transform="translate(${cx},111) scale(${mir*(male?.74:.78)},${male?.64:.78})">
      <path d="M-13,-6 C-8,-13 8,-14 14,-8 C15.5,2 12,12.5 0,15 C-12,13.5 -15.5,3 -13,-6 Z" fill="#fff"/>
      <path d="M-13,-5.5 C-8,-12.5 8,-13.5 14,-7.5 C8,-8 -6,-8.5 -13,-1.5 Z" fill="#B9AED6" opacity=".55"/>
      <ellipse cx=".5" cy="2.5" rx="9.6" ry="12.4" fill="url(#${id}e)" stroke="${eyeDark}" stroke-width="1"/>
@@ -350,7 +350,7 @@ function portrait(h, size){
     beret:`<ellipse cx="110" cy="40" rx="48" ry="15" fill="${h.accC}" transform="rotate(-12 110 40)"/><circle cx="118" cy="24" r="4" fill="${h.accC}"/>`,
     star:`<path transform="translate(134,56) scale(1.1)" d="M0,-12 L3.5,-4 L12,-3.7 L5.5,2 L7.4,10.5 L0,6 L-7.4,10.5 L-5.5,2 L-12,-3.7 L-3.5,-4 Z" fill="${h.accC}"/>`,
     ears:`<path d="M62,60 C56,46 52,30 55,17 C66,22 78,31 89,42 C80,46 70,52 62,60 Z" fill="${h.hair}" stroke="${h.hair2}" stroke-width="1.6" stroke-linejoin="round"/><path d="M66,52 C63,44 61,35 62,28 C68,32 74,37 80,42 C75,45 70,48 66,52 Z" fill="#FFD6E2"/><path d="M138,60 C144,46 148,30 145,17 C134,22 122,31 111,42 C120,46 130,52 138,60 Z" fill="${h.hair}" stroke="${h.hair2}" stroke-width="1.6" stroke-linejoin="round"/><path d="M134,52 C137,44 139,35 138,28 C132,32 126,37 120,42 C125,45 130,48 134,52 Z" fill="#FFD6E2"/>`,
-    glasses:`<g fill="none" stroke="${h.accC}" stroke-width="2.2"><rect x="67" y="96" width="28" height="24" rx="9"/><rect x="105" y="96" width="28" height="24" rx="9"/><path d="M95,106 L105,106"/></g>`,
+    glasses:`<g fill="none" stroke="${h.accC}" stroke-width="2.2"><rect x="71" y="101" width="24" height="20" rx="8"/><rect x="105" y="101" width="24" height="20" rx="8"/><path d="M95,110 L105,110"/></g>`,
     goggles:`<path d="M58,58 Q100,40 142,58 L142,66 Q100,48 58,66 Z" fill="#7A5A44"/><circle cx="84" cy="50" r="11" fill="${h.accC}"/><circle cx="84" cy="50" r="7" fill="#BFE9FF"/><circle cx="116" cy="50" r="11" fill="${h.accC}"/><circle cx="116" cy="50" r="7" fill="#BFE9FF"/>`,
     tiara:`<path d="M72,42 L80,26 L90,38 L100,18 L110,38 L120,26 L128,42 Q100,36 72,42 Z" fill="${h.accC}"/><circle cx="100" cy="30" r="4" fill="#FF8FB8"/>`
   };
@@ -376,7 +376,7 @@ function portrait(h, size){
   <path d="M63,82 C62,104 66,121 77,134 C85,143 93,149.5 100,151 C107,149.5 115,143 123,134 C134,121 138,104 137,82 C137,52 120,40 100,40 C80,40 63,52 63,82 Z" fill="${SKIN}" stroke="#E3A493" stroke-width="1.3"/>
   <ellipse cx="77" cy="127" rx="9.5" ry="4.6" fill="#FF8FAA" opacity=".38"/><ellipse cx="123" cy="127" rx="9.5" ry="4.6" fill="#FF8FAA" opacity=".38"/>
   ${male?'':`<path d="M72,128 l2.4,-3.4 M76,128.4 l2.4,-3.4 M80,128.4 l2.4,-3.4 M118,128.4 l2.4,-3.4 M122,128.4 l2.4,-3.4 M126,128 l2.4,-3.4" stroke="#FF7F9C" stroke-width="1" stroke-linecap="round" opacity=".7"/>`}
-  ${eye(81,-1)}${eye(119,1)}
+  ${eye(83,-1)}${eye(117,1)}
   <path d="M100.6,120.5 C100.2,122.4 99.6,123.6 98.8,124.4" stroke="#DB9886" stroke-width="1.2" fill="none" stroke-linecap="round"/>
   ${mouth}
   ${sides}
