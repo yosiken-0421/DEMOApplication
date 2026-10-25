@@ -1,0 +1,117 @@
+name: PIKOPIA isolated TestFlight release
+on:
+  push:
+    branches: [pikopia/testflight]
+    paths: ['.github/workflows/pikopia-isolated-testflight.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pikopia-isolated-testflight
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 35
+    steps:
+      - name: Fetch verified PIKOPIA source only
+        uses: actions/checkout@v4
+        with:
+          repository: yosiken-0421/PIKOPIA-iOS
+          ref: 5ba8a2ef75b82d158180566bc8ab8069404f6308
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run all game regression tests
+        run: node --test tests/*.test.cjs
+      - name: Prepare Xcode project
+        run: |
+          xcodebuild -version
+          brew install xcodegen
+          bash ios-native/scripts/prepare-mac.sh
+      - name: Prepare existing Apple API key without disclosing it
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          set +x
+          python3 - <<'PY'
+          import os, re, base64
+          from pathlib import Path
+          for name in ['ASC_KEY_ID','ASC_ISSUER_ID','ASC_KEY_P8','APPLE_TEAM_ID']:
+              if not os.environ.get(name): raise SystemExit('Missing signing setting: '+name)
+          team=os.environ['APPLE_TEAM_ID'].strip()
+          if team!='429AWBTA7B': raise SystemExit('Apple team does not match PIKOPIA')
+          body=re.sub(r'-----(BEGIN|END)[^-]*-----','',os.environ['ASC_KEY_P8'])
+          body=re.sub(r'[^A-Za-z0-9+/=]','',body)
+          der=base64.b64decode(body+'='*(-len(body)%4))
+          if len(der)<100: raise SystemExit('Invalid signing key')
+          b64=base64.b64encode(der).decode()
+          folder=Path(os.environ['RUNNER_TEMP'])/'pikopia-keys'
+          folder.mkdir(mode=0o700)
+          (folder/'AuthKey.p8').write_text('-----BEGIN PRIVATE KEY-----\n'+'\n'.join(b64[i:i+64] for i in range(0,len(b64),64))+'\n-----END PRIVATE KEY-----\n')
+          (folder/'AuthKey.p8').chmod(0o600)
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+              f.write('KEY_ID='+os.environ['ASC_KEY_ID'].strip()+'\n')
+              f.write('ISSUER_ID='+os.environ['ASC_ISSUER_ID'].strip()+'\n')
+              f.write('TEAM_ID='+team+'\n')
+              f.write('PIKOPIA_BUILD='+str(int(os.environ['GITHUB_RUN_NUMBER'])+9000)+'\n')
+          PY
+      - name: Verify Apple app identity before any signing or upload
+        run: |
+          python3 -m venv "$RUNNER_TEMP/pikopia-venv"
+          "$RUNNER_TEMP/pikopia-venv/bin/pip" install --quiet pyjwt cryptography requests
+          "$RUNNER_TEMP/pikopia-venv/bin/python" - <<'PY'
+          import os,time,jwt,requests
+          from pathlib import Path
+          now=int(time.time())
+          token=jwt.encode({'iss':os.environ['ISSUER_ID'],'iat':now,'exp':now+600,'aud':'appstoreconnect-v1'},(Path(os.environ['RUNNER_TEMP'])/'pikopia-keys/AuthKey.p8').read_text(),algorithm='ES256',headers={'kid':os.environ['KEY_ID'],'typ':'JWT'})
+          r=requests.get('https://api.appstoreconnect.apple.com/v1/apps/6826824653',headers={'Authorization':'Bearer '+token},timeout=30)
+          if r.status_code!=200:
+              raise SystemExit('Apple app identity check failed: HTTP '+str(r.status_code)+'; check account permissions or agreements')
+          app=r.json()['data']
+          if app['id']!='6826824653' or app['attributes']['bundleId']!='com.yosiken0421.pikopia':
+              raise SystemExit('Wrong Apple app; refusing signing and upload')
+          print('Verified PIKOPIA Apple app 6826824653 / com.yosiken0421.pikopia')
+          PY
+      - name: Archive only PIKOPIA without revoking any certificates
+        working-directory: ios-native
+        run: |
+          set -euo pipefail
+          xcodebuild archive -project PIKOPIA.xcodeproj -scheme PIKOPIA \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/PIKOPIA.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/pikopia-keys/AuthKey.p8" \
+            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            MARKETING_VERSION=0.1.0 CURRENT_PROJECT_VERSION="$PIKOPIA_BUILD" \
+            INFOPLIST_KEY_ITSAppUsesNonExemptEncryption=NO
+          APP="$RUNNER_TEMP/PIKOPIA.xcarchive/Products/Applications/PIKOPIA.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Info.plist")" = com.yosiken0421.pikopia
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Info.plist")" = 0.1.0
+          test -s "$APP/www/index.html"
+          test -s "$APP/www/assets/bgm-pikopia.wav"
+          codesign --verify --deep --strict "$APP"
+      - name: Upload PIKOPIA for internal TestFlight only
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os,plistlib
+          from pathlib import Path
+          p=Path(os.environ['RUNNER_TEMP'])/'pikopia-export.plist'
+          p.write_bytes(plistlib.dumps({'method':'app-store-connect','destination':'upload','teamID':os.environ['TEAM_ID'],'signingStyle':'automatic','testFlightInternalTestingOnly':True,'manageAppVersionAndBuildNumber':False}))
+          PY
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/PIKOPIA.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/pikopia-export.plist" \
+            -exportPath "$RUNNER_TEMP/pikopia-upload" -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/pikopia-keys/AuthKey.p8" \
+            -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID"
+          echo 'Upload command succeeded; Apple processing and internal tester availability still require verification.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove temporary signing files
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/pikopia-keys" "$RUNNER_TEMP/pikopia-export.plist"
