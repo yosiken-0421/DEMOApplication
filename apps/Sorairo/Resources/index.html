@@ -69,6 +69,10 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .hero{width:21%;max-width:66px;position:relative;transition:transform .2s}
 .hero .face{width:100%;aspect-ratio:1;border-radius:50%;overflow:hidden;background:#fff;box-shadow:0 0 0 3px #fff,0 4px 0 3px #00000018}
 .hero .face svg{width:100%;height:100%;display:block}
+.hero .wpn{position:absolute;right:-4px;top:-4px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 0 #00000018;display:flex;align-items:center;justify-content:center;z-index:2}
+.hero .wpn svg{width:17px;height:17px}
+.hero.cast .face{animation:cast .45s ease-out}
+@keyframes cast{0%{box-shadow:0 0 0 3px #fff,0 4px 0 3px #00000018}30%{box-shadow:0 0 0 5px #FFE08A,0 0 0 11px #FFE08A66,0 4px 0 3px #00000018}100%{box-shadow:0 0 0 3px #fff,0 4px 0 3px #00000018}}
 .hero .tag{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);background:#fff;border-radius:999px;font-size:10px;font-weight:700;padding:1px 7px;white-space:nowrap;color:var(--ink2)}
 .hero{animation:breathe 3.2s ease-in-out infinite}
 @keyframes breathe{50%{transform:translateY(-3px)}}
@@ -283,106 +287,136 @@ function fringePath(top, pts){
   return d+'Z';
 }
 let _pid=0;
+const HERO_EXTRA=[
+ {expr:'open', ahoge:1, atk:'slash'},
+ {expr:'smile',ahoge:0, atk:'orb'},
+ {expr:'grin', ahoge:1, atk:'arrow'},
+ {expr:'open', ahoge:0, atk:'cross'},
+ {expr:'smile',ahoge:1, atk:'heart'},
+ {expr:'calm', ahoge:0, atk:'shuriken'},
+ {expr:'open', ahoge:0, atk:'note'},
+ {expr:'calm', ahoge:1, atk:'star'},
+ {expr:'cat',  ahoge:0, atk:'claw'},
+ {expr:'smile',ahoge:1, atk:'spear'},
+ {expr:'grin', ahoge:0, atk:'flask'},
+ {expr:'smile',ahoge:0, atk:'moon'},
+];
 function portrait(h, size){
-  const id='p'+(_pid++);
+  const id='p'+(_pid++), X=HERO_EXTRA[HEROES.indexOf(h)]||{expr:'smile',ahoge:0};
   const male=!!h.male;
+  const line=shade(h.hair2,-48), hs=shade(h.hair2,-8);
+  const eyeD=shade(h.eye,-85), eyeL=shade(h.eye,85);
+  const LINE_SKIN='#D99A8C';
+  const HG=`fill="url(#${id}h)" stroke="${line}" stroke-width="1.4" stroke-linejoin="round"`;
+  /* ---------- 後ろ髪 ---------- */
   const backs={
-    long:`<path d="M54,78 C40,130 40,182 48,200 L152,200 C160,182 160,130 146,78 Z" fill="url(#${id}h)"/>`,
-    twin:`<path d="M58,82 C50,108 52,128 62,138 C72,142 82,140 88,136 L112,136 C118,140 128,142 138,138 C148,128 150,108 142,82 Z" fill="url(#${id}h)"/>
-          <path d="M52,70 C18,100 16,160 34,200 L60,200 C48,160 52,118 66,92 Z" fill="url(#${id}h)"/>
-          <path d="M148,70 C182,100 184,160 166,200 L140,200 C152,160 148,118 134,92 Z" fill="url(#${id}h)"/>`,
-    pony:`<path d="M56,82 C50,108 52,126 62,136 C70,140 80,138 86,134 L114,134 C120,138 130,140 138,136 C148,126 150,108 144,82 Z" fill="url(#${id}h)"/>
-          <path d="M128,44 C178,46 192,120 170,192 C166,140 158,104 132,84 Z" fill="url(#${id}h)"/>`,
-    bob:`<path d="M52,80 C42,116 42,144 54,158 C62,164 72,162 80,154 L120,154 C128,162 138,164 146,158 C158,144 158,116 148,80 Z" fill="url(#${id}h)"/>`,
-    short:`<path d="M56,82 C50,106 52,124 62,134 C70,138 80,136 86,132 L114,132 C120,136 130,138 138,134 C148,124 150,106 144,82 Z" fill="url(#${id}h)"/>`,
-    spiky:`<path d="M56,82 C50,106 52,124 62,134 C70,138 80,136 86,132 L114,132 C120,136 130,138 138,134 C148,124 150,106 144,82 Z" fill="url(#${id}h)"/>`
+    long:`M50,72 C36,118 34,168 40,206 L160,206 C166,168 164,118 150,72 Z`,
+    twin:`M54,78 C46,104 48,128 60,140 L140,140 C152,128 154,104 146,78 Z
+          M50,64 C14,92 10,150 22,206 L54,206 C44,168 46,120 64,90 Z
+          M150,64 C186,92 190,150 178,206 L146,206 C156,168 154,120 136,90 Z`,
+    pony:`M54,78 C46,104 48,126 60,138 L140,138 C152,126 154,104 146,78 Z
+          M126,38 C182,36 196,116 172,198 C166,150 160,110 134,82 Z`,
+    bob:`M50,76 C38,112 38,146 50,162 C60,170 74,166 82,156 L118,156 C126,166 140,170 150,162 C162,146 162,112 150,76 Z`,
+    short:`M54,78 C46,104 48,124 60,136 C70,140 80,138 86,134 L114,134 C120,138 130,140 140,136 C152,124 154,104 146,78 Z`,
   };
-  const girlTips=[[142,98],[134,72],[127,95],[117,63],[108,91],[99,59],[90,90],[81,63],[72,94],[65,72],[58,98]];
-  const boyTips =[[142,94],[135,70],[128,90],[119,62],[110,88],[100,58],[92,88],[82,62],[74,90],[66,70],[58,95]];
-  const topGirl=`C50,58 72,32 100,32 C128,32 150,58 142,98`;
-  const topBoy =`C50,62 62,34 86,28 C85,21 90,15 97,12 C98,19 101,23 106,25 C112,18 121,15 131,17 C127,22 126,28 128,33 C138,33 145,37 151,42 C145,45 142,49 142,54 C148,66 148,80 142,94`;
-  const bangD = h.style==='spiky' ? fringePath(topBoy, boyTips) : fringePath(topGirl, girlTips);
+  backs.spiky=backs.short;
+  /* ---------- 前髪 ---------- */
+  const girlTips=[[143,102],[138,78],[132,100],[125,70],[116,98],[108,66],[100,103],[92,67],[84,98],[76,72],[69,100],[63,82],[57,102]];
+  const boyTips =[[143,96],[136,72],[129,92],[120,64],[111,90],[101,60],[93,90],[83,64],[75,92],[67,72],[57,97]];
+  const topGirl=`C44,56 68,22 100,22 C132,22 156,56 143,102`;
+  const topBoy =`C46,60 58,30 84,24 C83,17 88,11 96,8 C97,15 100,19 105,21 C111,14 121,11 132,13 C127,18 126,24 128,29 C139,29 147,34 153,40 C146,43 143,47 143,52 C150,64 150,80 143,96`;
   const tips = h.style==='spiky' ? boyTips : girlTips;
-  const line = shade(h.hair2,-38);                 // 髪の線画（地毛より濃い色）
-  const hairShadow = shade(h.hair2,-12);
-  const eyeLite = shade(h.eye,70), eyeDark = shade(h.eye,-70);
-  // 前髪の束の線（根元から毛先へ）
-  const strands = tips.filter((_,k)=>k%2===0).slice(1,-1).map(t=>{ const sx=100+(t[0]-100)*0.45, sy=38;
-    return `<path d="M${sx},${sy} C${sx+(t[0]-sx)*0.2},${sy+18} ${t[0]+(sx-t[0])*0.15},${t[1]-22} ${t[0]},${t[1]-3}" stroke="${line}" stroke-width="1" fill="none" opacity=".55" stroke-linecap="round"/>`; }).join('');
-  // 束の付け根にできる影（アニメ塗りの段差）
-  const strandShade = tips.filter((_,k)=>k%2===1).map(v=>`<path d="M${v[0]-5},${v[1]-14} C${v[0]-3},${v[1]-4} ${v[0]+3},${v[1]-4} ${v[0]+5},${v[1]-14} C${v[0]+2},${v[1]-9} ${v[0]-2},${v[1]-9} ${v[0]-5},${v[1]-14} Z" fill="${hairShadow}" opacity=".55"/>`).join('');
-  // 天使の輪（つやのハイライト）
-  const ring = [[70,62,-28],[82,53,-16],[95,49,-4],[108,49,6],[121,53,16],[132,61,28]].map(([x,y,a],k)=>
-    `<path d="M${x-5},${y} C${x-2.5},${y-2.6} ${x+2.5},${y-2.6} ${x+5},${y} C${x+2.5},${y+1.2} ${x-2.5},${y+1.2} ${x-5},${y} Z" fill="#fff" opacity="${k%2?.45:.7}" transform="rotate(${a} ${x} ${y})"/>`).join('');
-  const bangs = `<path d="${bangD}" fill="${hairShadow}" opacity=".35" transform="translate(0,6)"/>
-    <path d="${bangD}" fill="url(#${id}h)" stroke="${line}" stroke-width="1.5" stroke-linejoin="round"/>
-    ${strandShade}${strands}${ring}`;
-  const sideLen = male?124:150;
-  const sides=`<g stroke="${line}" stroke-width="1.3" stroke-linejoin="round">
-    <path d="M60,74 C52,106 54,${sideLen-12} 61,${sideLen} C65,${sideLen-20} 66,106 70,88 Z" fill="url(#${id}h)"/>
-    <path d="M140,74 C148,106 146,${sideLen-12} 139,${sideLen} C135,${sideLen-20} 134,106 130,88 Z" fill="url(#${id}h)"/></g>`;
-  // ---- 瞳（アニメ調：大きな虹彩・二重線・まつ毛の跳ね・複数のハイライト）----
-  const eye=(cx,mir)=>`<g transform="translate(${cx},111) scale(${mir*(male?.74:.78)},${male?.64:.78})">
-     <path d="M-13,-6 C-8,-13 8,-14 14,-8 C15.5,2 12,12.5 0,15 C-12,13.5 -15.5,3 -13,-6 Z" fill="#fff"/>
-     <path d="M-13,-5.5 C-8,-12.5 8,-13.5 14,-7.5 C8,-8 -6,-8.5 -13,-1.5 Z" fill="#B9AED6" opacity=".55"/>
-     <ellipse cx=".5" cy="2.5" rx="9.6" ry="12.4" fill="url(#${id}e)" stroke="${eyeDark}" stroke-width="1"/>
-     <ellipse cx=".5" cy="7.5" rx="6.6" ry="4.6" fill="${eyeLite}" opacity=".75"/>
-     <ellipse cx=".5" cy="1" rx="4.1" ry="6.2" fill="#24182E"/>
-     <ellipse cx="-3.6" cy="-3.6" rx="3.4" ry="4.4" fill="#fff" transform="rotate(-18 -3.6 -3.6)"/>
-     <circle cx="4.4" cy="8.2" r="1.9" fill="#fff"/>
-     <circle cx="5" cy="-3.4" r="1" fill="#fff" opacity=".9"/>
-     <path d="M-15,-4 C-10,-15.5 6,-17.5 14,-10 C16,-11 18,-12.6 19.6,-15.2 C18.6,-11.2 17,-8.2 15,-6.6 C15.8,-5.2 16,-3.6 15.6,-2 C13.6,-4.6 11,-6.6 8,-8 C1,-10.6 -8,-9.2 -13.6,-1.6 Z" fill="#33222F"/>
-     <path d="M14.5,-9.6 C17,-10.4 19,-9.8 20.6,-8.2 C18.4,-8.6 16.6,-8.2 15.2,-7.2 Z" fill="#33222F"/>
-     <path d="M-10.5,-15.5 C-3,-21 7,-20.6 13,-15" stroke="#C98478" stroke-width="1.1" fill="none" stroke-linecap="round"/>
-     <path d="M-8,14.6 C-2,16.6 5,16.2 10,12.6" stroke="#9A6A78" stroke-width="1.1" fill="none" stroke-linecap="round"/>
-     <path d="M-10,${male?-25:-27} C-3,${male?-30:-31} 6,${male?-30:-31} 12,${male?-26:-27}" stroke="${line}" stroke-width="${male?2.4:1.7}" fill="none" stroke-linecap="round"/>
+  const bangD = h.style==='spiky' ? fringePath(topBoy, boyTips) : fringePath(topGirl, girlTips);
+  const strands = tips.filter((_,k)=>k%2===0).slice(1,-1).map(t=>{ const sx=100+(t[0]-100)*0.4, sy=32;
+    return `<path d="M${sx},${sy} C${sx+(t[0]-sx)*0.15},${sy+20} ${t[0]+(sx-t[0])*0.1},${t[1]-24} ${t[0]},${t[1]-4}" stroke="${line}" stroke-width=".8" fill="none" opacity=".3" stroke-linecap="round"/>`; }).filter((_,k)=>k%2===0).join('');
+  const strandShade = tips.filter((_,k)=>k%2===1).map(v=>`<path d="M${v[0]-6},${v[1]-15} C${v[0]-3},${v[1]-3} ${v[0]+3},${v[1]-3} ${v[0]+6},${v[1]-15} C${v[0]+2},${v[1]-9} ${v[0]-2},${v[1]-9} ${v[0]-6},${v[1]-15} Z" fill="${hs}" opacity=".5"/>`).join('');
+  const ring = [[66,58,-36],[78,47,-22],[92,41,-7],[108,41,7],[122,47,22],[134,58,36]].map(([x,y,a],k)=>
+    `<path d="M${x-6},${y} C${x-3},${y-3} ${x+3},${y-3} ${x+6},${y} C${x+3},${y+1.3} ${x-3},${y+1.3} ${x-6},${y} Z" fill="#fff" opacity="${k%2?.5:.75}" transform="rotate(${a} ${x} ${y})"/>`).join('');
+  const sideLen = male?128:156;
+  const sides=`<g ${HG}>
+    <path d="M60,74 C50,104 52,${sideLen-16} 60,${sideLen} C62,${sideLen-8} 66,${sideLen-24} 66,${sideLen-34} C67,116 68,100 72,88 Z"/>
+    <path d="M140,74 C150,104 148,${sideLen-16} 140,${sideLen} C138,${sideLen-8} 134,${sideLen-24} 134,${sideLen-34} C133,116 132,100 128,88 Z"/></g>`;
+  const ahoge = X.ahoge && h.style!=='spiky' ? `<path d="M98,25 C94,15 101,8 113,9 C106,12 102,16 103,24 Z" ${HG}/>` : '';
+  const bangs = `<path d="${bangD}" fill="${hs}" opacity=".35" transform="translate(0,6)"/>
+    <path d="${bangD}" ${HG}/>${strands}${ring}`;
+  /* ---------- 瞳 ---------- */
+  const sx= male?.74:.8, sy= male?.68:.82;
+  const eye=(cx,mir)=>`<g transform="translate(${cx},113) scale(${mir*sx},${sy})">
+     <path d="M-13,-5 C-9,-12 7,-13.5 13.5,-8 C15.5,-2 14.5,7 9,12 C4,15.5 -5,15.5 -10,11 C-14,6 -15,0 -13,-5 Z" fill="#fff"/>
+     <g clip-path="url(#${id}c)">
+       <ellipse cx="0" cy="2.5" rx="9.4" ry="12" fill="url(#${id}e)" stroke="${eyeD}" stroke-width=".9"/>
+       <ellipse cx="0" cy="2.5" rx="6.6" ry="8.8" fill="none" stroke="${eyeD}" stroke-width=".7" opacity=".45"/>
+       <ellipse cx="0" cy="8.6" rx="6.8" ry="4" fill="${eyeL}" opacity=".75"/>
+       <ellipse cx="0" cy="1.6" rx="4" ry="5.6" fill="#1E1428"/>
+       <path d="M-16,-16 L16,-16 L16,-6 C8,-10.5 -6,-10.5 -16,-2.5 Z" fill="#7F70B0" opacity=".35"/>
+       <ellipse cx="${-3.8*mir}" cy="-3.4" rx="3.3" ry="4.2" fill="#fff"/>
+       <circle cx="${4.2*mir}" cy="7.6" r="1.7" fill="#fff"/>
+       <circle cx="${3.6*mir}" cy="-4.6" r=".95" fill="#fff" opacity=".9"/>
+     </g>
+     <path d="M-15,-3.5 C-11,-12.5 4,-15.5 13.5,-9.5 C15.5,-10.5 17.5,-12.5 19,-15 C18.4,-11 16.8,-8 14.8,-6.2 C15.4,-5 15.6,-3.6 15.2,-2.2 C13,-5 10.5,-7 7,-8.2 C0,-10.4 -8,-8.6 -13.4,-1.8 Z" fill="#2E1F2C"/>
+     <path d="M-13.4,-1.8 C-14.6,0 -15,1.6 -14.8,3" stroke="#2E1F2C" stroke-width="1" fill="none" stroke-linecap="round"/>
+     <path d="M-10,-15 C-2,-19.4 8,-19 14,-13.8" stroke="#C47F78" stroke-width=".9" fill="none" stroke-linecap="round"/>
+     <path d="M-6,13.8 C0,15.6 6,14.6 10.5,11 M11,10.5 L13.6,9.4" stroke="#8A5E70" stroke-width="1" fill="none" stroke-linecap="round"/>
    </g>`;
-  const mouth = male
-    ? `<path d="M94.5,135 C97.5,137.4 102.5,137.4 105.5,134.6" stroke="#B85868" stroke-width="1.6" fill="none" stroke-linecap="round"/>`
-    : `<path d="M94.5,133.5 C97.5,138.6 102.5,138.6 105.5,133.5 C102.5,134.8 97.5,134.8 94.5,133.5 Z" fill="#D45A6C"/><path d="M97.6,136.4 C99.2,137.4 100.8,137.4 102.4,136.4" stroke="#FF9AAA" stroke-width="1" fill="none"/>`;
+  const brow=(cx,mir)=>`<path transform="translate(${cx},${male?92:90}) scale(${mir},1)" d="M-8,1 C-3,-2.4 4,-2.6 9,0" stroke="${line}" stroke-width="${male?2.3:1.5}" fill="none" stroke-linecap="round" opacity=".9"/>`;
+  /* ---------- 口 ---------- */
+  const MOUTH={
+    smile:`<path d="M95,134 C97.5,136.8 102.5,136.8 105,134" stroke="#B5566A" stroke-width="1.5" fill="none" stroke-linecap="round"/>`,
+    open:`<path d="M94.8,133.2 C95.8,139.4 104.2,139.4 105.2,133.2 C102,134.3 98,134.3 94.8,133.2 Z" fill="#C24D63"/><path d="M97.4,137.2 C99,135.9 101,135.9 102.6,137.2 C101.4,138.3 98.6,138.3 97.4,137.2 Z" fill="#FF8FA3"/>`,
+    cat:`<path d="M94.5,133 C95.5,135.8 98,135.8 100,133.4 C102,135.8 104.5,135.8 105.5,133" stroke="#B5566A" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+    calm:`<path d="M96.5,135 C98.5,136.2 101.5,136.2 103.5,134.6" stroke="#B5566A" stroke-width="1.4" fill="none" stroke-linecap="round"/>`,
+    grin:`<path d="M95,134.4 C98,136.6 102.5,136.4 105.6,132.6" stroke="#B5566A" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M101.6,135.6 L102.4,137.6 L103.4,135.2 Z" fill="#fff"/>`,
+  };
+  /* ---------- 小物 ---------- */
   const acc={
-    ribbon:`<g transform="translate(138,56) rotate(18)"><path d="M0,0 L-20,-12 L-18,12 Z" fill="${h.trim}"/><path d="M0,0 L20,-12 L18,12 Z" fill="${h.trim}"/><circle r="5" fill="#fff"/></g>`,
-    hat:`<path d="M30,70 Q100,46 170,70 Q100,84 30,70 Z" fill="${h.accC}"/><path d="M66,66 L112,-2 Q118,8 120,16 L136,62 Q100,54 66,66 Z" fill="${h.accC}"/><path d="M68,64 Q100,52 134,60 L136,68 Q100,60 70,72 Z" fill="${h.trim}"/><circle cx="114" cy="2" r="5" fill="${h.trim}"/>`,
-    leaf:`<g transform="translate(70,58) rotate(-30)"><ellipse rx="12" ry="6" fill="${h.accC}"/><path d="M-11,0 L11,0" stroke="#3E8E5E" stroke-width="1.5"/></g><g transform="translate(80,52) rotate(-70)"><ellipse rx="9" ry="5" fill="#9BE0B3"/></g>`,
-    band:`<path d="M58,66 Q100,46 142,66 L142,74 Q100,54 58,74 Z" fill="${h.accC}"/><circle cx="100" cy="56" r="5" fill="#FFE08A"/>`,
-    flower:`<g transform="translate(136,58)">${[0,72,144,216,288].map(a=>`<ellipse rx="6" ry="10" fill="${h.accC}" transform="rotate(${a}) translate(0,-8)"/>`).join('')}<circle r="5" fill="#FFE08A"/></g>`,
-    scarf:`<path d="M66,150 Q100,170 134,150 L140,170 Q100,190 60,170 Z" fill="${h.accC}"/><path d="M128,166 L146,198 L130,200 L120,172 Z" fill="${h.accC}"/>`,
-    beret:`<ellipse cx="110" cy="40" rx="48" ry="15" fill="${h.accC}" transform="rotate(-12 110 40)"/><circle cx="118" cy="24" r="4" fill="${h.accC}"/>`,
-    star:`<path transform="translate(134,56) scale(1.1)" d="M0,-12 L3.5,-4 L12,-3.7 L5.5,2 L7.4,10.5 L0,6 L-7.4,10.5 L-5.5,2 L-12,-3.7 L-3.5,-4 Z" fill="${h.accC}"/>`,
-    ears:`<path d="M62,60 C56,46 52,30 55,17 C66,22 78,31 89,42 C80,46 70,52 62,60 Z" fill="${h.hair}" stroke="${h.hair2}" stroke-width="1.6" stroke-linejoin="round"/><path d="M66,52 C63,44 61,35 62,28 C68,32 74,37 80,42 C75,45 70,48 66,52 Z" fill="#FFD6E2"/><path d="M138,60 C144,46 148,30 145,17 C134,22 122,31 111,42 C120,46 130,52 138,60 Z" fill="${h.hair}" stroke="${h.hair2}" stroke-width="1.6" stroke-linejoin="round"/><path d="M134,52 C137,44 139,35 138,28 C132,32 126,37 120,42 C125,45 130,48 134,52 Z" fill="#FFD6E2"/>`,
-    glasses:`<g fill="none" stroke="${h.accC}" stroke-width="2.2"><rect x="71" y="101" width="24" height="20" rx="8"/><rect x="105" y="101" width="24" height="20" rx="8"/><path d="M95,110 L105,110"/></g>`,
-    goggles:`<path d="M58,58 Q100,40 142,58 L142,66 Q100,48 58,66 Z" fill="#7A5A44"/><circle cx="84" cy="50" r="11" fill="${h.accC}"/><circle cx="84" cy="50" r="7" fill="#BFE9FF"/><circle cx="116" cy="50" r="11" fill="${h.accC}"/><circle cx="116" cy="50" r="7" fill="#BFE9FF"/>`,
-    tiara:`<path d="M72,42 L80,26 L90,38 L100,18 L110,38 L120,26 L128,42 Q100,36 72,42 Z" fill="${h.accC}"/><circle cx="100" cy="30" r="4" fill="#FF8FB8"/>`
+    ribbon:`<g transform="translate(142,50) rotate(18)"><path d="M0,0 C-8,-14 -22,-16 -24,-8 C-25,0 -14,8 0,0 Z" fill="${h.trim}" stroke="${shade(h.trim,-50)}" stroke-width="1.2"/><path d="M0,0 C8,-14 22,-16 24,-8 C25,0 14,8 0,0 Z" fill="${h.trim}" stroke="${shade(h.trim,-50)}" stroke-width="1.2"/><path d="M-2,2 C-6,10 -8,16 -6,22 L-2,18 Z M2,2 C6,10 8,16 6,22 L2,18 Z" fill="${h.trim}"/><circle r="4.6" fill="#fff" stroke="${shade(h.trim,-50)}" stroke-width="1"/></g>`,
+    hat:`<path d="M26,70 C60,52 140,52 174,70 C140,82 60,82 26,70 Z" fill="${h.accC}" stroke="${shade(h.accC,-60)}" stroke-width="1.4"/><path d="M64,66 C80,40 96,14 116,-4 C118,8 120,18 124,30 C128,42 134,52 138,62 C114,56 86,56 64,66 Z" fill="${h.accC}" stroke="${shade(h.accC,-60)}" stroke-width="1.4" stroke-linejoin="round"/><path d="M66,62 C88,54 114,54 136,58 L138,67 C114,60 88,61 68,71 Z" fill="${h.trim}"/><circle cx="116" cy="-2" r="5" fill="${h.trim}"/>`,
+    leaf:`<g transform="translate(70,52) rotate(-30)"><path d="M-13,0 C-6,-8 6,-8 13,0 C6,8 -6,8 -13,0 Z" fill="${h.accC}" stroke="#3E8E5E" stroke-width="1.2"/><path d="M-11,0 L11,0" stroke="#3E8E5E" stroke-width="1.2"/></g><g transform="translate(81,45) rotate(-70)"><path d="M-10,0 C-5,-6 5,-6 10,0 C5,6 -5,6 -10,0 Z" fill="#9BE0B3" stroke="#3E8E5E" stroke-width="1.1"/></g>`,
+    band:`<path d="M56,64 C80,48 120,48 144,64 L144,73 C120,57 80,57 56,73 Z" fill="${h.accC}" stroke="${shade(h.accC,-60)}" stroke-width="1.2"/><circle cx="100" cy="54" r="5" fill="#FFE08A" stroke="#C99A2E" stroke-width="1"/>`,
+    flower:`<g transform="translate(138,52)">${[0,72,144,216,288].map(a=>`<ellipse rx="6" ry="10" fill="${h.accC}" stroke="${shade(h.accC,-60)}" stroke-width="1" transform="rotate(${a}) translate(0,-8)"/>`).join('')}<circle r="5" fill="#FFE08A"/></g>`,
+    scarf:`<path d="M64,154 C80,168 120,168 136,154 L142,174 C120,190 80,190 58,174 Z" fill="${h.accC}" stroke="${shade(h.accC,-60)}" stroke-width="1.3"/><path d="M126,170 C134,180 140,190 146,202 L130,204 C126,192 122,182 118,174 Z" fill="${h.accC}" stroke="${shade(h.accC,-60)}" stroke-width="1.3"/>`,
+    beret:`<g transform="rotate(-12 110 34)"><ellipse cx="110" cy="34" rx="50" ry="16" fill="${h.accC}" stroke="${shade(h.accC,-60)}" stroke-width="1.4"/></g><circle cx="120" cy="17" r="4" fill="${h.accC}"/>`,
+    star:`<path transform="translate(136,50) scale(1.15)" d="M0,-12 C1.4,-7 2.4,-4.6 3.6,-3.8 C5.4,-3.6 8.6,-3.8 12,-3.6 C8.6,-1.4 6.4,0.4 5.6,2 C6.2,4.6 7,7.6 7.4,10.6 C4.6,8.8 2.2,7 0,6 C-2.2,7 -4.6,8.8 -7.4,10.6 C-7,7.6 -6.2,4.6 -5.6,2 C-6.4,0.4 -8.6,-1.4 -12,-3.6 C-8.6,-3.8 -5.4,-3.6 -3.6,-3.8 C-2.4,-4.6 -1.4,-7 0,-12 Z" fill="${h.accC}" stroke="#D9A72E" stroke-width="1"/>`,
+    ears:`<path d="M60,58 C54,42 50,24 54,10 C66,16 80,26 90,38 C80,42 68,50 60,58 Z" ${HG.replace(`url(#${id}h)`,h.hair)}/><path d="M64,50 C61,41 59,31 61,22 C68,27 75,33 81,39 C75,42 69,46 64,50 Z" fill="#FFD6E2"/><path d="M140,58 C146,42 150,24 146,10 C134,16 120,26 110,38 C120,42 132,50 140,58 Z" ${HG.replace(`url(#${id}h)`,h.hair)}/><path d="M136,50 C139,41 141,31 139,22 C132,27 125,33 119,39 C125,42 131,46 136,50 Z" fill="#FFD6E2"/>`,
+    glasses:`<g fill="none" stroke="${h.accC}" stroke-width="2"><rect x="70" y="102" width="23" height="20" rx="8"/><rect x="107" y="102" width="23" height="20" rx="8"/><path d="M93,110 C97,108 103,108 107,110"/></g>`,
+    goggles:`<path d="M56,56 C80,40 120,40 144,56 L144,64 C120,48 80,48 56,64 Z" fill="#7A5A44" stroke="#4E3828" stroke-width="1.2"/><circle cx="84" cy="47" r="11" fill="${h.accC}" stroke="#8A6A1E" stroke-width="1.2"/><circle cx="84" cy="47" r="7" fill="#BFE9FF"/><circle cx="81" cy="44" r="2.2" fill="#fff"/><circle cx="116" cy="47" r="11" fill="${h.accC}" stroke="#8A6A1E" stroke-width="1.2"/><circle cx="116" cy="47" r="7" fill="#BFE9FF"/><circle cx="113" cy="44" r="2.2" fill="#fff"/>`,
+    tiara:`<path d="M70,36 C74,30 77,24 80,18 C83,24 86,28 90,31 C93,24 96,16 100,8 C104,16 107,24 110,31 C114,28 117,24 120,18 C123,24 126,30 130,36 C110,31 90,31 70,36 Z" fill="${h.accC}" stroke="#C99A2E" stroke-width="1.2" stroke-linejoin="round"/><circle cx="100" cy="22" r="4" fill="#FF8FB8"/>`
   };
   const accFront = h.acc==='scarf' ? '' : (acc[h.acc]||'');
-  const accNeck  = h.acc==='scarf' ? acc.scarf : '';
-  const twinTies = h.style==='twin' ? `<circle cx="56" cy="80" r="6" fill="${h.trim}"/><circle cx="144" cy="80" r="6" fill="${h.trim}"/>` : '';
+  const accNeck  = h.acc==='scarf' ? acc.scarf : (male?'':`<g transform="translate(100,174)"><path d="M0,0 C-6,-8 -16,-9 -17,-3 C-18,3 -8,5 0,0 Z M0,0 C6,-8 16,-9 17,-3 C18,3 8,5 0,0 Z" fill="${h.trim}" stroke="${shade(h.trim,-50)}" stroke-width="1"/><path d="M-2,2 L-6,13 L-1,10 Z M2,2 L6,13 L1,10 Z" fill="${h.trim}"/><circle r="3.4" fill="${shade(h.trim,-20)}"/></g>`);
+  const twinTies = h.style==='twin' ? `<circle cx="54" cy="76" r="6.5" fill="${h.trim}" stroke="${shade(h.trim,-50)}" stroke-width="1"/><circle cx="146" cy="76" r="6.5" fill="${h.trim}" stroke="${shade(h.trim,-50)}" stroke-width="1"/>` : '';
   return `<svg viewBox="0 0 200 200" ${size?`width="${size}" height="${size}"`:''} xmlns="http://www.w3.org/2000/svg">
   <defs>
-   <linearGradient id="${id}h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${h.hair}"/><stop offset="1" stop-color="${h.hair2}"/></linearGradient>
-   <linearGradient id="${id}e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shade(h.eye,-90)}"/><stop offset=".38" stop-color="${shade(h.eye,-20)}"/><stop offset=".72" stop-color="${h.eye}"/><stop offset="1" stop-color="${shade(h.eye,60)}"/></linearGradient>
+   <linearGradient id="${id}h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${h.hair}"/><stop offset=".7" stop-color="${shade(h.hair,-6)}"/><stop offset="1" stop-color="${h.hair2}"/></linearGradient>
+   <linearGradient id="${id}e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shade(h.eye,-95)}"/><stop offset=".35" stop-color="${shade(h.eye,-25)}"/><stop offset=".7" stop-color="${h.eye}"/><stop offset="1" stop-color="${shade(h.eye,70)}"/></linearGradient>
    <radialGradient id="${id}b" cx=".5" cy=".4" r=".7"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="${h.bg}"/></radialGradient>
+   <radialGradient id="${id}k"><stop offset="0" stop-color="#FF7F9E" stop-opacity=".55"/><stop offset="1" stop-color="#FF7F9E" stop-opacity="0"/></radialGradient>
+   <clipPath id="${id}c"><path d="M-13,-5 C-9,-12 7,-13.5 13.5,-8 C15.5,-2 14.5,7 9,12 C4,15.5 -5,15.5 -10,11 C-14,6 -15,0 -13,-5 Z"/></clipPath>
   </defs>
   <rect width="200" height="200" fill="url(#${id}b)"/>
-  <g stroke="${shade(h.hair2,-38)}" stroke-width="1.5" stroke-linejoin="round">${backs[h.style]||backs.short}</g>
-  <path d="M88,136 L88,166 L112,166 L112,136 Z" fill="${SKIN}" stroke="#E3A493" stroke-width="1.2"/>
-  <path d="M88,138 C94,150 106,150 112,138 L112,152 C106,158 94,158 88,152 Z" fill="${SKIN2}"/>
-  <path d="M26,200 C30,172 60,160 86,158 L114,158 C140,160 170,172 174,200 Z" fill="${h.outfit}" stroke="${shade(h.outfit,-60)}" stroke-width="1.3"/>
-  <path d="M40,200 C44,184 56,174 70,168 C66,178 64,190 66,200 Z M160,200 C156,184 144,174 130,168 C134,178 136,190 134,200 Z" fill="${shade(h.outfit,-28)}" opacity=".45"/>
-  <path d="M84,158 L100,182 L116,158 Z" fill="${SKIN}"/>
-  <path d="M78,158 C86,168 93,178 100,186 C107,178 114,168 122,158 C120,157.5 118,157 116,157 C111,164 106,170 100,176 C94,170 89,164 84,157 C82,157 80,157.5 78,158 Z" fill="${h.trim}"/>
+  <g transform="translate(100,124) scale(1.1) translate(-100,-124)">
+  <path d="${backs[h.style]||backs.short}" ${HG}/>
+  <path d="M30,206 C32,182 56,168 84,163 L116,163 C144,168 168,182 170,206 Z" fill="${h.outfit}" stroke="${shade(h.outfit,-60)}" stroke-width="1.3"/>
+  <path d="M42,206 C46,190 56,180 70,173 C66,184 64,196 66,206 Z M158,206 C154,190 144,180 130,173 C134,184 136,196 134,206 Z" fill="${shade(h.outfit,-28)}" opacity=".45"/>
+  <path d="M90,138 L90,166 L110,166 L110,138 Z" fill="${SKIN}" stroke="${LINE_SKIN}" stroke-width="1.1"/>
+  <path d="M90,141 C95,151 105,151 110,141 L110,155 C105,160 95,160 90,155 Z" fill="${SKIN2}"/>
+  <path d="M86,163 C91,172 96,178 100,184 C104,178 109,172 114,163 Z" fill="${SKIN}"/>
+  <path d="M78,163 C86,172 93,180 100,188 C107,180 114,172 122,163 C120,162.5 118,162 116,162 C111,169 106,175 100,180 C94,175 89,169 84,162 C82,162 80,162.5 78,163 Z" fill="${h.trim}" stroke="${shade(h.trim,-50)}" stroke-width=".8"/>
   ${accNeck}
-  <ellipse cx="62.5" cy="106" rx="5" ry="9" fill="${SKIN2}" stroke="#E3A493" stroke-width="1.1"/><ellipse cx="137.5" cy="106" rx="5" ry="9" fill="${SKIN2}" stroke="#E3A493" stroke-width="1.1"/>
-  <path d="M63,82 C62,104 66,121 77,134 C85,143 93,149.5 100,151 C107,149.5 115,143 123,134 C134,121 138,104 137,82 C137,52 120,40 100,40 C80,40 63,52 63,82 Z" fill="${SKIN}" stroke="#E3A493" stroke-width="1.3"/>
-  <ellipse cx="77" cy="127" rx="9.5" ry="4.6" fill="#FF8FAA" opacity=".38"/><ellipse cx="123" cy="127" rx="9.5" ry="4.6" fill="#FF8FAA" opacity=".38"/>
-  ${male?'':`<path d="M72,128 l2.4,-3.4 M76,128.4 l2.4,-3.4 M80,128.4 l2.4,-3.4 M118,128.4 l2.4,-3.4 M122,128.4 l2.4,-3.4 M126,128 l2.4,-3.4" stroke="#FF7F9C" stroke-width="1" stroke-linecap="round" opacity=".7"/>`}
-  ${eye(83,-1)}${eye(117,1)}
-  <path d="M100.6,120.5 C100.2,122.4 99.6,123.6 98.8,124.4" stroke="#DB9886" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-  ${mouth}
+  <ellipse cx="63" cy="110" rx="5" ry="8.5" fill="${SKIN2}" stroke="${LINE_SKIN}" stroke-width="1"/><ellipse cx="137" cy="110" rx="5" ry="8.5" fill="${SKIN2}" stroke="${LINE_SKIN}" stroke-width="1"/>
+  <path d="M63,90 C62,113 69,129 83,140 C90,145.5 95,148.5 100,148.8 C105,148.5 110,145.5 117,140 C131,129 138,113 137,90 C137,60 120,44 100,44 C80,44 63,60 63,90 Z" fill="${SKIN}" stroke="${LINE_SKIN}" stroke-width="1.2"/>
+  <ellipse cx="78" cy="128" rx="10" ry="5.5" fill="url(#${id}k)"/><ellipse cx="122" cy="128" rx="10" ry="5.5" fill="url(#${id}k)"/>
+  ${male?'':`<path d="M73,129 l2.2,-3 M77,129.4 l2.2,-3 M81,129.4 l2.2,-3 M117,129.4 l2.2,-3 M121,129.4 l2.2,-3 M125,129 l2.2,-3" stroke="#FF7F9C" stroke-width=".9" stroke-linecap="round" opacity=".65"/>`}
+  ${eye(81,-1)}${eye(119,1)}
+  <path d="M100.8,124 C100.6,125.2 100,126 99.2,126.4" stroke="#D99484" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+  ${MOUTH[X.expr]||MOUTH.smile}
   ${sides}
   ${bangs}
+  ${brow(81,-1)}${brow(119,1)}
+  ${ahoge}
   ${twinTies}
   ${accFront}
+  </g>
   </svg>`;
 }
 const portraitCache={};
@@ -587,6 +621,7 @@ function stageInfo(){ const s=S.stage, a=AREAS[areaIdx(s)];
   $('bossBtn').style.display = S.farm ? 'block':'none';
 }
 function spawnEnemy(){
+  shots=shots.filter(x=>x.dur&&x.t<x.dur*.5);
   const s=S.stage, a=AREAS[areaIdx(s)], boss=isBossStage(s), ab=isAreaBoss(s);
   const k=Math.floor(Math.random()*4);
   const shape= ab?5: a.shapes[boss?(s/5)%4:k];
@@ -608,7 +643,7 @@ function buildParty(){
   const order=HEROES.map((_,i)=>i).filter(i=>S.heroes[i].lv>0).sort((a,b)=>heroDps(b)-heroDps(a)).slice(0,4).sort((a,b)=>a-b);
   if(order.join()===partyIdx.join()) return;
   partyIdx=order;
-  $('party').innerHTML = order.length ? order.map(i=>`<div class="hero" id="ph${i}" style="animation-delay:${-i*.4}s"><div class="face">${heroPic(i)}</div><div class="tag">${HEROES[i].name}</div></div>`).join('')
+  $('party').innerHTML = order.length ? order.map(i=>`<div class="hero" id="ph${i}" style="animation-delay:${-i*.4}s"><div class="face">${heroPic(i)}</div><div class="wpn"><svg viewBox="0 0 24 24">${WPN[HERO_EXTRA[i].atk]}</svg></div><div class="tag">${HEROES[i].name}</div></div>`).join('')
     : `<div class="hero" style="opacity:.55"><div class="face" style="background:#ffffffaa;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;color:#E8B3C8">？</div><div class="tag">仲間募集中</div></div>`;
 }
 
@@ -619,13 +654,110 @@ window.addEventListener('resize',resizeFx);
 function burst(x,y,n,cols,spd=4,star=false){ for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, v=rnd(spd*.4,spd);
   parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-1.5,life:1,dec:rnd(.018,.035),r:rnd(2.5,5.5),c:cols[i%cols.length],star}); } }
 function drawStar(ctx,x,y,r){ ctx.beginPath(); for(let i=0;i<10;i++){ const rr=i%2?r*.45:r, a=i*Math.PI/5-Math.PI/2; ctx.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr);} ctx.closePath(); ctx.fill(); }
-function stepFx(){ fctx.clearRect(0,0,fx.width,fx.height);
+function stepFx(dt){ fctx.clearRect(0,0,fx.width,fx.height); stepShots(dt||1/60); drawShots(fctx);
   for(const p of parts){ p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; p.vx*=0.98; p.life-=p.dec; fctx.globalAlpha=Math.max(0,p.life); fctx.fillStyle=p.c;
     if(p.star) drawStar(fctx,p.x,p.y,p.r*1.4); else { fctx.beginPath(); fctx.arc(p.x,p.y,p.r*p.life+0.5,0,7); fctx.fill(); } }
   fctx.globalAlpha=1; parts=parts.filter(p=>p.life>0); }
 function enemyCenter(){ const b=$('battle').getBoundingClientRect(), e=$('enemy').getBoundingClientRect(); return {x:e.left-b.left+e.width/2, y:e.top-b.top+e.height*.55, w:e.width}; }
+
+/* =====================================================================
+   仲間の攻撃演出（キャラごとの技が敵に飛んでいく）
+   ===================================================================== */
+const WPN={
+ slash:`<path d="M14,3 L21,3 L21,10 L10,21 L3,14 Z" fill="#EEF3FF" stroke="#5B6B8E" stroke-width="1.6" stroke-linejoin="round"/><path d="M5,14 L10,19" stroke="#E0A62E" stroke-width="3" stroke-linecap="round"/>`,
+ orb:`<path d="M5,20 L14,11" stroke="#8B6A4A" stroke-width="2.4" stroke-linecap="round"/><circle cx="16" cy="8" r="5" fill="#C9B2FF" stroke="#7D69C9" stroke-width="1.4"/><circle cx="14.6" cy="6.6" r="1.4" fill="#fff"/>`,
+ arrow:`<path d="M6,3 C17,6 17,18 6,21" fill="none" stroke="#8B6A4A" stroke-width="2.2" stroke-linecap="round"/><path d="M6,3 L6,21" stroke="#999" stroke-width="1"/><path d="M4,12 L20,12 M17,9 L20,12 L17,15" stroke="#4FAE76" stroke-width="1.8" fill="none" stroke-linecap="round"/>`,
+ cross:`<path d="M12,3 L20,6 L19,14 C18,18 15,20 12,21 C9,20 6,18 5,14 L4,6 Z" fill="#5B8FF0" stroke="#2F5BB0" stroke-width="1.5" stroke-linejoin="round"/><path d="M12,7 L12,17 M8,11 L16,11" stroke="#FFE08A" stroke-width="2" stroke-linecap="round"/>`,
+ heart:`<path d="M12,20 C4,14 2,10 4,7 C6,4 10,4 12,8 C14,4 18,4 20,7 C22,10 20,14 12,20 Z" fill="#FF9EC4" stroke="#E0558A" stroke-width="1.5" stroke-linejoin="round"/>`,
+ shuriken:`<path d="M12,2 L14,10 L22,12 L14,14 L12,22 L10,14 L2,12 L10,10 Z" fill="#6B76A8" stroke="#363F6B" stroke-width="1.3" stroke-linejoin="round"/><circle cx="12" cy="12" r="2" fill="#fff"/>`,
+ note:`<path d="M9,17 L9,5 L19,3 L19,15" fill="none" stroke="#E57E3F" stroke-width="2" stroke-linejoin="round"/><ellipse cx="7" cy="17" rx="3" ry="2.4" fill="#E57E3F"/><ellipse cx="17" cy="15" rx="3" ry="2.4" fill="#E57E3F"/>`,
+ star:`<path d="M12,2 L14.8,8.8 L22,9.4 L16.5,14 L18.2,21 L12,17.2 L5.8,21 L7.5,14 L2,9.4 L9.2,8.8 Z" fill="#FFD45E" stroke="#D9A72E" stroke-width="1.3" stroke-linejoin="round"/>`,
+ claw:`<path d="M12,20 C8,20 6,17 7,14 C8,12 10,12 12,12 C14,12 16,12 17,14 C18,17 16,20 12,20 Z" fill="#F08A6C"/><circle cx="6" cy="9" r="2.4" fill="#F08A6C"/><circle cx="10" cy="5.6" r="2.4" fill="#F08A6C"/><circle cx="14" cy="5.6" r="2.4" fill="#F08A6C"/><circle cx="18" cy="9" r="2.4" fill="#F08A6C"/>`,
+ spear:`<path d="M4,20 L17,7" stroke="#8B6A4A" stroke-width="2.2" stroke-linecap="round"/><path d="M15,3 L21,3 L21,9 L17,11 L13,7 Z" fill="#DDE6F5" stroke="#3D6FC0" stroke-width="1.4" stroke-linejoin="round"/>`,
+ flask:`<path d="M10,3 L14,3 L14,9 C18,10.5 20,13.5 20,16 C20,19.5 16.5,21.5 12,21.5 C7.5,21.5 4,19.5 4,16 C4,13.5 6,10.5 10,9 Z" fill="#9BE6CE" stroke="#2FA36B" stroke-width="1.4" stroke-linejoin="round"/><circle cx="10" cy="16" r="1.6" fill="#fff"/>`,
+ moon:`<path d="M17,18.5 A8.5,8.5 0 1 1 13,3.5 A6.5,6.5 0 0 0 17,18.5 Z" fill="#FFE08A" stroke="#D9A72E" stroke-width="1.4" stroke-linejoin="round"/>`,
+};
+const MELEE={slash:1,cross:1,claw:1,spear:1,moon:1};
+let shots=[], imps=[];
+function heroAttack(i,dmg){
+  const el=$('ph'+i), X=HERO_EXTRA[i], H=HEROES[i];
+  if(!el || !enemy){ dealDamage(dmg); return; }
+  const br=$('battle').getBoundingClientRect(), hr=el.getBoundingClientRect(), c=enemyCenter();
+  const sx=hr.left-br.left+hr.width/2, sy=hr.top-br.top+hr.height*.35;
+  const dx=c.x-sx, dy=c.y-sy, L=Math.hypot(dx,dy)||1, ux=dx/L, uy=dy/L, melee=!!MELEE[X.atk];
+  const f=el.querySelector('.face'), go=melee?40:16;
+  f.animate([{transform:'translate(0,0) scale(1) rotate(0)'},
+             {transform:`translate(${-ux*5}px,${-uy*5+3}px) scale(.92,1.06) rotate(0)`,offset:.28},
+             {transform:`translate(${ux*go}px,${uy*go}px) scale(1.16) rotate(${ux>0?7:-7}deg)`,offset:.52},
+             {transform:'translate(0,0) scale(1) rotate(0)'}],{duration:melee?560:460,easing:'cubic-bezier(.3,0,.2,1)'});
+  el.classList.remove('cast'); void el.offsetWidth; el.classList.add('cast');
+  const tx=c.x+rnd(-c.w*.16,c.w*.16), ty=c.y+rnd(-c.w*.18,c.w*.08);
+  setTimeout(()=>{ shots.push({type:X.atk,x0:sx,y0:sy-8,tx,ty,x:sx,y:sy,t:0,dur:melee?0:(X.atk==='flask'?.42:.3),col:H.hair2,col2:H.hair,i,dmg,rot:0,ux,uy,sc:clamp(c.w/105,1.2,2.2)}); }, melee?250:150);
+}
+function landShot(s){
+  const H=HEROES[s.i];
+  imps.push({type:s.type,x:s.tx,y:s.ty,t:0,life:s.type==='moon'?.5:.42,col:H.hair2,col2:H.hair,ang:rnd(-.5,.2)+(s.ux<0?Math.PI:0),ux:s.ux,uy:s.uy,sc:s.sc});
+  burst(s.tx,s.ty,7,[H.hair,H.hair2,'#fff'],4.2,s.type==='star'||s.type==='heart');
+  hitEnemy();
+  const e=$('enemy'); e.animate([{transform:'translate(0,0)'},{transform:`translate(${s.ux*9}px,${s.uy*5}px)`},{transform:'translate(0,0)'}],{duration:200,easing:'ease-out'});
+  floatText(s.tx+rnd(-12,12), s.ty-18+rnd(-10,6), fmt(s.dmg),'sm',H.hair2);
+  dealDamage(s.dmg);
+}
+function stepShots(dt){
+  for(const s of shots){
+    s.t+=dt; const k=s.dur? clamp(s.t/s.dur,0,1):1;
+    const e = s.type==='flask'? k : 1-Math.pow(1-k,2);
+    s.x = s.x0+(s.tx-s.x0)*e;
+    s.y = s.y0+(s.ty-s.y0)*e - (s.type==='flask'?Math.sin(k*Math.PI)*70: s.type==='note'?Math.sin(k*Math.PI*3)*10 : Math.sin(k*Math.PI)*18);
+    s.rot+=dt*14;
+    if(s.dur && (s.type==='orb'||s.type==='star'||s.type==='heart') && Math.random()<.7) parts.push({x:s.x,y:s.y,vx:rnd(-.6,.6),vy:rnd(-.6,.6),life:.8,dec:.06,r:rnd(2,3.5),c:s.type==='star'?'#FFE08A':s.col2,star:s.type==='star'});
+    if(k>=1){ s.done=true; landShot(s); }
+  }
+  shots=shots.filter(s=>!s.done);
+  for(const m of imps) m.t+=dt;
+  imps=imps.filter(m=>m.t<m.life);
+}
+function heartPath(ctx,r){ ctx.beginPath(); ctx.moveTo(0,r*.9); ctx.bezierCurveTo(-r*1.3,0,-r*.9,-r*1.1,0,-r*.35); ctx.bezierCurveTo(r*.9,-r*1.1,r*1.3,0,0,r*.9); ctx.closePath(); }
+function starPath(ctx,r,n=5){ ctx.beginPath(); for(let i=0;i<n*2;i++){ const rr=i%2?r*.45:r, a=i*Math.PI/n-Math.PI/2; ctx.lineTo(Math.cos(a)*rr,Math.sin(a)*rr);} ctx.closePath(); }
+function drawShots(ctx){
+  for(const s of shots){
+    if(!s.dur) continue;
+    ctx.save(); ctx.translate(s.x,s.y); ctx.scale(s.sc,s.sc);
+    if(s.type==='orb'){ const g=ctx.createRadialGradient(0,0,1,0,0,12); g.addColorStop(0,'#fff'); g.addColorStop(.45,s.col2); g.addColorStop(1,'rgba(255,255,255,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,12,0,7); ctx.fill(); }
+    else if(s.type==='arrow'){ const a=Math.atan2(s.ty-s.y0,s.tx-s.x0); ctx.rotate(a); ctx.strokeStyle='#8B6A4A'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.moveTo(-18,0); ctx.lineTo(8,0); ctx.stroke();
+      ctx.fillStyle='#E8EEF8'; ctx.beginPath(); ctx.moveTo(14,0); ctx.lineTo(6,-4.5); ctx.lineTo(6,4.5); ctx.closePath(); ctx.fill(); ctx.strokeStyle='#5B6B8E'; ctx.lineWidth=1; ctx.stroke();
+      ctx.fillStyle=s.col2; ctx.beginPath(); ctx.moveTo(-18,0); ctx.lineTo(-23,-5); ctx.lineTo(-13,0); ctx.lineTo(-23,5); ctx.closePath(); ctx.fill(); }
+    else if(s.type==='heart'){ ctx.rotate(Math.sin(s.rot)*.3); ctx.fillStyle='#FF8FB8'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; heartPath(ctx,10); ctx.fill(); ctx.stroke(); }
+    else if(s.type==='shuriken'){ ctx.rotate(s.rot*1.6); ctx.fillStyle='#5E6B9E'; ctx.strokeStyle='#fff'; ctx.lineWidth=1.6; starPath(ctx,11,4); ctx.fill(); ctx.stroke(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(0,0,2.4,0,7); ctx.fill(); }
+    else if(s.type==='note'){ ctx.rotate(Math.sin(s.rot)*.25); ctx.font='bold 26px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.lineWidth=4; ctx.strokeStyle='#fff'; ctx.strokeText('♪',0,0); ctx.fillStyle=s.col; ctx.fillText('♪',0,0); }
+    else if(s.type==='star'){ ctx.rotate(s.rot); ctx.fillStyle='#FFD45E'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; starPath(ctx,12); ctx.fill(); ctx.stroke(); }
+    else if(s.type==='flask'){ ctx.rotate(s.rot); ctx.fillStyle='#9BE6CE'; ctx.strokeStyle='#2FA36B'; ctx.lineWidth=1.8; ctx.beginPath(); ctx.arc(0,3,8,0,7); ctx.fill(); ctx.stroke(); ctx.fillRect(-2.5,-9,5,6); ctx.strokeRect(-2.5,-9,5,6); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-2.5,1,2,0,7); ctx.fill(); }
+    ctx.restore();
+  }
+  for(const m of imps){
+    const p=m.t/m.life, a=Math.min(1,(1-p)*1.6); ctx.save(); ctx.translate(m.x,m.y); if(m.type!=='moon') ctx.scale(m.sc,m.sc); ctx.globalAlpha=Math.max(0,a);
+    if(m.type==='slash'||m.type==='cross'){ const n=m.type==='cross'?2:1;
+      for(let j=0;j<n;j++){ ctx.save(); ctx.rotate(m.ang+(j? -1.4:0)+(m.type==='cross'?.7:0)); const R=34+p*16, sw=Math.min(1,p*3.2);
+        ctx.beginPath(); ctx.arc(0,0,R,-1.25,-1.25+2.5*sw); ctx.arc(-8,3,R-8,-1.25+2.5*sw,-1.25,true); ctx.closePath(); ctx.fillStyle=m.col; ctx.fill(); ctx.lineWidth=1.5; ctx.strokeStyle=shade(m.col,-60); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0,0,R-1.5,-1.1,-1.1+2.2*sw); ctx.lineWidth=2.6; ctx.strokeStyle='#fff'; ctx.stroke(); ctx.restore(); } }
+    else if(m.type==='claw'){ ctx.rotate(.5); ctx.lineCap='round'; for(let j=-1;j<=1;j++){ const L=30*Math.min(1,p*3.5); ctx.beginPath(); ctx.moveTo(j*11-6,-24); ctx.quadraticCurveTo(j*11+4,-24+L*.6,j*11-2,-24+L*1.6);
+        ctx.strokeStyle=shade(m.col,-50); ctx.lineWidth=9; ctx.stroke(); ctx.strokeStyle=m.col; ctx.lineWidth=6; ctx.stroke(); ctx.strokeStyle='#fff'; ctx.lineWidth=2.2; ctx.stroke(); } }
+    else if(m.type==='spear'){ const ang=Math.atan2(m.uy,m.ux); ctx.rotate(ang); const L=60*Math.min(1,p*4);
+        ctx.fillStyle=m.col; ctx.beginPath(); ctx.moveTo(-60+L-60,-3); ctx.lineTo(L-40,-1); ctx.lineTo(L-30,0); ctx.lineTo(L-40,1); ctx.lineTo(-60+L-60,3); ctx.closePath(); ctx.fill();
+        ctx.fillStyle='#fff'; starPath(ctx,16*(1-p)+4,4); ctx.fill(); }
+    else if(m.type==='moon'){ const W=36*(1-p*.6), top=-m.y; const g=ctx.createLinearGradient(0,top,0,0); g.addColorStop(0,'rgba(255,240,180,0)'); g.addColorStop(1,'rgba(255,240,180,.95)');
+        ctx.fillStyle=g; ctx.fillRect(-W/2,top,W,-top+10); ctx.fillStyle='#fff'; ctx.fillRect(-W/6,top,W/3,-top+10);
+        ctx.strokeStyle='#FFE08A'; ctx.lineWidth=4; ctx.beginPath(); ctx.ellipse(0,8,20+p*30,6+p*8,0,0,7); ctx.stroke(); }
+    else { // orb / heart / star / shuriken / note / flask / arrow：着弾の輪
+      ctx.strokeStyle=m.col; ctx.lineWidth=6*(1-p)+1.5; ctx.beginPath(); ctx.arc(0,0,10+p*34,0,7); ctx.stroke(); ctx.fillStyle='#fff'; starPath(ctx,(1-p)*18+2,4); ctx.fill();
+      ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,6+p*24,0,7); ctx.stroke();
+      if(m.type==='flask'){ ctx.fillStyle='#9BE6CE'; for(let j=0;j<6;j++){ const aa=j*1.05; ctx.beginPath(); ctx.arc(Math.cos(aa)*(8+p*30),Math.sin(aa)*(8+p*30),5*(1-p)+1,0,7); ctx.fill(); } } }
+    ctx.restore();
+  }
+}
+
 let floatCount=0;
-function floatText(x,y,txt,cls){ if(floatCount>22) return; floatCount++; const d=document.createElement('div'); d.className='dmg '+(cls||''); d.textContent=txt; d.style.left=x+'px'; d.style.top=y+'px';
+function floatText(x,y,txt,cls,col){ if(floatCount>22) return; floatCount++; const d=document.createElement('div'); d.className='dmg '+(cls||''); if(col) d.style.setProperty('--c',col); d.textContent=txt; d.style.left=x+'px'; d.style.top=y+'px';
   $('floatLayer').appendChild(d); setTimeout(()=>{d.remove();floatCount--;},1000); }
 function slashAt(x,y){ const d=document.createElement('div'); d.className='slash'; d.style.left=x+'px'; d.style.top=y+'px'; d.style.setProperty('--r',rnd(-50,20)+'deg'); $('floatLayer').appendChild(d); setTimeout(()=>d.remove(),240); }
 function hitEnemy(){ const e=$('enemy'); e.classList.remove('hit','flash'); void e.offsetWidth; e.classList.add('hit','flash'); clearTimeout(hitEnemy.t); hitEnemy.t=setTimeout(()=>e.classList.remove('flash'),60); }
@@ -988,15 +1120,11 @@ function frame(t){
     const rm=rageMult();
     for(let i=0;i<HEROES.length;i++){ if(!S.heroes[i].lv) continue; heroTimers[i]-=dt;
       if(heroTimers[i]<=0){ const iv=1+(i%4)*0.12; heroTimers[i]+=iv; const d=heroDps(i)*rm*iv;
-        const el=$('ph'+i);
-        if(el){ const f=el.firstElementChild; if(!f._busy){ f._busy=true; f.animate([{transform:'translate(0,0) rotate(0) scale(1)'},{transform:'translate(4px,-12px) rotate(-5deg) scale(1.06)',offset:.4},{transform:'translate(0,0) rotate(0) scale(1)'}],{duration:420,easing:'cubic-bezier(.33,0,.25,1)'}).onfinish=()=>{f._busy=false;}; }
-          const c=enemyCenter(); const br=$('battle').getBoundingClientRect(), hr=el.getBoundingClientRect();
-          burst(c.x+rnd(-15,15),c.y+rnd(-15,15),4,[HEROES[i].hair,'#fff'],3); floatText(c.x+rnd(-c.w*.45,c.w*.45), c.y-c.w*.05+rnd(-c.w*.25,c.w*.15), fmt(d),'sm');
-          if(Math.random()<0.5) hitEnemy(); }
-        if(dealDamage(d)) break; } }
+        if($('ph'+i)) heroAttack(i,d);
+        else if(dealDamage(d)) break; } }
     if(bossLeft>0){ bossLeft-=dt; $('bossTimer').firstElementChild.style.width=clamp(bossLeft/bossTime()*100,0,100)+'%'; if(bossLeft<=0 && enemy && enemy.hp>0) bossFail(); }
   }
-  stepFx();
+  stepFx(dt);
   // 数字はなめらかに
   dispGold += (S.gold-dispGold)*Math.min(1,dt*10); if(Math.abs(S.gold-dispGold)<1) dispGold=S.gold;
   dispGems += (S.gems-dispGems)*Math.min(1,dt*10); if(Math.abs(S.gems-dispGems)<.5) dispGems=S.gems;
