@@ -6,6 +6,15 @@ const GAME_CAT = {
   roulette: "dice", sicbo: "dice", craps: "dice", chohan: "dice",
   chinchiro: "party", derby: "party", bingo: "party",
 };
+const HOT_GAMES = [["m_slot", true], ["blackjack"], ["roulette"], ["m_plinko", true], ["holdem"], ["chinchiro"], ["m_crash", true], ["baccarat"]];
+/* トップで日替わりに話すセリフ */
+const LOBBY_LINES = {
+  mofupi: ["いらっしゃいませ〜♪ のんびり遊んでいってね〜", "きょうはスロットの気分かな〜？", "ゆっくりでいいよ〜。コインは逃げないからね〜", "みんなでチンチロ、たのしいよ〜♪"],
+  kuronya: ["…いらっしゃい。べ、別に待ってたわけじゃないにゃ", "ブラックジャックで勝負するにゃ？手加減しないにゃ", "コインを使いすぎたら…ちょっとだけ心配してあげるにゃ", "ふん、今日のおすすめはルーレットにゃ"],
+  pyonta: ["ようこそ！今日もぜったい勝つぞー！", "負けてもへっちゃら！次の一回で取り返そう！", "プリンコのはしっこ、ねらっていこう！", "みんなでオンライン対戦しようよ！"],
+  penpen: ["いらっしゃいませ〜！おやつ持ってきた？", "あれれ？ルールわすれちゃった…「？」ボタンで見られるよ！", "ビンゴ、ぼく大好き！", "ロケット、ぼくが飛ぶんだよ〜！"],
+  gaorun: ["がおー！今日はどんなお宝が見つかるかな？", "宝さがし、いっしょにやろうよ！がおっ！", "ジャックポットってお宝のこと？さがすぞー！", "ダービーで1着とるぞ！がおがお〜！"],
+};
 const ALL_GAMES = {};
 MULTI_GAMES.forEach((g) => (ALL_GAMES[g.id] = g));
 
@@ -14,19 +23,18 @@ const App = {
   runner: null, table: null, mode: null,
   init() {
     Save.load();
-    const tc = $("titleChars");
-    CHAR_IDS.forEach((id, k) => tc.append(h("div", { class: "tc", style: { animationDelay: k * 0.45 + "s" } }, h("img", { src: CHARS[id].img, alt: CHARS[id].name, draggable: "false" }), h("span", null, CHARS[id].name))));
     document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => { Snd.init(); Snd.tick(); this.go(b.dataset.go); }));
     document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", () => { Snd.tick(); UI.back(); }));
     $("gameBack").addEventListener("click", () => this.onGameBack && this.onGameBack());
     $("sndBtn").addEventListener("click", () => { Save.data.snd = !Save.data.snd; Save.write(); this.updSnd(); Snd.init(); Snd.ok(); });
     $("titleCoin").append(Wallet.pill());
+    this.renderTitle();
     this.updSnd();
     $("cntSolo").textContent = "スロット・プリンコなど " + SOLO_GAMES.length + "種";
     $("cntCpu").textContent = "ブラックジャック・ルーレットなど " + MULTI_GAMES.length + "種";
     UI.onShow.online = () => Room.render();
     UI.onShow.list = () => this.renderList(this.mode);
-    UI.onShow.title = () => Wallet.paint();
+    UI.onShow.title = () => { Wallet.paint(); this.renderTitle(); };
     UI.go("title", false);
     document.addEventListener("gesturestart", (e) => e.preventDefault());
     Native.send("ready");
@@ -34,7 +42,34 @@ const App = {
     const d = Wallet.daily();
     if (d) setTimeout(() => { Snd.init(); toast("🎁 ログインボーナス もふコイン +" + d + "枚！", 2600); }, 600);
   },
-  updSnd() { $("sndBtn").textContent = Save.data.snd ? "🔊 音 ON" : "🔇 音 OFF"; },
+  updSnd() { $("sndBtn").textContent = Save.data.snd ? "🔊" : "🔇"; },
+  /* ---------- トップ（ロビー） ---------- */
+  renderTitle() {
+    const me = Save.data.me, cid = me.char;
+    const others = CHAR_IDS.filter((c) => c !== cid);
+    const day = Math.floor(Date.now() / 86400000);
+    const lines = LOBBY_LINES[cid];
+    const line = lines[(day + CHAR_IDS.indexOf(cid)) % lines.length];
+    const side = (c, k) => h("button", { class: "side-chr s" + k, onclick: () => { Snd.init(); Snd.tick(); me.char = c; Save.write(); this.renderTitle(); } },
+      h("div", { class: "sc-card" }, h("img", { src: CHARS[c].img, alt: CHARS[c].name, draggable: "false" })), h("span", null, CHARS[c].name));
+    const st = $("stage"); st.innerHTML = "";
+    st.append(
+      h("div", { class: "spot-light" }),
+      side(others[0], 0), side(others[1], 1),
+      h("div", { class: "hero" },
+        h("div", { class: "hero-bubble" }, line),
+        h("div", { class: "hero-card" }, h("img", { class: "hero-img", src: CHARS[cid].img, alt: CHARS[cid].name, draggable: "false" })),
+        h("div", { class: "hero-name" }, "🎩 " + (me.name || CHARS[cid].name))),
+      side(others[2], 2), side(others[3], 3),
+      h("div", { class: "stage-hint" }, "まわりの子をタップでキャラ交代"));
+    const hr = $("hotRow"); hr.innerHTML = "";
+    HOT_GAMES.forEach(([gid, solo]) => {
+      const g = solo ? SOLO_GAMES.find((x) => x.id === gid) : ALL_GAMES[gid];
+      if (!g) return;
+      hr.append(h("button", { class: "hot" + (solo ? " solo" : ""), onclick: () => { Snd.init(); Snd.tick(); this.mode = solo ? "solo" : "cpu"; this.openSetup(g, this.mode); } },
+        h("div", { class: "hi" }, g.icon), h("b", null, g.name.replace("（シックボー）", "").replace("もふもふ", "")), h("small", null, solo ? "ひとりで" : "CPUと")));
+    });
+  },
   go(where) {
     if (where === "solo" || where === "cpu" || where === "local") { this.mode = where; this.renderList(where); UI.go("list"); }
     else if (where === "online") { Net.authenticate(); UI.go("online"); Room.render(); }
