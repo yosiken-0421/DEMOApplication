@@ -160,6 +160,7 @@ struct HomeView: View {
     private var notes: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("・有名な曲は、オリコン年間シングル（1970〜2007年）、Billboard JAPAN 年間HOT100（2008〜2025年）の上位曲と、米Billboard Hot 100の1位曲から出題します（約1,950曲）。年代はランキングの年です。")
+            Text("・アニメの有名な曲は、Billboard JAPAN 年間Hot Animation、NHK『ベスト・アニソン100』、テレビ朝日のアニソン総選挙などのランキングに入った約230曲から出題します。")
             Text("・マイナーな曲は、その年代のヒット歌手のランキング外の曲です（年代はAppleの発売日で判定。再発盤はずれることがあります）。")
             Text("・ジャンルはAppleに登録されたジャンル名で絞り込みます。")
             Text("・アニメ・ドラマなどのタイアップは、Wikipediaの記事に書かれているものだけ表示します。")

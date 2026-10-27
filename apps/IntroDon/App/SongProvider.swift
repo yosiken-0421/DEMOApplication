@@ -124,12 +124,14 @@ enum SongProvider {
                             storeID: nil, previewURL: nil, storeURL: nil, artworkURL: nil,
                             libraryID: pid, durationSeconds: item.playbackDuration > 0 ? item.playbackDuration : nil)
 
-            if let hit = HitList.find(title: title, artist: artist) {
+            if let hit = HitList.find(title: title, artist: artist),
+               !(settings.genre == .anime && !hit.isAnime) {
+                let animeOK = settings.genre == .anime && hit.isAnime
                 guard settings.genre.allowsHit(western: hit.western),
-                      settings.genre.matches(item.genre),
-                      settings.era.matches(hit.y) else { continue }
+                      animeOK || settings.genre.matches(item.genre),
+                      settings.era.matches(hit.year ?? year) else { continue }
                 cache[pid] = item
-                famous.append(Candidate(id: song.id, title: title, artist: artist, year: hit.y, hit: hit, song: song))
+                famous.append(Candidate(id: song.id, title: title, artist: artist, year: hit.year ?? year, hit: hit, song: song))
             } else {
                 let genreOK: Bool
                 if settings.genre == .westernPop {
@@ -167,7 +169,7 @@ enum SongProvider {
     static func catalogPlan(settings: QuizSettings) async throws -> QuizPlan {
         let hits = HitList.filtered(genre: settings.genre, era: settings.era).shuffled()
         let famous = hits.map { h in
-            Candidate(id: "hit-" + h.key, title: h.t, artist: h.a, year: h.y, hit: h, song: nil)
+            Candidate(id: "hit-" + h.key, title: h.t, artist: h.a, year: h.year, hit: h, song: nil)
         }
         var minor: [Candidate] = []
         if settings.fame != .famous {
@@ -179,10 +181,11 @@ enum SongProvider {
     /// マイナー曲：その年代・ジャンルのヒット歌手の、ランキングに入っていない曲
     private static func minorCandidates(settings: QuizSettings, hits: [HitSong]) async throws -> [Candidate] {
         var artists: [String] = []
-        for h in hits {
+        let maxArtists = settings.genre == .anime ? 8 : 5
+        for h in hits where !h.a.isEmpty {
             let a = h.a
             if !artists.contains(where: { TextMatch.artistMatches($0, a) }) { artists.append(a) }
-            if artists.count >= 5 { break }
+            if artists.count >= maxArtists { break }
         }
         let needPreview = settings.source == .preview
         var result: [Candidate] = []
@@ -228,13 +231,25 @@ enum SongProvider {
     static func resolve(_ c: Candidate, settings: QuizSettings) async -> Song? {
         if let s = c.song { return s }
         let needPreview = settings.source == .preview
-        let term = TextMatch.searchTitle(c.title) + " " + TextMatch.primaryArtistDisplay(c.artist)
-        guard let tracks = try? await search(term: term, attribute: nil, limit: 25) else { return nil }
+        let noArtist = c.artist.isEmpty
+        let term = noArtist ? TextMatch.searchTitle(c.title)
+                            : TextMatch.searchTitle(c.title) + " " + TextMatch.primaryArtistDisplay(c.artist)
+        guard let tracks = try? await search(term: term, attribute: nil, limit: noArtist ? 50 : 25) else { return nil }
         for t in tracks {
             guard let s = makeSong(t, needPreview: needPreview, overrideYear: c.year),
-                  TextMatch.titleMatches(s.title, c.title),
-                  TextMatch.artistMatches(s.artist, c.artist) else { continue }
-            if c.hit?.western == false, !settings.genre.matches(s.genreName) { return nil }
+                  TextMatch.titleMatches(s.title, c.title) else { continue }
+            if noArtist {
+                // 歌手が書かれていないアニソンは、Apple のジャンルが「アニメ」の曲だけ採用
+                guard Genre.anime.matches(s.genreName) else { continue }
+            } else {
+                guard TextMatch.artistMatches(s.artist, c.artist) else { continue }
+            }
+            if let h = c.hit, !h.western, !(settings.genre == .anime && h.isAnime),
+               !settings.genre.matches(s.genreName) { return nil }
+            // 年が不明な曲は Apple の発売年で年代を確認
+            if c.year == nil, let r = settings.era.years {
+                guard let y = s.year, r.contains(y), c.hit?.mayBeIn(Era(start: y - y % 5)) ?? true else { return nil }
+            }
             return s
         }
         return nil

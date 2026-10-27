@@ -11,8 +11,29 @@ struct HitSong: Decodable, Hashable {
     let r: Int      // 順位
     let w: Int      // 1 = 洋楽
     let s: String   // 出典
+    let g: String?  // "anime" = アニソンのランキング・投票に入った曲
+    let an: String? // アニメ・作品名（出典に書かれているもの）
+    let eh: String? // 年が不明な曲の時代（showa / heisei / reiwa）
+    let s2: String? // 2つ目の出典（アニソンのランキング）
 
     var western: Bool { w == 1 }
+    var isAnime: Bool { g == "anime" }
+    var year: Int? { y > 0 ? y : nil }
+    var animeName: String? { (an?.isEmpty == false) ? an : nil }
+
+    /// 年が不明な曲が、指定の年代に入りうるか（昭和・平成・令和の情報で判定）
+    func mayBeIn(_ era: Era) -> Bool {
+        guard let r = era.years else { return true }
+        if let y = year { return r.contains(y) }
+        let span: ClosedRange<Int>
+        switch eh {
+        case "showa": span = 1926...1989
+        case "heisei": span = 1989...2019
+        case "reiwa": span = 2019...2100
+        default: return true
+        }
+        return span.overlaps(r)
+    }
     var key: String { TextMatch.norm(t) + "|" + TextMatch.norm(a) }
 }
 
@@ -32,14 +53,17 @@ enum HitList {
     }()
 
     static func filtered(genre: Genre, era: Era) -> [HitSong] {
-        all.filter { genre.allowsHit(western: $0.western) && era.matches($0.y) }
+        all.filter { h in
+            if genre == .anime && !h.isAnime { return false }
+            return genre.allowsHit(western: h.western) && h.mayBeIn(era)
+        }
     }
 
     /// 曲名と歌手からヒット曲リストの1曲を探す
     static func find(title: String, artist: String) -> HitSong? {
         let c = TextMatch.core(title)
         guard !c.isEmpty, let list = byTitle[c] else { return nil }
-        return list.first { TextMatch.artistMatches(artist, $0.a) }
+        return list.first { $0.a.isEmpty ? $0.isAnime : TextMatch.artistMatches(artist, $0.a) }
     }
 }
 

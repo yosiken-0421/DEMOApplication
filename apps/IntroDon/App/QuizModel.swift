@@ -42,8 +42,8 @@ struct Question: Identifiable {
     let choices: [Choice]
 
     var answerTitle: String { candidate.title }
-    var answerArtist: String { candidate.artist }
-    var spokenAnswer: String { "\(candidate.artist)の、\(candidate.title)" }
+    var answerArtist: String { candidate.artist.isEmpty ? song.artist : candidate.artist }
+    var spokenAnswer: String { "\(answerArtist)の、\(candidate.title)" }
 }
 
 enum Judgement: Equatable {
@@ -213,10 +213,12 @@ final class QuizModel: ObservableObject {
             totalAsked += 1
             phase = .ready
             let qid = q.id
-            Task {
+            if let an = q.candidate.hit?.animeName {
+                tieUps = [TieUp(kind: .anime, name: an)]
+            } else { Task {
                 let t = await TieUpLookup.shared.tieUps(for: q.song)
                 if current?.id == qid { tieUps = t }
-            }
+            } }
             if usesVocalStart { Task { _ = await LyricsTiming.shared.vocalStart(for: q.song) } }
             prefetchNext()
         }
@@ -225,7 +227,8 @@ final class QuizModel: ObservableObject {
     /// 次の問題を作る（ヒット曲は Apple の曲データと照合して、再生できたものだけ出題）
     private func buildQuestion() async -> Question? {
         var tries = 0
-        while !queue.isEmpty && tries < 8 {
+        let maxTries = settings.genre == .anime ? 12 : 8
+        while !queue.isEmpty && tries < maxTries {
             let c = queue.removeFirst()
             let titleKey = TextMatch.core(c.title)
             guard !usedAnswerIDs.contains(c.id), !usedAnswerTitles.contains(titleKey) else { continue }
@@ -233,13 +236,13 @@ final class QuizModel: ObservableObject {
             guard let song = await SongProvider.resolve(c, settings: settings) else { continue }
             usedAnswerIDs.insert(c.id)
             usedAnswerTitles.insert(titleKey)
-            return Question(candidate: c, song: song, choices: makeChoices(for: c))
+            return Question(candidate: c, song: song, choices: makeChoices(for: c, song: song))
         }
         return nil
     }
 
     /// 選択肢：同じ種類（有名/マイナー）の曲から。これまでの答えと、直前に出た選択肢は使わない
-    private func makeChoices(for answer: Candidate) -> [Choice] {
+    private func makeChoices(for answer: Candidate, song: Song) -> [Choice] {
         let samePool = answer.isHit ? plan.famous : plan.minor
         let otherPool = answer.isHit ? plan.minor : plan.famous
         let answerCore = TextMatch.core(answer.title)
@@ -248,7 +251,7 @@ final class QuizModel: ObservableObject {
         func fill(from pool: [Candidate], allowRecent: Bool) {
             for c in pool.shuffled() where picked.count < 3 {
                 let core = TextMatch.core(c.title)
-                guard c.id != answer.id, core != answerCore,
+                guard c.id != answer.id, core != answerCore, !c.artist.isEmpty,
                       !usedAnswerIDs.contains(c.id), !usedAnswerTitles.contains(core),
                       allowRecent || !recentChoiceIDs.contains(c.id),
                       !picked.contains(where: { TextMatch.core($0.title) == core }) else { continue }
@@ -264,7 +267,7 @@ final class QuizModel: ObservableObject {
         if recentChoiceIDs.count > 30 { recentChoiceIDs.removeFirst(recentChoiceIDs.count - 30) }
 
         let all = picked.map { Choice(id: $0.id, title: $0.title, artist: $0.artist) }
-            + [Choice(id: answer.id, title: answer.title, artist: answer.artist)]
+            + [Choice(id: answer.id, title: answer.title, artist: answer.artist.isEmpty ? song.artist : answer.artist)]
         return all.shuffled()
     }
 

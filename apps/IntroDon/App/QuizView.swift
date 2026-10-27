@@ -199,7 +199,9 @@ struct QuizView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("正解").font(.caption).foregroundStyle(Theme.gold)
                     Text(q.answerTitle).font(.system(size: 19, weight: .heavy, design: .rounded)).lineLimit(2)
-                    Text(q.answerArtist + (q.candidate.year.map { "（\($0)年）" } ?? ""))
+                    Text(q.answerArtist.isEmpty ? q.song.artist : q.answerArtist)
+                        .font(.subheadline).opacity(0.8).lineLimit(1)
+                    Text((q.candidate.year ?? q.song.year).map { "\($0)年" } ?? "")
                         .font(.subheadline).opacity(0.8).lineLimit(1)
                 }
                 Spacer(minLength: 0)
@@ -209,16 +211,20 @@ struct QuizView: View {
                     ForEach(model.tieUps, id: \.self) { t in
                         Text(t.display).font(.system(size: 15, weight: .bold, design: .rounded))
                     }
-                    Text("タイアップ情報：Wikipedia の記述より").font(.caption2).opacity(0.5)
+                    Text(q.candidate.hit?.animeName != nil ? "作品名：アニソンランキングの出典より" : "タイアップ情報：Wikipedia の記述より")
+                        .font(.caption2).opacity(0.5)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(10)
                 .background(Theme.cyan.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
             }
             if let hit = q.candidate.hit {
-                Text("🏆 \(hit.s) \(hit.r)位")
-                    .font(.caption).opacity(0.7)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("🏆 \(hit.s)" + (hit.r > 0 ? " \(hit.r)位" : ""))
+                    if let s2 = hit.s2 { Text("🏆 \(s2)") }
+                }
+                .font(.caption).opacity(0.7)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             HStack(spacing: 10) {
                 smallButton("続きを聴く", icon: "play.fill") { model.listenMore() }
