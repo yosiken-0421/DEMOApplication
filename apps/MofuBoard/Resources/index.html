@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>もふもふボードゲーム</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <!-- タイトル -->
+  <section class="screen" id="scr-title">
+    <div class="title-wrap">
+      <div class="logo"><span class="l1">もふもふ</span><span class="l2">ボードゲーム</span></div>
+      <div class="title-chars" id="titleChars"></div>
+      <div class="menu-big">
+        <button class="btn big pink" data-go="solo"><span class="ico">🧩</span><span><b>ひとりでパズル</b><small id="cntSolo">パズル</small></span></button>
+        <button class="btn big mint" data-go="cpu"><span class="ico">🤖</span><span><b>CPUと対戦</b><small id="cntCpu">ボードゲーム</small></span></button>
+        <button class="btn big lemon" data-go="local"><span class="ico">👨‍👩‍👧</span><span><b>みんなで（1台で）</b><small>スマホを回して2〜5人で</small></span></button>
+        <button class="btn big sky" data-go="online"><span class="ico">📡</span><span><b>オンライン対戦</b><small>招待コードで友だち・恋人と</small></span></button>
+      </div>
+      <div class="title-foot">
+        <button class="btn small ghost" data-go="profile">🐾 キャラ・記録</button>
+        <button class="btn small ghost" id="sndBtn">🔊 音</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ゲーム選択 -->
+  <section class="screen" id="scr-list">
+    <header class="bar"><button class="back" data-back>‹</button><h2 id="listTitle">ゲームを選ぶ</h2><span></span></header>
+    <div class="scroll"><div class="game-list" id="gameList"></div></div>
+  </section>
+
+  <!-- 設定 -->
+  <section class="screen" id="scr-setup">
+    <header class="bar"><button class="back" data-back>‹</button><h2 id="setupTitle"></h2><button class="qbtn" id="setupRules">？</button></header>
+    <div class="scroll"><div class="setup" id="setupBody"></div></div>
+  </section>
+
+  <!-- オンライン -->
+  <section class="screen" id="scr-online">
+    <header class="bar"><button class="back" data-back>‹</button><h2>オンライン対戦</h2><span></span></header>
+    <div class="scroll"><div class="online" id="onlineBody"></div></div>
+  </section>
+
+  <!-- プロフィール -->
+  <section class="screen" id="scr-profile">
+    <header class="bar"><button class="back" data-back>‹</button><h2>キャラ・記録</h2><span></span></header>
+    <div class="scroll"><div class="profile" id="profileBody"></div></div>
+  </section>
+
+  <!-- ゲーム画面 -->
+  <section class="screen" id="scr-game">
+    <header class="bar gamebar"><button class="back" id="gameBack">‹</button><h2 id="gameTitle"></h2><button class="qbtn" id="gameRules">？</button></header>
+    <div class="game-area" id="gameArea"></div>
+  </section>
+</div>
+
+<div id="modal" class="modal hidden"><div class="modal-card" id="modalCard"></div></div>
+<div id="toast" class="toast"></div>
+<div id="fx" class="fx"></div>
+
+<script src="core.js"></script>
+<script src="kit.js"></script>
+<script src="games1.js"></script>
+<script src="games2.js"></script>
+<script src="shogi.js"></script>
+<script src="chess.js"></script>
+<script src="games3.js"></script>
+<script src="blocks.js"></script>
+<script src="puzzles.js"></script>
+<script src="table.js"></script>
+<script src="net.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
