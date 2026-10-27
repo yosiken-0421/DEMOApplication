@@ -19,3 +19,6 @@ viewer/puzzleroute-viewer*
 # トントン☆パレード（xcodegen で生成されるもの）
 apps/TontonParade/*.xcodeproj/
 apps/TontonParade/App/Info.plist
+# イントロどんぴしゃ（xcodegen で生成されるもの）
+apps/IntroDon/*.xcodeproj/
+apps/IntroDon/App/Info.plist
