@@ -66,7 +66,7 @@ const App = {
     HOT_GAMES.forEach(([gid, solo]) => {
       const g = solo ? SOLO_GAMES.find((x) => x.id === gid) : ALL_GAMES[gid];
       if (!g) return;
-      hr.append(h("button", { class: "hot" + (solo ? " solo" : ""), onclick: () => { Snd.init(); Snd.tick(); this.mode = solo ? "solo" : "cpu"; this.openSetup(g, this.mode); } },
+      hr.append(h("button", { class: "hotg" + (solo ? " solo" : ""), onclick: () => { Snd.init(); Snd.tick(); this.mode = solo ? "solo" : "cpu"; this.openSetup(g, this.mode); } },
         h("div", { class: "hi" }, g.icon), h("b", null, g.name.replace("（シックボー）", "").replace("もふもふ", "")), h("small", null, solo ? "ひとりで" : "CPUと")));
     });
   },

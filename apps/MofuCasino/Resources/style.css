@@ -614,13 +614,13 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .hot-head small{font-size:10px;opacity:.7}
 .hot-row{width:calc(100% + 28px);margin:0 -14px;display:flex;gap:8px;overflow-x:auto;padding:4px 14px 6px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .hot-row::-webkit-scrollbar{display:none}
-.hot{flex:none;width:86px;scroll-snap-align:start;border-radius:18px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;color:#fff;
+.hotg{flex:none;width:86px;scroll-snap-align:start;border-radius:18px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;color:#fff;
   background:linear-gradient(180deg,rgba(255,255,255,.2),rgba(255,255,255,.08));box-shadow:inset 0 0 0 1.5px rgba(255,214,107,.6),0 4px 10px rgba(0,0,0,.25)}
-.hot.solo{box-shadow:inset 0 0 0 1.5px rgba(255,143,177,.8),0 4px 10px rgba(0,0,0,.25)}
-.hot:active{transform:scale(.95)}
-.hot .hi{font-size:30px;width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.9);display:grid;place-items:center}
-.hot b{font-size:11px;line-height:1.2;text-align:center;min-height:2.4em;display:flex;align-items:center}
-.hot small{font-size:9px;opacity:.75}
+.hotg.solo{box-shadow:inset 0 0 0 1.5px rgba(255,143,177,.8),0 4px 10px rgba(0,0,0,.25)}
+.hotg:active{transform:scale(.95)}
+.hotg .hi{font-size:30px;width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,.9);display:grid;place-items:center}
+.hotg b{font-size:11px;line-height:1.2;text-align:center;min-height:2.4em;display:flex;align-items:center}
+.hotg small{font-size:9px;opacity:.75}
 /* モードのボタン */
 .menu-grid{width:100%;max-width:440px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .mbtn{border-radius:20px;padding:12px 10px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;color:var(--ink);box-shadow:0 4px 0 rgba(0,0,0,.25);border:2px solid rgba(255,255,255,.6);min-height:104px}
@@ -643,3 +643,73 @@ button{font-family:inherit;color:inherit;border:0;background:none;padding:0;curs
 .side-chr .sc-card img{width:100%;height:100%;animation:none;filter:none}
 .side-chr.s1 .sc-card{animation-delay:.6s}.side-chr.s2 .sc-card{animation-delay:1.2s}.side-chr.s3 .sc-card{animation-delay:1.8s}
 .hero-name{margin-top:8px}
+
+/* ===== ビンゴ（マシン・手動チェック） ===== */
+.bm{display:flex;align-items:flex-end;justify-content:center;gap:14px;flex:none;padding-top:2px}
+.bm-machine{position:relative;width:132px;height:150px;flex:none}
+.bm-dome{position:absolute;left:6px;top:0;width:120px;height:120px;border-radius:50%;overflow:hidden;
+  background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.95) 0 8%,rgba(255,255,255,.35) 9% 22%,rgba(220,240,255,.25) 23%,rgba(180,210,255,.35) 100%);
+  box-shadow:inset 0 0 0 3px rgba(255,255,255,.85),inset 0 -10px 18px rgba(80,60,140,.25),0 6px 12px rgba(0,0,0,.25)}
+.bm-dome::after{content:"";position:absolute;left:16%;top:10%;width:30%;height:18%;border-radius:50%;background:rgba(255,255,255,.7);filter:blur(2px);z-index:3}
+.bm-dome.spin{animation:domeshake .18s linear infinite}
+@keyframes domeshake{25%{transform:rotate(-2deg)}75%{transform:rotate(2deg)}}
+.dball{position:absolute;width:20px;height:20px;margin:-10px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0 18%,var(--bc) 45%);box-shadow:0 1px 2px rgba(0,0,0,.25);animation:ballA 1.6s ease-in-out infinite}
+.dball.a1{animation-name:ballB}.dball.a2{animation-name:ballC}.dball.a3{animation-name:ballD}
+@keyframes ballA{0%{translate:0 0}25%{translate:22px -26px}50%{translate:-14px -40px}75%{translate:-24px -6px}100%{translate:0 0}}
+@keyframes ballB{0%{translate:0 0}30%{translate:-26px -30px}60%{translate:18px -18px}100%{translate:0 0}}
+@keyframes ballC{0%{translate:0 0}20%{translate:16px 14px}55%{translate:28px -34px}80%{translate:-10px -20px}100%{translate:0 0}}
+@keyframes ballD{0%{translate:0 0}35%{translate:-20px 10px}65%{translate:-6px -44px}100%{translate:0 0}}
+.bm-neck{position:absolute;left:52px;top:114px;width:28px;height:12px;background:linear-gradient(90deg,#c9a24a,#ffe08a,#c9a24a);border-radius:3px}
+.bm-base{position:absolute;left:10px;top:122px;width:112px;height:28px;border-radius:10px 10px 14px 14px;background:linear-gradient(180deg,#ff8fb1,#e8638f);border:3px solid #ffd66b;display:grid;place-items:center;box-shadow:0 4px 0 rgba(0,0,0,.2)}
+.bm-base b{font-size:12px;letter-spacing:3px;color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.2)}
+.bm-chute{position:absolute;left:118px;top:126px;width:30px;height:10px;background:linear-gradient(180deg,#ffe08a,#c9a24a);border-radius:0 6px 6px 0;transform-origin:left center;rotate:12deg}
+.bm-chute.go{animation:chute .4s ease}
+@keyframes chute{50%{filter:brightness(1.4)}}
+.bm-out{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:110px;padding-bottom:6px}
+.bm-call{font-size:20px;font-weight:900;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.25);white-space:nowrap}
+.bm-call.pop{animation:pop .4s ease}
+.bball{--bc:#5aa2ff;width:34px;height:34px;border-radius:50%;flex:none;display:grid;place-items:center;
+  background:radial-gradient(circle at 35% 30%,#fff 0 14%,var(--bc) 44%,color-mix(in srgb,var(--bc) 70%,#000) 100%);box-shadow:0 2px 4px rgba(0,0,0,.25)}
+.bball span{width:64%;height:64%;border-radius:50%;background:#fff;color:#33304a;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:11px;line-height:1}
+.bball span small{font-size:6px;color:var(--bc)}
+.bball.big{width:88px;height:88px}
+.bball.big span{font-size:28px}
+.bball.big span small{font-size:12px}
+.bball.big.empty{background:rgba(255,255,255,.25);box-shadow:inset 0 0 0 3px rgba(255,255,255,.6)}
+.bball.big.empty span{background:transparent;color:#fff;font-size:24px}
+.bball.roll{animation:ballroll .9s cubic-bezier(.2,.7,.3,1.2)}
+@keyframes ballroll{0%{transform:translate(-90px,20px) rotate(-540deg) scale(.35);opacity:0}15%{opacity:1}70%{transform:translate(4px,0) rotate(10deg) scale(1.05)}100%{transform:none}}
+.bball.sm{width:28px;height:28px}
+.bball.sm span{font-size:10px}
+.bball.sm span small{display:none}
+.bg-bar{display:flex;align-items:center;gap:8px;flex:none}
+.bg-mult{display:flex;flex-direction:column;align-items:center;background:rgba(0,0,0,.18);border-radius:14px;padding:3px 10px;line-height:1.15;flex:none}
+.bg-mult b{font-size:22px;color:#ffe08a}
+.bg-mult small{font-size:9px;font-weight:800}
+.bg-mult.won{background:var(--lemon);color:var(--ink);animation:winpulse .9s infinite}
+.bg-mult.won b{color:#e34b62}
+.bg-bar .bg-recent{flex:1;display:flex;gap:3px;flex-wrap:nowrap;overflow:hidden;max-width:none}
+.bg-allbtn{flex:none;padding:6px 10px;font-size:12px;color:var(--ink)}
+.bg-multtable{background:rgba(0,0,0,.15);border-radius:14px;padding:8px 10px;text-align:center;flex:none}
+.bg-multtable b{font-size:14px}
+.bg-multtable div{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 10px;margin:4px 0;font-size:11px;font-weight:800}
+.bg-multtable small{font-size:10px;opacity:.9}
+.bg-cards.n1 .bg-card{width:min(78%,240px)}
+.bg-cards.n2 .bg-card{width:min(47%,200px)}
+.bg-card.manual{box-shadow:0 0 0 2px rgba(255,255,255,.9),0 3px 0 rgba(0,0,0,.12)}
+.bg-cards.n1 .bg-grid i,.bg-cards.n2 .bg-grid i{font-size:14px}
+.bg-cards.n1 .bg-head{font-size:16px}
+.bg-grid i{position:relative;transition:background .15s}
+.bg-grid i.tap{cursor:pointer}
+.bg-grid i.tap:active{transform:scale(.9)}
+.bg-grid i.on:not(.free){background:#fff;color:var(--ink)}
+.bg-grid i.on:not(.free)::after{content:"";position:absolute;inset:8%;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ffb3c9,#ff7fa6);opacity:.88;animation:pop .2s ease}
+.bg-grid i.on:not(.free){z-index:0}
+.bg-grid i.on:not(.free)::after{z-index:-1}
+.bg-grid i.on:not(.free){color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.3)}
+.bg-mode{width:100%;max-width:360px}
+.bg-mode button{font-size:13px;padding:8px 4px}
+.bg-all{display:grid;grid-template-columns:repeat(16,1fr);gap:2px;margin:6px 0 10px}
+.bg-all b{color:#fff;font-size:11px;border-radius:5px;display:grid;place-items:center;grid-row:auto}
+.bg-all i{font-style:normal;font-size:9px;font-weight:800;aspect-ratio:1;display:grid;place-items:center;border-radius:50%;background:#f1ecf3;color:#b8acc0}
+.bg-all i.on{background:var(--bc);color:#fff}

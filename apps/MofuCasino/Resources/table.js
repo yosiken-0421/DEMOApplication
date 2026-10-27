@@ -23,7 +23,7 @@ class Table {
     this.seats.forEach((st, i) => { if (st.kind === "cpu" && rnd(2)) this.addBubble(i, charLine(st.char, "hi")); });
   }
   hostAct(seat, m) {
-    if (!this.alive || !this.s || this.s.over || this.s.wait) return false;
+    if (!this.alive || !this.s || this.s.over || (this.s.wait && !this.g.liveActs)) return false;
     let ok = false;
     try { ok = this.g.valid(this.s, seat, m); } catch (e) { console.error(e); ok = false; }
     if (!ok) return false;
@@ -83,8 +83,11 @@ class Table {
   }
   act(m) {
     Snd.init();
-    if (this.me < 0) return;
-    if (this.host) { if (!this.hostAct(this.me, m)) { Snd.bad(); return false; } return true; }
+    let seat = this.me;
+    // 1台で遊ぶとき：番でない人の操作（ビンゴの穴あけなど）は as で席を指定
+    if (m && m.as != null && this.hotseat) { if (!this.isMine(m.as)) return; seat = m.as; }
+    if (seat < 0) return;
+    if (this.host) { if (!this.hostAct(seat, m)) { Snd.bad(); return false; } return true; }
     if (this.net) this.net.toHost({ t: "mv", m });
     return true;
   }

@@ -463,43 +463,113 @@ function bingoCard() {
   return card;
 }
 const BINGO_LINES = (() => { const L = []; for (let r = 0; r < 5; r++) L.push([0, 1, 2, 3, 4].map((c) => r * 5 + c)); for (let c = 0; c < 5; c++) L.push([0, 1, 2, 3, 4].map((r) => r * 5 + c)); L.push([0, 6, 12, 18, 24], [4, 8, 12, 16, 20]); return L; })();
-function bingoState(card, drawnSet) {
-  let best = 0, bingo = false;
-  for (const ln of BINGO_LINES) { const k = ln.filter((x) => card[x] === 0 || drawnSet[card[x]]).length; if (k === 5) bingo = true; best = Math.max(best, k); }
-  return { bingo, reach: best === 4 };
+/* has(idx) … そのマスに穴があいているか */
+function bingoLines(has) {
+  let lines = 0, best = 0;
+  for (const ln of BINGO_LINES) { const k = ln.filter(has).length; if (k === 5) lines++; best = Math.max(best, k); }
+  return { lines, bingo: lines > 0, reach: lines === 0 && best === 4 };
 }
+/* 何個目の玉でビンゴしたかで倍率が決まる（早いほど高い） */
+const BINGO_MULT = [[15, 10], [20, 5], [25, 4], [30, 3], [40, 2], [75, 1]];
+const bingoMult = (n) => { for (const [k, m] of BINGO_MULT) if (n <= k) return m; return 1; };
+const BINGO_COLS = { B: "#5aa2ff", I: "#ff7fa6", N: "#9a7bff", G: "#3fbf8c", O: "#f2b632" };
 const Bingo = {
   id: "bingo", name: "ビンゴ", icon: "🎱", min: 1, max: 5, tag: "パーティー",
-  desc: "カードを買って、玉が出るのを待つだけ！一番早くそろえた人がポットを総取り",
-  rules: "ビンゴカード（1〜3枚）を買って参加します。カードは1枚につき決まった枚数のチップがかかります。\n\n・1〜75の玉が1つずつ出ます。カードの数字は自動でマークされます（真ん中はFREE）。\n・タテ・ヨコ・ナナメのどれか1列そろったら「ビンゴ！」\n・一番早くビンゴした人が、みんなの参加費＋お店のボーナス（50%）をもらえます。同時なら山分け。\n・カードを多く買うほど当たりやすいけど、参加費も増えます。\n\n決められた回数が終わったとき、チップが一番多い人の勝ち！",
+  desc: "ビンゴマシンから出る玉でカードに穴をあけよう！早くビンゴするほど倍率アップで総取り",
+  rules: "ビンゴカード（1〜3枚）を買って参加します。カードは1枚につき決まった枚数のチップがかかります。\n\n・ビンゴマシンから1〜75の玉が1つずつ出てきます（真ん中はFREE）。\n・タテ・ヨコ・ナナメのどれか1列そろったら「ビンゴ！」\n\n【自動／手動】\n・自動：出た番号に自動で穴があきます。\n・手動：自分でカードの数字をタップして穴をあけます。見のがすとビンゴになりません！（まちがえて押したら、もう一度押すと戻せます）\n・画面下のボタンでいつでも切りかえられます。\n\n【配当：総取り×倍率】\n一番早くビンゴした人が、みんなの参加費（ポット）を総取り！さらに、何個目の玉でビンゴしたかで倍率がかかります。\n・15個目まで：×10\n・20個目まで：×5\n・25個目まで：×4\n・30個目まで：×3\n・40個目まで：×2\n・それ以降：×1\n・2列以上同時にそろう「ダブルビンゴ」はさらに×2！\n同時にビンゴした人がいたら山分けです。だれもビンゴしなかったら参加費は戻ってきます。\n\n決められた回数が終わったとき、チップが一番多い人の勝ち！",
   opts: [
     { key: "chips", label: "はじめのチップ", choices: [[1000, "1,000"], [3000, "3,000"], [10000, "10,000"]], def: 1000 },
     { key: "rounds", label: "回数", choices: [[3, "3回"], [5, "5回"], [10, "10回"]], def: 5 },
   ],
   sound: "tick",
+  liveActs: true,   // 玉が出ている間も操作（穴あけ）できる
   setup(n, o) {
     const c = o.chips || 1000;
-    const s = { n, chips: Array(n).fill(c), start: c, round: 1, rounds: o.rounds || 5, events: [], over: false, price: Math.max(10, Math.round(c / 10 / 10) * 10) };
+    const s = { n, chips: Array(n).fill(c), start: c, round: 1, rounds: o.rounds || 5, events: [], over: false, price: Math.max(10, Math.round(c / 10 / 10) * 10), manual: Array(n).fill(false) };
     this.newRound(s);
     return s;
   },
   newRound(s) {
     s.phase = "buy"; s.buy = s.chips.map((c) => (c < s.price ? 0 : null));
-    s.cards = Array.from({ length: s.n }, () => []); s.drawn = []; s.pool = shuffle([...Array(75).keys()].map((k) => k + 1));
-    s.pot = 0; s.winners = []; s.delta = Array(s.n).fill(0);
+    s.cards = Array.from({ length: s.n }, () => []); s.marks = Array.from({ length: s.n }, () => []);
+    s.drawn = []; s.pool = shuffle([...Array(75).keys()].map((k) => k + 1));
+    s.pot = 0; s.winners = []; s.delta = Array(s.n).fill(0); s.spin = false; s.mult = 0; s.reach = Array(s.n).fill(false);
     if (s.buy.every((b) => b === 0)) { s.phase = "result"; s.wait = { ms: 600, then: "next" }; }
   },
   actors(s) { return s.over || s.wait || s.phase !== "buy" ? [] : [...Array(s.n).keys()].filter((i) => s.buy[i] == null); },
-  valid(s, seat, m) { return s.phase === "buy" && s.buy[seat] == null && m.t === "buy" && Number.isInteger(m.k) && m.k >= 0 && m.k <= 3 && m.k * s.price <= s.chips[seat]; },
+  has(s, i, k) {
+    const card = s.cards[i][k];
+    if (s.manual[i]) { const mk = s.marks[i][k]; return (x) => card[x] === 0 || !!mk[x]; }
+    const set = s.drawnSet || {};
+    return (x) => card[x] === 0 || !!set[card[x]];
+  },
+  seatLines(s, i) { let lines = 0, reach = false; for (let k = 0; k < s.cards[i].length; k++) { const r = bingoLines(this.has(s, i, k)); lines = Math.max(lines, r.lines); reach = reach || r.reach; } return { lines, reach }; },
+  valid(s, seat, m) {
+    if (s.over) return false;
+    if (m.t === "mode") return typeof m.manual === "boolean" && (s.phase === "buy" || s.phase === "draw");
+    if (m.t === "mark") {
+      if (s.phase !== "draw" || !s.manual[seat] || !Number.isInteger(m.c) || !Number.isInteger(m.i) || m.i < 0 || m.i > 24) return false;
+      const card = s.cards[seat][m.c];
+      return !!card && card[m.i] !== 0 && !!(s.drawnSet || {})[card[m.i]];
+    }
+    if (s.wait) return false;
+    return m.t === "buy" && s.phase === "buy" && s.buy[seat] == null && Number.isInteger(m.k) && m.k >= 0 && m.k <= 3 && m.k * s.price <= s.chips[seat];
+  },
   apply(s, seat, m) {
+    if (m.t === "mode") {
+      if (m.manual && !s.manual[seat]) s.marks[seat] = s.cards[seat].map((c) => c.map((n) => (n === 0 || (s.drawnSet || {})[n] ? 1 : 0)));
+      s.manual[seat] = m.manual;
+      ev(s, seat, "toast", m.manual ? "手動でチェック" : "自動でチェック");
+      if (s.phase === "draw" && !m.manual) this.check(s, [seat]);
+      return;
+    }
+    if (m.t === "mark") {
+      const mk = s.marks[seat][m.c];
+      mk[m.i] = mk[m.i] ? 0 : 1;
+      if (mk[m.i]) ev(s, -1, "snd", "stone");
+      this.check(s, [seat]);
+      return;
+    }
     s.buy[seat] = m.k;
-    if (m.k) { s.chips[seat] -= m.k * s.price; s.pot += m.k * s.price; s.delta[seat] -= m.k * s.price; for (let k = 0; k < m.k; k++) s.cards[seat].push(bingoCard()); ev(s, seat, "toast", m.k + "枚購入"); ev(s, -1, "snd", "chip"); }
-    else ev(s, seat, "toast", "見送り");
+    if (m.k) {
+      s.chips[seat] -= m.k * s.price; s.pot += m.k * s.price; s.delta[seat] -= m.k * s.price;
+      for (let k = 0; k < m.k; k++) { const c = bingoCard(); s.cards[seat].push(c); s.marks[seat].push(c.map((n) => (n === 0 ? 1 : 0))); }
+      ev(s, seat, "toast", m.k + "枚購入"); ev(s, -1, "snd", "chip");
+    } else ev(s, seat, "toast", "見送り");
     if (s.buy.every((b) => b != null)) {
       if (!s.pot) { s.phase = "result"; s.wait = { ms: 1200, then: "next" }; return; }
-      s.bonus = Math.round(s.pot * 0.5 / 10) * 10;
-      s.phase = "draw"; s.wait = { ms: 900, then: "draw" };
+      s.phase = "draw"; s.drawnSet = {}; s.wait = { ms: 900, then: "draw" };
     }
+  },
+  /* ビンゴしたか調べる（seats の人だけ） */
+  check(s, seats) {
+    if (s.phase !== "draw") return;
+    const win = []; let lines = 0;
+    for (const i of seats) { if (!s.cards[i].length) continue; const r = this.seatLines(s, i); if (r.bingo || r.lines) { win.push(i); lines = Math.max(lines, r.lines); } }
+    if (win.length) return this.finish(s, win, lines);
+    for (const i of seats) {
+      if (!s.cards[i].length) continue;
+      const now = this.seatLines(s, i).reach;
+      if (now && !s.reach[i]) ev(s, i, "toast", "リーチ！");
+      s.reach[i] = now;
+    }
+  },
+  finish(s, win, lines) {
+    const n = s.drawn.length;
+    s.mult = win.length ? bingoMult(n) * (lines >= 2 ? 2 : 1) : 0;
+    s.lines = lines;
+    s.winners = win;
+    if (win.length) {
+      const prize = s.pot * s.mult, share = Math.floor(prize / win.length);
+      win.forEach((i) => { s.chips[i] += share; s.delta[i] += share; ev(s, i, "say", "win"); });
+      ev(s, -1, "big", (lines >= 2 ? "ダブルビンゴ！" : "ビンゴ！") + "×" + s.mult);
+      ev(s, -1, "snd", s.mult >= 5 ? "jackpot" : "coin");
+    } else {
+      for (let i = 0; i < s.n; i++) { const back = s.buy[i] * s.price; s.chips[i] += back; s.delta[i] += back; }
+      ev(s, -1, "toast", "だれもビンゴしませんでした（参加費は戻します）");
+    }
+    s.spin = false;
+    s.phase = "result"; s.wait = { ms: 4200, then: "next" };
   },
   resolve(s, then) {
     if (then === "next") {
@@ -507,30 +577,23 @@ const Bingo = {
       if (s.round > s.rounds || s.chips.every((c) => c < s.price)) { s.round = Math.min(s.round, s.rounds); s.over = true; s.phase = "end"; const b = Math.max(...s.chips); s.chips.forEach((c, i) => c === b && ev(s, i, "say", "win")); return; }
       return this.newRound(s);
     }
-    if (then !== "draw") return;
-    const b = s.pool.pop();
-    s.drawn.push(b);
-    const set = {}; s.drawn.forEach((x) => (set[x] = 1));
-    const win = [];
-    for (let i = 0; i < s.n; i++) if (s.cards[i].some((c) => bingoState(c, set).bingo)) win.push(i);
-    if (win.length || !s.pool.length) {
-      s.winners = win;
-      const prize = s.pot + s.bonus, share = win.length ? Math.floor(prize / win.length) : 0;
-      win.forEach((i) => { s.chips[i] += share; s.delta[i] += share; ev(s, i, "say", "win"); });
-      if (!win.length) for (let i = 0; i < s.n; i++) { const back = s.buy[i] * s.price; s.chips[i] += back; s.delta[i] += back; }
-      ev(s, -1, "big", "ビンゴ！");
-      s.phase = "result"; s.wait = { ms: 3600, then: "next" };
+    if (s.phase !== "draw") return;
+    if (then === "draw") {
+      if (!s.pool.length) return this.finish(s, [], 0);
+      s.spin = true;               // マシンがまわる
+      s.wait = { ms: 1300, then: "pop" };
       return;
     }
-    // リーチの声
-    for (let i = 0; i < s.n; i++) {
-      const was = s.reach && s.reach[i];
-      const now = s.cards[i].some((c) => bingoState(c, set).reach);
-      if (now && !was) ev(s, i, "toast", "リーチ！");
-      (s.reach = s.reach || [])[i] = now;
+    if (then === "pop") {
+      const b = s.pool.pop();
+      s.drawn.push(b); s.drawnSet[b] = 1; s.spin = false;
+      ev(s, -1, "snd", "ok");
+      // 自動の人だけここでチェック（手動の人は自分で穴をあけたときにチェック）
+      this.check(s, [...Array(s.n).keys()].filter((i) => !s.manual[i]));
+      if (s.phase !== "draw") return;
+      const anyManual = s.manual.some((x, i) => x && s.cards[i].length);
+      s.wait = { ms: anyManual ? 3400 : 1700, then: "draw" };
     }
-    ev(s, -1, "snd", "tick");
-    s.wait = { ms: s.drawn.length < 4 ? 550 : 700, then: "draw" };
   },
   cpu(s, seat, lv) {
     const max = Math.min(3, Math.floor(s.chips[seat] / s.price));
@@ -543,43 +606,129 @@ const Bingo = {
     return order.map((seat) => ({ seat, rank: order.findIndex((x) => s.chips[x] === s.chips[seat]), score: fmtN(s.chips[seat]), note: (s.chips[seat] >= s.start ? "+" : "") + fmtN(s.chips[seat] - s.start) }));
   },
   letter(n) { return "BINGO"[Math.floor((n - 1) / 15)]; },
+  /* 玉の読み上げ（「ビー の じゅうに」） */
+  speak(n) {
+    if (!Save.data.snd || window.__FAST) return;
+    try {
+      const u = new SpeechSynthesisUtterance(this.letter(n) + "、" + n);
+      u.lang = "ja-JP"; u.rate = 1.05; u.pitch = 1.2;
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    } catch (e) {}
+  },
+  ballEl(n, cls) {
+    const L = this.letter(n);
+    return h("div", { class: "bball " + (cls || ""), style: { "--bc": BINGO_COLS[L] } }, h("span", null, h("small", null, L), n));
+  },
+  /* ビンゴマシン */
+  machine(s, T) {
+    const t = Date.now();
+    const dome = h("div", { class: "bm-dome" + (s.spin ? " spin" : "") });
+    const left = 75 - s.drawn.length;
+    const cnt = Math.min(18, Math.max(3, Math.round(left / 4)));
+    for (let k = 0; k < cnt; k++) {
+      const n = ((k * 37 + 11) % 75) + 1;
+      const dur = 1.4 + (k % 5) * 0.23;
+      dome.append(h("i", { class: "dball a" + (k % 4), style: { "--bc": BINGO_COLS[this.letter(n)], left: 12 + ((k * 23) % 66) + "%", top: 18 + ((k * 41) % 52) + "%", animationDuration: (s.spin ? dur / 3 : dur) + "s", animationDelay: -((t / 1000) % dur) + "s" } }));
+    }
+    const last = s.drawn[s.drawn.length - 1];
+    const isNew = last != null && T.ui.bgLast !== s.drawn.length;
+    if (isNew) { T.ui.bgLast = s.drawn.length; this.speak(last); }
+    const out = h("div", { class: "bm-out" },
+      last != null && !s.spin ? this.ballEl(last, "big" + (isNew ? " roll" : "")) : h("div", { class: "bball big empty" }, h("span", null, s.spin ? "…" : "?")),
+      h("div", { class: "bm-call" + (isNew ? " pop" : "") }, s.spin ? "ガラガラ…" : last != null ? this.letter(last) + " の " + last + "！" : "スタート！"));
+    return h("div", { class: "bm" },
+      h("div", { class: "bm-machine" }, dome, h("div", { class: "bm-neck" }), h("div", { class: "bm-base" }, h("b", null, "BINGO")), h("div", { class: "bm-chute" + (isNew ? " go" : "") })),
+      out);
+  },
+  drawnModal(s) {
+    const set = s.drawnSet || {};
+    const grid = h("div", { class: "bg-all" });
+    "BINGO".split("").forEach((L, c) => {
+      grid.append(h("b", { style: { background: BINGO_COLS[L] } }, L));
+      for (let k = 1; k <= 15; k++) { const n = c * 15 + k; grid.append(h("i", { class: set[n] ? "on" : "", style: { "--bc": BINGO_COLS[L] } }, n)); }
+    });
+    modal(h("div", null, h("h3", null, "出た番号（" + s.drawn.length + "個）"), grid, h("button", { class: "btn pink wide", onclick: closeModal }, "とじる")));
+  },
   render(s, T) {
-    const set = {}; s.drawn.forEach((x) => (set[x] = 1));
+    const set = s.drawnSet || {};
     T.players((i) => {
-      const st = s.cards[i].map((c) => bingoState(c, set));
+      const st = s.cards[i].length && s.phase !== "buy" ? this.seatLines(s, i) : { lines: 0, reach: false };
       return {
         turn: s.phase === "buy" && s.buy[i] == null, score: fmtN(s.chips[i]),
-        badge: s.phase === "result" && s.delta[i] > 0 ? "+" + fmtN(s.delta[i]) : st.some((x) => x.bingo) ? "BINGO" : st.some((x) => x.reach) ? "リーチ" : s.buy[i] ? s.buy[i] + "枚" : s.buy[i] === 0 ? "見送り" : null,
+        badge: s.phase === "result" && s.delta[i] > 0 ? "+" + fmtN(s.delta[i]) : s.winners.includes(i) ? "BINGO" : st.reach ? "リーチ" : s.buy[i] ? s.buy[i] + "枚" + (s.manual[i] ? "・手" : "") : s.buy[i] === 0 ? "見送り" : null,
         gold: s.winners.includes(i),
       };
     });
     const mid = T.mid();
     const tb = h("div", { class: "felt bg" });
     mid.append(tb);
-    const last = s.drawn[s.drawn.length - 1];
-    tb.append(h("div", { class: "he-info" }, h("span", null, "ビンゴ " + s.round + "/" + s.rounds + "回目"), h("span", null, "賞金 🪙" + fmtN(s.pot + (s.bonus && s.phase !== "buy" ? s.bonus : 0)))));
-    tb.append(h("div", { class: "bg-balls" },
-      last ? h("div", { class: "bg-ball big b" + this.letter(last), key: last }, h("small", null, this.letter(last)), last) : h("div", { class: "bg-ball big off" }, "?"),
-      h("div", { class: "bg-recent" }, s.drawn.slice(-9, -1).reverse().map((n) => h("div", { class: "bg-ball b" + this.letter(n) }, n))),
-      h("div", { class: "bg-count" }, s.drawn.length + "個目")));
+    const n = s.drawn.length;
+    const curMult = s.phase === "result" ? s.mult : bingoMult(Math.max(1, n + (s.phase === "draw" && s.spin ? 1 : 0)));
+    tb.append(h("div", { class: "he-info" }, h("span", null, "ビンゴ " + s.round + "/" + s.rounds + "回目"), h("span", null, "ポット 🪙" + fmtN(s.pot))));
+    if (s.phase !== "buy") tb.append(this.machine(s, T));
+    // 倍率と出た番号
+    if (s.phase !== "buy") {
+      tb.append(h("div", { class: "bg-bar" },
+        h("div", { class: "bg-mult" + (s.phase === "result" && s.winners.length ? " won" : "") }, h("small", null, s.phase === "result" ? (s.winners.length ? "配当" : "ビンゴなし") : "いまビンゴなら"), h("b", null, "×" + (curMult || 0)), h("small", null, n + "個目")),
+        h("div", { class: "bg-recent" }, s.drawn.slice(-7, -1).reverse().map((x) => this.ballEl(x, "sm"))),
+        h("button", { class: "btn ghost small bg-allbtn", onclick: () => this.drawnModal(s) }, "出た番号")));
+    } else {
+      tb.append(h("div", { class: "bg-multtable" }, h("b", null, "配当 = ポット総取り × 倍率"), h("div", null, BINGO_MULT.map(([k, m], j) => h("span", null, (j ? (BINGO_MULT[j - 1][0] + 1) + "〜" : "〜") + (k === 75 ? "" : k) + "個目 ×" + m))), h("small", null, "ダブルビンゴならさらに×2")));
+    }
     // 見るカード：自分（1台のときはローカルの人全員）
-    let view = T.me >= 0 ? [T.me] : [];
-    if (T.me < 0 && T.hotseat) for (let i = 0; i < s.n; i++) if (T.seat(i) && T.seat(i).kind === "local") view.push(i);
+    let view = T.me >= 0 && !T.hotseat ? [T.me] : [];
+    if (T.hotseat) { if (s.phase === "buy" && T.me >= 0) view = []; else for (let i = 0; i < s.n; i++) if (T.seat(i) && T.seat(i).kind === "local" && s.cards[i].length) view.push(i); }
     if (s.phase === "buy" && T.me >= 0) view = [];
-    const wrap = h("div", { class: "bg-cards" });
-    view.forEach((i) => s.cards[i].forEach((c) => {
-      const st = bingoState(c, set);
-      const g = h("div", { class: "bg-card" + (st.bingo ? " won" : st.reach ? " reach" : "") }, view.length > 1 ? h("div", { class: "bg-own" }, h("img", { src: CHARS[T.charOf(i)].img }), T.name(i)) : null, h("div", { class: "bg-head" }, ..."BINGO".split("").map((x) => h("b", null, x))));
+    const last = s.drawn[n - 1];
+    const wrap = h("div", { class: "bg-cards n" + view.reduce((a, i) => a + s.cards[i].length, 0) });
+    view.forEach((i) => s.cards[i].forEach((c, k) => {
+      const has = this.has(s, i, k);
+      const st = bingoLines(has);
+      const manual = s.manual[i];
+      const g = h("div", { class: "bg-card" + (st.bingo ? " won" : st.reach ? " reach" : "") + (manual ? " manual" : "") },
+        view.length > 1 ? h("div", { class: "bg-own" }, h("img", { src: CHARS[T.charOf(i)].img }), T.name(i)) : null,
+        h("div", { class: "bg-head" }, ..."BINGO".split("").map((x) => h("b", { style: { color: BINGO_COLS[x] } }, x))));
       const grid = h("div", { class: "bg-grid" });
-      c.forEach((n) => grid.append(h("i", { class: n === 0 ? "free on" : set[n] ? "on" + (n === last ? " new" : "") : "" }, n === 0 ? "★" : n)));
+      c.forEach((num, x) => {
+        const on = has(x);
+        const canTap = manual && s.phase === "draw" && num !== 0;
+        grid.append(h("i", {
+          class: (num === 0 ? "free on" : on ? "on" : "") + (on && num === last && !manual ? " new" : "") + (canTap ? " tap" : ""),
+          onclick: canTap ? () => {
+            if (!set[num]) { toast(num + " はまだ出ていません"); Snd.bad(); Native.haptic("soft"); return; }
+            Native.haptic("light");
+            T.act(Object.assign({ t: "mark", c: k, i: x }, T.hotseat ? { as: i } : {}));
+          } : null,
+        }, num === 0 ? "★" : num));
+      });
       g.append(grid); wrap.append(g);
     }));
     if (s.phase === "buy" && T.me >= 0 && s.buy[T.me] == null) wrap.append(h("div", { class: "bg-sample" }, h("img", { src: CHARS[T.charOf(T.me)].img }), h("p", null, "カードは1枚 🪙" + fmtN(s.price) + "。何枚買う？")));
     tb.append(wrap);
+    // 自動／手動の切りかえ
+    const mySeats = T.hotseat ? [...Array(s.n).keys()].filter((i) => T.seat(i) && T.seat(i).kind === "local") : T.me >= 0 ? [T.me] : [];
+    const curManual = mySeats.length ? s.manual[mySeats[0]] : false;
+    const setMode = (mn) => {
+      Save.data.opts.bingoManual = mn; Save.write(); Snd.init(); Snd.tick();
+      mySeats.forEach((i) => { if (s.manual[i] !== mn) T.act(Object.assign({ t: "mode", manual: mn }, T.hotseat ? { as: i } : {})); });
+    };
+    const modeSeg = mySeats.length && (s.phase === "buy" || s.phase === "draw") ? h("div", { class: "seg bg-mode" },
+      h("button", { class: !curManual ? "on" : "", onclick: () => setMode(false) }, "🤖 自動チェック"),
+      h("button", { class: curManual ? "on" : "", onclick: () => setMode(true) }, "👆 手動チェック")) : null;
     const me = T.me;
     if (s.phase === "buy" && me >= 0 && s.buy[me] == null) {
+      // はじめての人は保存している好みに合わせる
+      const pref = !!Save.data.opts.bingoManual;
+      if (s.manual[me] !== pref && !T.ui.bgModeSet) { T.ui.bgModeSet = 1; setTimeout(() => setMode(pref), 0); }
       const btn = [1, 2, 3].filter((k) => k * s.price <= s.chips[me]).map((k) => h("button", { class: "btn lemon small", onclick: () => T.act({ t: "buy", k }) }, k + "枚（" + fmtN(k * s.price) + "）"));
-      T.bottom({ status: "ビンゴカードを買おう", hot: true, buttons: btn.concat([h("button", { class: "btn ghost small", onclick: () => T.act({ t: "buy", k: 0 }) }, "見送る")]) });
-    } else T.bottom({ status: s.phase === "buy" ? "みんながカードを選んでいます…" : s.phase === "draw" ? (last ? this.letter(last) + "-" + last + "！" : "玉を出します…") : me >= 0 && s.winners.includes(me) ? "🎉 ビンゴ！ +" + fmtN(s.delta[me]) : s.winners.length ? s.winners.map((i) => T.name(i)).join("・") + " がビンゴ！" : "…" });
+      T.bottom({ status: "ビンゴカードを買おう", hot: true, extra: modeSeg, buttons: btn.concat([h("button", { class: "btn ghost small", onclick: () => T.act({ t: "buy", k: 0 }) }, "見送る")]) });
+      return;
+    }
+    const myWin = mySeats.find((i) => s.winners.includes(i));
+    const st = s.phase === "buy" ? "みんながカードを選んでいます…"
+      : s.phase === "draw" ? (curManual && mySeats.some((i) => s.cards[i].length) ? "出た番号をタップして穴をあけよう！" : s.spin ? "ビンゴマシンが回っています…" : last ? this.letter(last) + " の " + last + "！" : "まもなくスタート")
+      : myWin != null ? "🎉 ビンゴ！×" + s.mult + "　+" + fmtN(s.delta[myWin])
+      : s.winners.length ? s.winners.map((i) => T.name(i)).join("・") + " がビンゴ！×" + s.mult : "…";
+    T.bottom({ status: st, hot: s.phase === "draw" && curManual, extra: modeSeg });
   },
 };
