@@ -56,3 +56,5 @@ CPUの強さは「やさしい／ふつう／つよい」。人数が足りな�
 1. 「マイApp」→「＋」→「新規App」で Bundle ID `com.yosiken0421.mofutrump` のアプリを作成
 2. TestFlight の内部テスターに自分を追加
 3. （オンライン対戦用）そのアプリで Game Center を有効にする
+
+アプリ作成後にもう一度アップロードしたいときは、Actions の「もふもふトランプ iOS / TestFlight」で Run workflow を押します。
