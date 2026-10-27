@@ -47,6 +47,18 @@ struct HomeView: View {
                                 Chip(text: "\(Int(sec))秒", selected: settings.introSeconds == sec) { settings.introSeconds = sec }
                             }
                         }
+                        if settings.source != .preview {
+                            SectionTitle(text: "再生する場所").padding(.top, 6)
+                            FlowLayout {
+                                Chip(text: "🎤 歌い出しから", selected: settings.startFromVocal) { settings.startFromVocal = true }
+                                Chip(text: "⏮ 曲の頭から", selected: !settings.startFromVocal) { settings.startFromVocal = false }
+                            }
+                            Text(settings.startFromVocal
+                                 ? "最初の歌詞が始まる約1.5秒前から流します（歌詞の時刻はLRCLIBのデータを使用。データが無い曲は曲の頭から）"
+                                 : "前奏から流します")
+                                .font(.caption).foregroundStyle(.white.opacity(0.6))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                         SectionTitle(text: "問題数").padding(.top, 6)
                         FlowLayout {
                             ForEach([5, 10, 20], id: \.self) { n in

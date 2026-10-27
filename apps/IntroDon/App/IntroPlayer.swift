@@ -26,8 +26,8 @@ final class IntroPlayer {
     private var stopTask: Task<Void, Never>?
     private var playToken = 0
 
-    /// 曲の頭（試聴音源は試聴の頭）から `seconds` 秒再生する
-    func playIntro(_ song: Song, seconds: Double) async throws {
+    /// `start` 秒の位置（試聴音源は常に試聴の頭）から `seconds` 秒再生する
+    func playIntro(_ song: Song, from start: Double = 0, seconds: Double) async throws {
         stop()
         playToken += 1
         let token = playToken
@@ -35,7 +35,7 @@ final class IntroPlayer {
             guard let url = song.previewURL else { throw IntroPlayerError.notPlayable }
             try await playPreview(url: url, songID: song.id, seconds: seconds, token: token)
         } else {
-            try await playMusic(song, seconds: seconds, token: token)
+            try await playMusic(song, from: start, seconds: seconds, token: token)
         }
     }
 
@@ -65,7 +65,7 @@ final class IntroPlayer {
 
     // MARK: iPhone のミュージック / Apple Music（曲の頭から）
 
-    private func playMusic(_ song: Song, seconds: Double, token: Int) async throws {
+    private func playMusic(_ song: Song, from start: Double, seconds: Double, token: Int) async throws {
         if loadedSongID != song.id {
             if let pid = song.libraryID {
                 guard let item = SongProvider.libraryItems[pid] else { throw IntroPlayerError.notPlayable }
@@ -85,10 +85,10 @@ final class IntroPlayer {
             }
             loadedSongID = song.id
         }
-        music.currentPlaybackTime = 0
+        music.currentPlaybackTime = start
         music.play()
         try await waitUntilStarted(token: token) { [music] in
-            music.playbackState == .playing && music.currentPlaybackTime > 0.02
+            music.playbackState == .playing && music.currentPlaybackTime > start + 0.02
         }
         scheduleStop(after: seconds, token: token)
     }

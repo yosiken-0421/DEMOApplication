@@ -115,7 +115,7 @@ struct QuizView: View {
             }
         }
         .overlay(alignment: .bottom) {
-            Text("イントロ \(Int(model.introLength))秒")
+            Text("イントロ \(Int(model.introLength))秒" + (model.startLabel.map { "・\($0)" } ?? ""))
                 .font(.caption).opacity(0.6).offset(y: 22)
         }
     }

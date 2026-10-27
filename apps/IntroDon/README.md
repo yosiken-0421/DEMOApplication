@@ -14,6 +14,10 @@
 | Apple Music | iTunes Search API で曲を探し、MPMusicPlayerController（storeID）で再生。加入者のみ | 曲の頭から |
 | 試聴音源（無料） | iTunes Search API の previewUrl（30秒）をストリーミング再生 | 途中から始まる曲あり |
 
+## 再生する場所
+- 「歌い出しから」：LRCLIB（https://lrclib.net、無料・APIキー不要）の同期歌詞から最初の歌詞行の時刻を取り、その約1.5秒前から再生。曲名・アーティスト・曲の長さ（±5秒）で照合し、見つからなければ曲の頭から。試聴音源モードでは使わない
+- 「曲の頭から」：前奏から
+
 ## 絞り込みのルール（すべて Apple の曲データで判定）
 - ジャンル：`primaryGenreName`（ライブラリは `genre`）が各ジャンルの別名と完全一致
 - 年代：`releaseDate` の年（再発盤・ベスト盤はずれることがある）

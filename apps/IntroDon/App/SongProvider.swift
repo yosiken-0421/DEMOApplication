@@ -100,7 +100,8 @@ enum SongProvider {
                 id: "lib-\(pid)", title: title, artist: artist, year: year,
                 genreName: item.genre, trackCount: trackCount,
                 storeID: nil, previewURL: nil, storeURL: nil, artworkURL: nil,
-                libraryID: pid))
+                libraryID: pid,
+                durationSeconds: item.playbackDuration > 0 ? item.playbackDuration : nil))
         }
         libraryItems = cache
         return result
@@ -117,6 +118,7 @@ enum SongProvider {
         let artistName: String?
         let collectionName: String?
         let trackCount: Int?
+        let trackTimeMillis: Double?
         let releaseDate: String?
         let primaryGenreName: String?
         let previewUrl: String?
@@ -163,7 +165,8 @@ enum SongProvider {
                         storeID: String(id), previewURL: preview,
                         storeURL: t.trackViewUrl.flatMap(URL.init(string:)),
                         artworkURL: t.artworkUrl100.flatMap { URL(string: $0.replacingOccurrences(of: "100x100", with: "300x300")) },
-                        libraryID: nil))
+                        libraryID: nil,
+                        durationSeconds: t.trackTimeMillis.map { $0 / 1000 }))
                 }
             } catch {
                 lastError = error.localizedDescription

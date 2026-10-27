@@ -198,6 +198,8 @@ struct Song: Identifiable, Hashable {
     let artworkURL: URL?
     /// iPhone ライブラリの曲 ID
     let libraryID: UInt64?
+    /// 曲の長さ（秒）。歌詞データの照合に使う
+    let durationSeconds: Double?
 
     var answerText: String { "\(artist)の「\(title)」" }
     var spokenAnswer: String { "\(artist)の、\(title)" }
@@ -210,4 +212,6 @@ struct QuizSettings {
     var fame: Fame = .mix
     var introSeconds: Double = 3
     var questionCount: Int = 10
+    /// true = 歌い出し（最初の歌詞）の少し前から再生 / false = 曲の頭から
+    var startFromVocal: Bool = true
 }

@@ -43,6 +43,8 @@ final class QuizModel: ObservableObject {
     @Published var playCount = 0
     @Published var playError: String?
     @Published var history: [(Song, Judgement)] = []
+    /// 今の問題の再生開始位置の説明（「歌い出しから」など）
+    @Published var startLabel: String?
 
     let settings: QuizSettings
     private let player = IntroPlayer()
@@ -71,6 +73,7 @@ final class QuizModel: ObservableObject {
             index = 0; score = 0; history = []
             resetQuestionState()
             phase = .ready
+            prefetchVocalStart()
         } catch {
             phase = .failed(error.localizedDescription)
         }
@@ -81,6 +84,27 @@ final class QuizModel: ObservableObject {
         playCount = 0
         extraSeconds = 0
         playError = nil
+        startLabel = nil
+    }
+
+    private var usesVocalStart: Bool { settings.startFromVocal && settings.source != .preview }
+
+    /// 次の2問分の歌い出し時刻を先に調べておく（待ち時間を減らす）
+    private func prefetchVocalStart() {
+        guard usesVocalStart else { return }
+        let songs = questions.dropFirst(index).prefix(2).map(\.song)
+        Task { for s in songs { _ = await LyricsTiming.shared.vocalStart(for: s) } }
+    }
+
+    /// 再生開始位置：歌い出しの約1.5秒前（歌詞データが無ければ曲の頭）
+    private func startTime(for song: Song) async -> Double {
+        guard usesVocalStart else { return 0 }
+        if let v = await LyricsTiming.shared.vocalStart(for: song), v > 2 {
+            startLabel = "歌い出しから"
+            return max(0, v - 1.5)
+        }
+        startLabel = "歌詞データが無いため曲の頭から"
+        return 0
     }
 
     /// 「ドン！」：イントロを流す
@@ -91,7 +115,9 @@ final class QuizModel: ObservableObject {
         phase = .playing
         Task {
             do {
-                try await player.playIntro(q.song, seconds: introLength)
+                let start = await startTime(for: q.song)
+                guard phase == .playing else { return }
+                try await player.playIntro(q.song, from: start, seconds: introLength)
                 playCount += 1
                 try? await Task.sleep(nanoseconds: UInt64(introLength * 1_000_000_000))
                 if phase == .playing { phase = .waiting }
@@ -145,6 +171,7 @@ final class QuizModel: ObservableObject {
             index += 1
             resetQuestionState()
             phase = .ready
+            prefetchVocalStart()
         } else {
             phase = .finished
             let total = questions.count
