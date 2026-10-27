@@ -14,19 +14,20 @@ struct QuizView: View {
             Theme.background
             switch model.phase {
             case .loading:
-                VStack(spacing: 14) {
-                    ProgressView().scaleEffect(1.6).tint(Theme.gold)
-                    Text("曲を集めています…").font(.headline)
-                }
+                loadingView("曲を集めています…")
             case .failed(let message):
                 failedView(message)
             case .finished:
                 ResultView(model: model, onRetry: { Task { await model.load() } }, onClose: close)
+            case .stageIntro:
+                StageIntroView(model: model, onClose: close)
             default:
                 questionView
             }
             if model.phase == .judged, let j = model.judgement {
-                JudgeOverlay(judgement: j).allowsHitTesting(false)
+                JudgeOverlay(judgement: j, disqualified: model.disqualified)
+                    .id(model.current?.id)
+                    .allowsHitTesting(false)
             }
         }
         .foregroundStyle(.white)
@@ -38,20 +39,32 @@ struct QuizView: View {
         dismiss()
     }
 
+    private func loadingView(_ text: String) -> some View {
+        VStack(spacing: 14) {
+            ProgressView().scaleEffect(1.6).tint(Theme.gold)
+            Text(text).font(.headline)
+        }
+    }
+
     // MARK: 出題画面
 
     private var questionView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
             topBar
+            if model.isShowRule { livesRow }
             Spacer(minLength: 0)
-            donButton
+            if model.phase == .preparing {
+                loadingView("次の曲を用意しています…").frame(height: 230)
+            } else {
+                donButton
+            }
             controlRow
             if let err = model.playError {
                 Text(err).font(.footnote).foregroundStyle(Theme.gold).multilineTextAlignment(.center)
             }
             Spacer(minLength: 0)
             if model.phase == .judged, let q = model.current {
-                answerCard(q.song)
+                answerCard(q)
             } else if let q = model.current {
                 choices(q)
             }
@@ -67,26 +80,45 @@ struct QuizView: View {
             }
             Spacer()
             VStack(spacing: 2) {
-                Text("第\(model.index + 1)問 / \(model.questions.count)")
+                Text(model.stage?.title ?? "")
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Theme.gold)
+                Text("第\(model.numberInStage)問 / \(model.stage?.count ?? 0)")
                     .font(.system(size: 18, weight: .heavy, design: .rounded))
                 Text("\(model.settings.genre.label)・\(model.settings.era.label)・\(model.settings.fame.label)")
                     .font(.caption2).opacity(0.6)
             }
             Spacer()
-            Text("⭐️ \(model.score)")
+            Text("\(model.score)点")
                 .font(.system(size: 18, weight: .heavy, design: .rounded))
                 .padding(.horizontal, 12).padding(.vertical, 6)
                 .background(Color.white.opacity(0.1), in: Capsule())
+                .contentTransition(.numericText())
+                .animation(.spring, value: model.score)
         }
+    }
+
+    private var livesRow: some View {
+        HStack(spacing: 8) {
+            Text("お手つき").font(.caption).opacity(0.7)
+            ForEach(0..<2, id: \.self) { i in
+                Text("✕")
+                    .font(.system(size: 22, weight: .black))
+                    .foregroundStyle(i < model.misses ? Theme.wrong : Color.white.opacity(0.15))
+                    .scaleEffect(i < model.misses ? 1.2 : 1)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.4), value: model.misses)
+            }
+            Spacer()
+            Text("1問 \(model.stage?.points ?? 0)点").font(.caption.bold()).foregroundStyle(Theme.gold)
+        }
+        .padding(.horizontal, 6)
     }
 
     private var donButton: some View {
         let isPlaying = model.phase == .playing
         return Button { model.play() } label: {
             ZStack {
-                if isPlaying {
-                    PulseRings()
-                }
+                if isPlaying { PulseRings() }
                 Circle()
                     .fill(LinearGradient(colors: [Theme.pink, Color.orange], startPoint: .topLeading, endPoint: .bottomTrailing))
                     .frame(width: 170, height: 170)
@@ -94,7 +126,7 @@ struct QuizView: View {
                 VStack(spacing: 4) {
                     Text(isPlaying ? "♪♪♪" : "ドン！")
                         .font(.system(size: 40, weight: .black, design: .rounded))
-                    Text(isPlaying ? "再生中" : (model.playCount == 0 ? "タップでイントロ" : "もう一度"))
+                    Text(isPlaying ? "わかったら選んで！" : (model.playCount == 0 ? "タップでイントロ" : "もう一度"))
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                 }
             }
@@ -108,15 +140,17 @@ struct QuizView: View {
 
     private var controlRow: some View {
         HStack(spacing: 10) {
-            if model.phase != .judged {
-                smallButton("+1秒で聴く", icon: "plus.circle") { model.playLonger() }
-                    .disabled(model.phase == .playing)
+            if model.phase != .judged && model.phase != .preparing {
+                if !model.isShowRule {
+                    smallButton("+1秒で聴く", icon: "plus.circle") { model.playLonger() }
+                        .disabled(model.phase == .playing)
+                }
                 smallButton("答えを見る", icon: "eye") { model.reveal() }
             }
         }
         .overlay(alignment: .bottom) {
-            Text("イントロ \(Int(model.introLength))秒" + (model.startLabel.map { "・\($0)" } ?? ""))
-                .font(.caption).opacity(0.6).offset(y: 22)
+            Text(String(format: "イントロ %.1f秒", model.introLength) + (model.startLabel.map { "・\($0)" } ?? ""))
+                .font(.caption).opacity(0.6).offset(y: 22).fixedSize()
         }
     }
 
@@ -132,11 +166,11 @@ struct QuizView: View {
 
     private func choices(_ q: Question) -> some View {
         VStack(spacing: 10) {
-            ForEach(q.choices) { s in
-                Button { model.answer(s) } label: {
+            ForEach(q.choices) { c in
+                Button { model.answer(c) } label: {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(s.title).font(.system(size: 17, weight: .bold, design: .rounded)).lineLimit(2)
-                        Text(s.artist).font(.caption).opacity(0.7).lineLimit(1)
+                        Text(c.title).font(.system(size: 17, weight: .bold, design: .rounded)).lineLimit(2)
+                        Text(c.artist).font(.caption).opacity(0.7).lineLimit(1)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16).padding(.vertical, 12)
@@ -144,33 +178,51 @@ struct QuizView: View {
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.15)))
                 }
                 .buttonStyle(.plain)
-                .disabled(model.playCount == 0 && model.playError == nil)
-                .opacity(model.playCount == 0 && model.playError == nil ? 0.45 : 1)
+                .disabled(!model.canAnswer)
+                .opacity(model.canAnswer ? 1 : 0.45)
             }
         }
+        .id(q.id)
+        .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity), removal: .opacity))
     }
 
-    private func answerCard(_ song: Song) -> some View {
-        VStack(spacing: 12) {
+    private func answerCard(_ q: Question) -> some View {
+        VStack(spacing: 10) {
             HStack(spacing: 12) {
-                AsyncImage(url: song.artworkURL) { img in
+                AsyncImage(url: q.song.artworkURL) { img in
                     img.resizable().scaledToFill()
                 } placeholder: {
                     ZStack { Color.white.opacity(0.1); Text("🎵").font(.title) }
                 }
                 .frame(width: 72, height: 72)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("正解").font(.caption).foregroundStyle(Theme.gold)
-                    Text(song.title).font(.system(size: 19, weight: .heavy, design: .rounded)).lineLimit(2)
-                    Text(song.artist + (song.year.map { "（\($0)年）" } ?? ""))
+                    Text(q.answerTitle).font(.system(size: 19, weight: .heavy, design: .rounded)).lineLimit(2)
+                    Text(q.answerArtist + (q.candidate.year.map { "（\($0)年）" } ?? ""))
                         .font(.subheadline).opacity(0.8).lineLimit(1)
                 }
                 Spacer(minLength: 0)
             }
+            if !model.tieUps.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(model.tieUps, id: \.self) { t in
+                        Text(t.display).font(.system(size: 15, weight: .bold, design: .rounded))
+                    }
+                    Text("タイアップ情報：Wikipedia の記述より").font(.caption2).opacity(0.5)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(Theme.cyan.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+            }
+            if let hit = q.candidate.hit {
+                Text("🏆 \(hit.s) \(hit.r)位")
+                    .font(.caption).opacity(0.7)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             HStack(spacing: 10) {
                 smallButton("続きを聴く", icon: "play.fill") { model.listenMore() }
-                if let url = song.storeURL {
+                if let url = q.song.storeURL {
                     smallButton("Apple Music", icon: "arrow.up.right.square") { openURL(url) }
                 }
             }
@@ -178,7 +230,7 @@ struct QuizView: View {
                 Text("試聴音源提供：iTunes").font(.caption2).opacity(0.5)
             }
             Button { model.next() } label: {
-                Text(model.index + 1 < model.questions.count ? "次の問題へ ▶︎" : "結果を見る ▶︎")
+                Text(nextLabel)
                     .font(.system(size: 20, weight: .black, design: .rounded))
                     .frame(maxWidth: .infinity).padding(.vertical, 14)
                     .background(Theme.gold, in: RoundedRectangle(cornerRadius: 16))
@@ -191,6 +243,14 @@ struct QuizView: View {
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
+    private var nextLabel: String {
+        let lastInStage = model.numberInStage >= (model.stage?.count ?? 0) || model.disqualified
+        if lastInStage {
+            return model.stageIndex + 1 < model.stages.count ? "次のステージへ ▶︎" : "結果発表 ▶︎"
+        }
+        return "次の問題へ ▶︎"
+    }
+
     private func failedView(_ message: String) -> some View {
         VStack(spacing: 16) {
             Text("😢").font(.system(size: 60))
@@ -199,6 +259,74 @@ struct QuizView: View {
                 .font(.headline).padding(.horizontal, 24).padding(.vertical, 12)
                 .background(Theme.gold, in: Capsule()).foregroundStyle(.black)
         }
+    }
+}
+
+// MARK: - ステージ紹介（番組風の幕あい）
+
+struct StageIntroView: View {
+    @ObservedObject var model: QuizModel
+    let onClose: () -> Void
+    @State private var show = false
+
+    var body: some View {
+        VStack(spacing: 18) {
+            HStack {
+                Button(action: onClose) {
+                    Image(systemName: "xmark").font(.headline)
+                        .padding(10).background(Color.white.opacity(0.1), in: Circle())
+                }
+                Spacer()
+                Text("\(model.score)点").font(.system(size: 18, weight: .heavy, design: .rounded))
+            }
+            Spacer()
+            if let st = model.stage {
+                Text(stageNumber)
+                    .font(.system(size: 20, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Theme.cyan)
+                    .opacity(show ? 1 : 0)
+                Text(st.title)
+                    .font(.system(size: 38, weight: .black, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(LinearGradient(colors: [Theme.gold, Theme.pink], startPoint: .leading, endPoint: .trailing))
+                    .scaleEffect(show ? 1 : 0.2)
+                    .rotationEffect(.degrees(show ? 0 : -12))
+                Text(st.subtitle)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .opacity(show ? 1 : 0)
+                VStack(spacing: 6) {
+                    Text(String(format: "イントロ %.1f秒 × %ld問", st.introSeconds, st.count))
+                    if model.isShowRule {
+                        Text("お手つき・不正解は −5点、✕2つで失格（得点没収）")
+                    }
+                    Text("曲が流れている間でも、わかったらすぐ選べます（早押し）")
+                }
+                .font(.footnote).opacity(0.75).multilineTextAlignment(.center)
+                .padding(.top, 6)
+            }
+            Spacer()
+            Button { model.startStage() } label: {
+                Text("スタート！")
+                    .font(.system(size: 24, weight: .black, design: .rounded))
+                    .frame(maxWidth: .infinity).padding(.vertical, 18)
+                    .background(LinearGradient(colors: [Theme.pink, Color.orange], startPoint: .leading, endPoint: .trailing),
+                                in: RoundedRectangle(cornerRadius: 20))
+                    .shadow(color: Theme.pink.opacity(0.6), radius: 14, y: 6)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(16)
+        .onAppear {
+            show = false
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.55)) { show = true }
+        }
+        .id(model.stageIndex)
+    }
+
+    private var stageNumber: String {
+        if model.stages.count == 1 { return "" }
+        if model.stageIndex == model.stages.count - 1 { return "最終ステージ" }
+        return "第\(model.stageIndex + 1)ステージ"
     }
 }
 
@@ -225,12 +353,21 @@ struct PulseRings: View {
 
 struct JudgeOverlay: View {
     let judgement: Judgement
+    let disqualified: Bool
     @State private var appear = false
     @State private var shake: CGFloat = 0
     @State private var fade = false
 
-    private var isCorrect: Bool { judgement == .correct }
+    private var isCorrect: Bool { if case .correct = judgement { return true }; return false }
     private var isRevealed: Bool { judgement == .revealed }
+
+    private var caption: String {
+        switch judgement {
+        case .correct(let p): return "せいかい！ +\(p)点"
+        case .wrong(_, let penalty): return disqualified ? "失格…" : (penalty > 0 ? "ざんねん… −\(penalty)点" : "ざんねん…")
+        case .revealed: return "こたえは…"
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -259,11 +396,11 @@ struct JudgeOverlay: View {
                             .animation(.easeOut(duration: 0.35), value: appear)
                     }
                 }
-                Text(isCorrect ? "せいかい！" : (isRevealed ? "こたえは…" : "ざんねん…"))
-                    .font(.system(size: 40, weight: .black, design: .rounded))
+                Text(caption)
+                    .font(.system(size: 36, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.5), radius: 6)
-                Text(isCorrect ? "😆" : (isRevealed ? "🤔" : "😵"))
+                Text(isCorrect ? "😆" : (isRevealed ? "🤔" : (disqualified ? "😭" : "😵")))
                     .font(.system(size: 64))
                     .offset(y: isCorrect && appear ? -24 : 0)
                     .animation(isCorrect ? .interpolatingSpring(stiffness: 220, damping: 6).repeatCount(3, autoreverses: true) : .default, value: appear)
@@ -353,20 +490,24 @@ struct ResultView: View {
     let onClose: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
             Text("結果発表").font(.system(size: 22, weight: .heavy, design: .rounded)).foregroundStyle(Theme.cyan)
-            Text("\(model.score) / \(model.questions.count)")
+            Text("\(model.score)点")
                 .font(.system(size: 64, weight: .black, design: .rounded))
                 .foregroundStyle(Theme.gold)
+            Text("\(model.totalAsked)問中 \(correctCount)問正解").font(.headline)
             Text(rank).font(.title3.bold())
             ScrollView {
                 VStack(spacing: 8) {
-                    ForEach(Array(model.history.enumerated()), id: \.offset) { _, item in
-                        HStack {
-                            Text(mark(item.1)).font(.title3)
-                            VStack(alignment: .leading) {
-                                Text(item.0.title).font(.subheadline.bold()).lineLimit(1)
-                                Text(item.0.artist).font(.caption).opacity(0.7).lineLimit(1)
+                    ForEach(model.history) { item in
+                        HStack(alignment: .top) {
+                            Text(mark(item.judgement)).font(.title3)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.title).font(.subheadline.bold()).lineLimit(1)
+                                Text(item.artist).font(.caption).opacity(0.7).lineLimit(1)
+                                if let t = item.tieUps.first {
+                                    Text(t.display).font(.caption2).opacity(0.7).lineLimit(1)
+                                }
                             }
                             Spacer()
                         }
@@ -388,9 +529,13 @@ struct ResultView: View {
         .padding(16)
     }
 
+    private var correctCount: Int {
+        model.history.filter { if case .correct = $0.judgement { return true }; return false }.count
+    }
+
     private var rank: String {
-        let total = max(model.questions.count, 1)
-        let r = Double(model.score) / Double(total)
+        let total = max(model.totalAsked, 1)
+        let r = Double(correctCount) / Double(total)
         switch r {
         case 1: return "👑 パーフェクト！イントロ王！"
         case 0.7...: return "🎉 すごい！音楽通！"

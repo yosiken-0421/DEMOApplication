@@ -28,11 +28,35 @@ enum MusicSource: String, CaseIterable, Identifiable {
     var detail: String {
         switch self {
         case .library:
-            return "iPhoneに入っている曲を曲の頭から流します。本物のイントロで遊べます。"
+            return "iPhoneに入っている曲で出題します。本物のイントロで遊べます。"
         case .appleMusic:
-            return "Apple Musicの曲を曲の頭から流します。Apple Musicの加入が必要です。"
+            return "Apple Musicの曲で出題します。Apple Musicの加入が必要です。"
         case .preview:
             return "Appleの30秒試聴音源を使います。加入不要ですが、イントロではなくサビ等から始まる曲があります。"
+        }
+    }
+}
+
+// MARK: - 遊び方（番組ルール / フリープレイ）
+
+enum RuleMode: String, CaseIterable, Identifiable {
+    case show, free
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .show: return "📺 番組ルール"
+        case .free: return "🎵 フリープレイ"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .show:
+            return "イントロ（5点）→ウルトラ（10点）→超ウルトラ（20点）の3ステージ。だんだん短くなります。お手つき・不正解は−5点で✕がつき、1ステージで✕2つになると失格（得点は0点に没収）。"
+        case .free:
+            return "1問1点。間違えても減点なし。「+1秒で聴く」も使えます。"
         }
     }
 }
@@ -51,7 +75,7 @@ enum Genre: String, CaseIterable, Identifiable {
         case .anime: return "アニメ"
         case .rock: return "ロック"
         case .enka: return "演歌・歌謡曲"
-        case .westernPop: return "洋楽ポップ"
+        case .westernPop: return "洋楽"
         case .hiphop: return "ヒップホップ"
         case .dance: return "ダンス"
         }
@@ -73,67 +97,75 @@ enum Genre: String, CaseIterable, Identifiable {
     /// Apple のジャンル名（英語・日本語表記の両方）と完全一致で判定する
     var aliases: [String] {
         switch self {
-        case .all: return []
+        case .all, .westernPop: return []
         case .jpop: return ["j-pop", "jポップ", "j-ポップ"]
         case .anime: return ["anime", "アニメ"]
         case .rock: return ["rock", "ロック", "alternative", "オルタナティブ", "hard rock", "ハードロック", "j-rock", "jロック"]
         case .enka: return ["enka", "演歌", "kayokyoku", "歌謡曲"]
-        case .westernPop: return ["pop", "ポップ"]
         case .hiphop: return ["hip-hop/rap", "ヒップホップ/ラップ", "hip-hop", "ヒップホップ", "rap", "ラップ"]
         case .dance: return ["dance", "ダンス", "electronic", "エレクトロニック"]
         }
     }
 
-    /// Apple の検索に投げる言葉（検索結果はジャンル・年でさらに絞り込む）
+    /// マイナー曲を探すときの検索語（ヒット曲リストに歌手がいない場合の予備）
     var searchSeeds: [String] {
         switch self {
-        case .all: return ["ヒット", "ベスト", "J-POP", "ロック"]
-        case .jpop: return ["J-POP", "J-POP ヒット"]
+        case .all: return ["J-POP", "ロック"]
+        case .jpop: return ["J-POP"]
         case .anime: return ["アニメ", "アニソン"]
-        case .rock: return ["ロック", "Rock"]
+        case .rock: return ["ロック"]
         case .enka: return ["演歌", "歌謡曲"]
-        case .westernPop: return ["洋楽", "Pop"]
-        case .hiphop: return ["ヒップホップ", "Hip-Hop"]
-        case .dance: return ["ダンス", "Dance"]
+        case .westernPop: return ["Pop", "洋楽"]
+        case .hiphop: return ["ヒップホップ"]
+        case .dance: return ["ダンス"]
         }
     }
 
+    /// Apple のジャンル名で判定（洋楽はヒット曲リストの洋楽フラグで判定するので常に true）
     func matches(_ genreName: String?) -> Bool {
-        if self == .all { return true }
+        if self == .all || self == .westernPop { return true }
         guard let g = genreName?.trimmingCharacters(in: .whitespaces).lowercased(), !g.isEmpty else { return false }
         return aliases.contains(g)
     }
-}
 
-// MARK: - 年代
-
-enum Era: String, CaseIterable, Identifiable {
-    case all, e70, e80, e90, e00, e10, e20
-
-    var id: String { rawValue }
-
-    var label: String {
+    /// ヒット曲リストの「洋楽かどうか」で絞り込む
+    func allowsHit(western: Bool) -> Bool {
         switch self {
-        case .all: return "全年代"
-        case .e70: return "70年代"
-        case .e80: return "80年代"
-        case .e90: return "90年代"
-        case .e00: return "2000年代"
-        case .e10: return "2010年代"
-        case .e20: return "2020年代"
+        case .all: return true
+        case .westernPop: return western
+        default: return !western
         }
     }
+}
+
+// MARK: - 年代（5年ごと）
+
+struct Era: Hashable, Identifiable {
+    /// nil = 全年代
+    let start: Int?
+
+    var id: String { start.map(String.init) ?? "all" }
+
+    static let all = Era(start: nil)
+    static let buckets: [Era] = stride(from: 1970, through: 2025, by: 5).map { Era(start: $0) }
+    static let choices: [Era] = [.all] + buckets
 
     var years: ClosedRange<Int>? {
-        switch self {
-        case .all: return nil
-        case .e70: return 1970...1979
-        case .e80: return 1980...1989
-        case .e90: return 1990...1999
-        case .e00: return 2000...2009
-        case .e10: return 2010...2019
-        case .e20: return 2020...2029
-        }
+        guard let s = start else { return nil }
+        return s...(s + 4)
+    }
+
+    var label: String {
+        guard let s = start else { return "全年代" }
+        let decade = s / 10 * 10
+        let half = s % 10 == 0 ? "前半" : "後半"
+        if decade < 2000 { return "\(decade % 100)年代\(half)" }
+        return "\(decade)年代\(half)"
+    }
+
+    var rangeLabel: String {
+        guard let r = years else { return "" }
+        return "\(r.lowerBound)〜\(r.upperBound)"
     }
 
     func matches(_ year: Int?) -> Bool {
@@ -160,22 +192,12 @@ enum Fame: String, CaseIterable, Identifiable {
 
     var detail: String {
         switch self {
-        case .famous: return "シングルとして出た曲（収録4曲以下の作品）から出題"
-        case .minor: return "アルバム収録曲（収録5曲以上の作品）から出題"
-        case .mix: return "どちらも出題"
-        }
-    }
-
-    /// trackCount = その曲が入っている作品の曲数（不明なら 0 / nil）
-    func matches(trackCount: Int?) -> Bool {
-        switch self {
-        case .mix: return true
         case .famous:
-            guard let n = trackCount, n > 0 else { return false }
-            return n <= 4
+            return "年間ランキング上位のヒット曲（オリコン年間シングル／Billboard JAPAN年間HOT100／米Billboard Hot 100 1位）から出題。年代はランキングの年で分けます。"
         case .minor:
-            guard let n = trackCount, n > 0 else { return false }
-            return n >= 5
+            return "その年代のヒット歌手のアルバム曲など、ランキングに入っていない曲から出題。"
+        case .mix:
+            return "有名な曲とマイナーな曲を半分ずつ出題。"
         }
     }
 }
@@ -209,7 +231,8 @@ struct QuizSettings {
     var source: MusicSource = .library
     var genre: Genre = .all
     var era: Era = .all
-    var fame: Fame = .mix
+    var fame: Fame = .famous
+    var rule: RuleMode = .show
     var introSeconds: Double = 3
     var questionCount: Int = 10
     /// true = 歌い出し（最初の歌詞）の少し前から再生 / false = 曲の頭から

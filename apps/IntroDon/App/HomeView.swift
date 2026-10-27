@@ -18,6 +18,17 @@ struct HomeView: View {
                         }
                     }
                     card {
+                        SectionTitle(text: "遊び方")
+                        FlowLayout {
+                            ForEach(RuleMode.allCases) { m in
+                                Chip(text: m.label, selected: settings.rule == m) { settings.rule = m }
+                            }
+                        }
+                        Text(settings.rule.detail)
+                            .font(.caption).foregroundStyle(.white.opacity(0.6))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    card {
                         SectionTitle(text: "ジャンル")
                         FlowLayout {
                             ForEach(Genre.allCases) { g in
@@ -25,10 +36,27 @@ struct HomeView: View {
                             }
                         }
                         SectionTitle(text: "年代").padding(.top, 6)
-                        FlowLayout {
-                            ForEach(Era.allCases) { e in
-                                Chip(text: e.label, selected: settings.era == e) { settings.era = e }
+                        Chip(text: "全年代", selected: settings.era == .all) { settings.era = .all }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        VStack(spacing: 6) {
+                            ForEach(Array(stride(from: 1970, through: 2020, by: 10)), id: \.self) { decade in
+                                HStack(spacing: 8) {
+                                    Text(decade < 2000 ? "\(decade % 100)年代" : "\(decade)年代")
+                                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                                        .frame(width: 70, alignment: .leading)
+                                        .opacity(0.8)
+                                    ForEach([decade, decade + 5], id: \.self) { y in
+                                        let e = Era(start: y)
+                                        Chip(text: y % 10 == 0 ? "前半" : "後半", selected: settings.era == e) { settings.era = e }
+                                    }
+                                    Spacer(minLength: 0)
+                                }
                             }
+                        }
+                        if let r = settings.era.years {
+                            Text("\(r.lowerBound)年〜\(r.upperBound)年")
+                                .font(.caption).foregroundStyle(.white.opacity(0.6))
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         SectionTitle(text: "有名な曲 / マイナーな曲").padding(.top, 6)
                         FlowLayout {
@@ -41,7 +69,7 @@ struct HomeView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     card {
-                        SectionTitle(text: "イントロの長さ")
+                        SectionTitle(text: settings.rule == .show ? "最初のステージのイントロの長さ" : "イントロの長さ")
                         FlowLayout {
                             ForEach([1.0, 3.0, 5.0, 10.0], id: \.self) { sec in
                                 Chip(text: "\(Int(sec))秒", selected: settings.introSeconds == sec) { settings.introSeconds = sec }
@@ -131,8 +159,10 @@ struct HomeView: View {
 
     private var notes: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("・ジャンルと年代は、Appleに登録されている曲の情報（ジャンル名・発売日）で絞り込みます。ベスト盤や再発盤は、発売日が元の年代とずれることがあります。")
-            Text("・有名/マイナーは「シングル作品の曲か、アルバム収録曲か」で分けています。")
+            Text("・有名な曲は、オリコン年間シングル（1970〜2007年）、Billboard JAPAN 年間HOT100（2008〜2025年）の上位曲と、米Billboard Hot 100の1位曲から出題します（約1,950曲）。年代はランキングの年です。")
+            Text("・マイナーな曲は、その年代のヒット歌手のランキング外の曲です（年代はAppleの発売日で判定。再発盤はずれることがあります）。")
+            Text("・ジャンルはAppleに登録されたジャンル名で絞り込みます。")
+            Text("・アニメ・ドラマなどのタイアップは、Wikipediaの記事に書かれているものだけ表示します。")
             Text("・試聴音源は iTunes 提供です。曲の頭からではない場合があります。")
         }
         .font(.caption2)
