@@ -330,6 +330,10 @@ html,body{background:radial-gradient(120% 70% at 50% 0%,#2C2350 0%,#15112A 60%,#
 .mini .base{bottom:-3%;height:12%;width:90%}
 .mini .ring{bottom:-1%;height:10%;width:86%}
 .mini .tag{bottom:-12%}
+.chibi .cape{transform-origin:60px 92px;animation:capeSway 2.8s ease-in-out infinite}
+@keyframes capeSway{0%,100%{transform:skewX(0deg)}50%{transform:skewX(-4deg) scale(1.02,1)}}
+.st-run .cape,.st-walk .cape{animation:capeRun .4s ease-in-out infinite}
+@keyframes capeRun{0%,100%{transform:skewX(-10deg)}50%{transform:skewX(-14deg) scale(1.04,1)}}
 </style>
 </head>
 <body>
@@ -764,32 +768,139 @@ function chibiWeapon(c,hx,hy){
   }
   return '';
 }
+/* ちびキャラの衣装（絵の衣装に合わせて部品ごとに描く） */
+const COSTUME=[
+ { // アカリ：黒のコルセット・赤いプリーツスカート・赤いマント・黒いニーハイブーツ
+   top:'#2B2329', trim:'#D9A22E', lace:'#D8463E', sleeve:'puff', sleeveC:'#2B2329', sleeveBand:'#C8302E', arm:'skin', glove:'#2B2329', cuff:'#D9A22E',
+   corset:1, midriff:0, belt:'#5A3A2A', buckle:'#E8C26A', choker:'#2B2329', bow:null,
+   skirt:'pleat', skirtC:'#C8302E', hem:'#2B2329', petti:'#F4EEE8', hemY:136,
+   leg:'skin', stock:null, strap:'#2B2329', boot:'#33262A', bootTrim:'#C8302E', bootTop:150, cape:'#B8242A' },
+ { // ユキナ：白と青のドレス・ふくらんだ袖・白いニーハイ
+   top:'#F4F6FF', trim:'#D9A22E', lace:'#2E4FA8', sleeve:'puff', sleeveC:'#F4F6FF', sleeveBand:'#2E4FA8', arm:'skin', glove:'#2A2E48', cuff:'#D9A22E',
+   corset:1, panel:'#2E4FA8', midriff:0, belt:null, choker:'#2E4FA8', bow:'#2E4FA8',
+   skirt:'layer', skirtC:'#2E4FA8', hem:'#D9A22E', petti:'#F4F6FF', hemY:138,
+   leg:'skin', stock:'#F4F6FF', garter:'#D9A22E', stockTop:140, boot:'#E8ECF8', bootTrim:'#2E4FA8', bootTop:158, cape:null },
+ { // リオ：黒のトップスとおへそ見せ・紫のフード付きマント・網タイツ
+   top:'#251B32', trim:'#9B5BE0', lace:'#9B5BE0', sleeve:'warmer', sleeveC:'#251B32', sleeveBand:'#9B5BE0', arm:'skin', glove:'#251B32', cuff:'#9B5BE0',
+   corset:0, midriff:1, belt:'#3A2E48', buckle:'#E8C26A', choker:'#251B32', bow:'#9B5BE0',
+   skirt:'ruffle', skirtC:'#2A1F3A', hem:'#9B5BE0', petti:'#6E3AB0', hemY:131,
+   leg:'skin', stock:'net', stockTop:139, garter:'#9B5BE0', boot:'#221A2C', bootTrim:'#9B5BE0', bootTop:154, cape:'#5E2EA0' },
+ { // コハル：白いブラウス・緑のベスト・葉っぱのスカート・茶色のブーツと矢筒
+   top:'#F4F1E6', trim:'#7A5532', lace:'#7A5532', sleeve:'puff', sleeveC:'#F4F1E6', sleeveBand:'#4E9A4A', arm:'skin', glove:'#7A5532', cuff:'#4E9A4A',
+   corset:1, panel:'#4E9A4A', midriff:0, belt:'#7A5532', buckle:'#C9A45C', choker:'#4E9A4A', bow:null,
+   skirt:'leaf', skirtC:'#5DAA52', hem:'#8FD07A', petti:'#F4F1E6', hemY:137,
+   leg:'skin', stock:null, strap:'#7A5532', boot:'#7A5532', bootTrim:'#4E9A4A', bootTop:150, cape:null, quiver:1 },
+ { // ミレイ：銀と金のよろい・白いスカート・白いマント
+   top:'#DCE2EC', trim:'#D9A22E', lace:'#D9A22E', sleeve:'pauldron', sleeveC:'#DCE2EC', sleeveBand:'#D9A22E', arm:'armor', glove:'#C4CCDA', cuff:'#D9A22E',
+   corset:0, armor:1, midriff:0, belt:'#8A6A3A', buckle:'#E8C26A', choker:null, bow:null,
+   skirt:'tasset', skirtC:'#F7F4EC', hem:'#D9A22E', petti:'#F7F4EC', hemY:138,
+   leg:'armor', stock:null, boot:'#C4CCDA', bootTrim:'#D9A22E', bootTop:146, cape:'#F2EEE4' },
+ { // ノクア：黒いゴシックドレス・ラベンダーのレース・長いスカート
+   top:'#241A33', trim:'#B9A0E8', lace:'#B9A0E8', sleeve:'frill', sleeveC:'#241A33', sleeveBand:'#B9A0E8', arm:'skin', glove:'#241A33', cuff:'#B9A0E8',
+   corset:1, panel:'#2F2242', midriff:0, belt:null, choker:'#B9A0E8', bow:'#B9A0E8',
+   skirt:'long', skirtC:'#2A1E3A', hem:'#B9A0E8', petti:'#3A2C50', hemY:150,
+   leg:'skin', stock:'#241A33', stockTop:150, boot:'#1E1628', bootTrim:'#B9A0E8', bootTop:156, cape:null },
+ { // ルル：白と青のドレス・青いフリル・白いタイツ
+   top:'#F4F8FF', trim:'#D9A22E', lace:'#3A6FC8', sleeve:'puff', sleeveC:'#F4F8FF', sleeveBand:'#3A6FC8', arm:'skin', glove:null, cuff:'#3A6FC8',
+   corset:1, panel:'#3A6FC8', midriff:0, belt:null, choker:'#3A6FC8', bow:'#3A6FC8',
+   skirt:'frill', skirtC:'#F4F8FF', hem:'#3A6FC8', petti:'#BFE0FF', hemY:138,
+   leg:'skin', stock:'#F4F8FF', stockTop:144, garter:'#3A6FC8', boot:'#3A6FC8', bootTrim:'#F4F8FF', bootTop:164, cape:null },
+ { // モモ：黒のトップスとオレンジのよろい・チェックのスカート・メカのブーツ
+   top:'#2B2329', trim:'#E8752E', lace:'#E8752E', sleeve:'pauldronO', sleeveC:'#E8752E', sleeveBand:'#2B2329', arm:'skin', glove:'#2B2329', cuff:'#E8752E',
+   corset:0, midriff:1, belt:'#3A2E28', buckle:'#E8C26A', choker:'#2B2329', bow:null,
+   skirt:'plaid', skirtC:'#E8752E', hem:'#2B2329', petti:'#2B2329', hemY:132,
+   leg:'skin', stock:'#2B2329', stockTop:143, garter:'#E8752E', boot:'#2B2329', bootTrim:'#E8752E', bootTop:150, cape:null, mechKnee:1 },
+];
 function chibiSVG(i){
-  const c=CHIBI[i], [hw,hh,fx]=HEAD_META[i], sc=.5, iw=hw*sc, ih=hh*sc;
-  const hx=60-fx*sc, hy=95-ih;
-  const hairD=c.hairD, hg=`url(#chg${i})`;
-  const backHair = c.hairLen ? `<path d="M${60-iw*.36},${hy+ih*.45} C${60-iw*.5},${92+c.hairLen*.5} ${60-iw*.42},${92+c.hairLen} ${60-iw*.2},${92+c.hairLen+4} L${60+iw*.2},${92+c.hairLen+4} C${60+iw*.42},${92+c.hairLen} ${60+iw*.5},${92+c.hairLen*.5} ${60+iw*.36},${hy+ih*.45} Z" fill="${hg}" stroke="${hairD}" stroke-width="1"/>
-    <path d="M${60-iw*.22},${hy+ih*.7} C${60-iw*.3},${110} ${60-iw*.26},${92+c.hairLen-6} ${60-iw*.16},${92+c.hairLen} M${60+iw*.22},${hy+ih*.7} C${60+iw*.3},${110} ${60+iw*.26},${92+c.hairLen-6} ${60+iw*.16},${92+c.hairLen}" stroke="${hairD}" stroke-width=".8" fill="none" opacity=".6"/>` : '';
-  const twin = c.twin ? `<path d="M${60-iw*.38},${hy+ih*.3} C${60-iw*.62},${hy+ih*.6} ${60-iw*.6},${150} ${60-iw*.42},${160} C${60-iw*.4},${140} ${60-iw*.44},${hy+ih*.7} ${60-iw*.3},${hy+ih*.4} Z M${60+iw*.38},${hy+ih*.3} C${60+iw*.62},${hy+ih*.6} ${60+iw*.6},${150} ${60+iw*.42},${160} C${60+iw*.4},${140} ${60+iw*.44},${hy+ih*.7} ${60+iw*.3},${hy+ih*.4} Z" fill="${hg}" stroke="${hairD}" stroke-width="1"/>` : '';
-  const leg=(x,cls)=>`<g class="p ${cls}"><rect x="${x-4.6}" y="132" width="9.2" height="30" rx="4.2" fill="${c.leg}"/><rect x="${x-4.8}" y="140" width="9.6" height="22" rx="4" fill="${c.sock}"/>
-     <path d="M${x-5.2},${154} L${x+5.2},${154} L${x+5.4},${167} C${x+9},${167} ${x+10},${171} ${x+8},${172} L${x-5.4},${172} Z" fill="${c.boot}" stroke="${shade(c.boot,-40)}" stroke-width=".8"/></g>`;
-  const arm=(x,cls,inner)=>`<g class="p ${cls}"><path d="M${x-4.6},${90} C${x-5.4},${100} ${x-4},${110} ${x-3.2},${118} L${x+3.2},${118} C${x+4},${110} ${x+5.4},${100} ${x+4.6},${90} Z" fill="${c.top}" stroke="${shade(c.top,-50)}" stroke-width=".8"/>
-     <rect x="${x-4}" y="${112}" width="8" height="4" rx="1.5" fill="${c.acc}"/><circle cx="${x}" cy="${120}" r="3.8" fill="#FFE1D2" stroke="#D99A8C" stroke-width=".8"/>${inner||''}</g>`;
-  const shield = c.shield ? `<g transform="translate(46,118)"><ellipse rx="13" ry="15" fill="#F7F4EC" stroke="#D9A22E" stroke-width="2.4"/><path d="M0,-10 L0,10 M-8,-2 L8,-2" stroke="#D9A22E" stroke-width="2.6"/><circle r="3" fill="#FFE08A"/></g>` : '';
+  const c=CHIBI[i], o=COSTUME[i], [hw,hh,fx]=HEAD_META[i], sc=.44, iw=hw*sc, ih=hh*sc;
+  const hx=60-fx*sc, hy=96-ih, id='k'+i;
+  const SK='#FFE4D6', SKD='#F2BFAA', SKL='#E3A08E';
+  const L=(col)=>shade(col,-78), D=(col,a=-34)=>shade(col,a), H=(col,a=30)=>shade(col,a);
+  const defs=[]; const gid={};
+  const G=(col,dir='d')=>{ const k=col+dir; if(gid[k]) return `url(#${gid[k]})`; const n=id+'g'+Object.keys(gid).length; gid[k]=n;
+    const [x2,y2]= dir==='h'?[1,0]:dir==='v'?[0,1]:[1,1];
+    defs.push(`<linearGradient id="${n}" x1="0" y1="0" x2="${x2}" y2="${y2}"><stop offset="0" stop-color="${H(col,26)}"/><stop offset=".5" stop-color="${col}"/><stop offset="1" stop-color="${D(col,-36)}"/></linearGradient>`); return `url(#${n})`; };
+  const ol=(col,w=.9)=>`stroke="${L(col)}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
+  /* ---- 後ろ髪 ---- */
+  const hg=`url(#${id}hair)`; defs.push(`<linearGradient id="${id}hair" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c.hair}"/><stop offset="1" stop-color="${c.hairD}"/></linearGradient>`);
+  const backHair = c.hairLen ? `<path d="M${60-iw*.3},${hy+ih*.45} C${60-iw*.42},${92+c.hairLen*.45} ${60-iw*.38},${92+c.hairLen*.95} ${60-iw*.22},${92+c.hairLen+3} C${60-iw*.12},${92+c.hairLen-2} ${60-iw*.04},${92+c.hairLen+4} ${60+iw*.04},${92+c.hairLen+1} C${60+iw*.12},${92+c.hairLen+5} ${60+iw*.2},${92+c.hairLen} ${60+iw*.24},${92+c.hairLen+3} C${60+iw*.38},${92+c.hairLen*.95} ${60+iw*.42},${92+c.hairLen*.45} ${60+iw*.3},${hy+ih*.45} Z" fill="${hg}" stroke="${c.hairD}" stroke-width="1"/>
+    <path d="M${60-iw*.24},${hy+ih*.75} C${60-iw*.32},${108} ${60-iw*.3},${92+c.hairLen-8} ${60-iw*.2},${92+c.hairLen} M${60+iw*.24},${hy+ih*.75} C${60+iw*.32},${108} ${60+iw*.3},${92+c.hairLen-8} ${60+iw*.2},${92+c.hairLen} M60,${hy+ih*.9} C61,110 59,${92+c.hairLen-10} 60,${92+c.hairLen-2}" stroke="${c.hairD}" stroke-width=".7" fill="none" opacity=".55"/>` : '';
+  const twin = c.twin ? [-1,1].map(s=>`<path d="M${60+s*iw*.3},${hy+ih*.28} C${60+s*iw*.56},${hy+ih*.55} ${60+s*iw*.56},${146} ${60+s*iw*.4},${162} C${60+s*iw*.42},${150} ${60+s*iw*.3},${152} ${60+s*iw*.34},${142} C${60+s*iw*.4},${128} ${60+s*iw*.38},${hy+ih*.7} ${60+s*iw*.3},${hy+ih*.42} Z" fill="${hg}" stroke="${c.hairD}" stroke-width="1"/>`).join('') : '';
+  /* ---- マント・矢筒 ---- */
+  const cape = o.cape ? `<g class="p cape"><path d="M47,91 C40,104 34,124 30,150 C36,147 40,152 46,149 C52,154 58,150 62,153 C68,150 74,154 80,149 C85,152 88,147 92,150 C88,124 82,104 73,91 Z" fill="${G(o.cape,'v')}" ${ol(o.cape)}/>
+     <path d="M44,104 C40,122 38,136 37,148 M52,100 C50,120 50,136 51,150 M68,100 C70,120 71,136 70,150 M76,104 C80,122 82,136 84,148" stroke="${D(o.cape,-45)}" stroke-width=".8" fill="none" opacity=".6"/></g>` : '';
+  const quiver = o.quiver ? `<g transform="rotate(-24 40 104)"><rect x="35" y="92" width="10" height="26" rx="3" fill="${G('#8B5A2E')}" ${ol('#8B5A2E')}/><rect x="35" y="99" width="10" height="2.4" fill="#C9A45C"/>
+     ${[37,40,43].map(x=>`<path d="M${x},92 L${x},84" stroke="#E8DCC0" stroke-width="1.2"/><path d="M${x-1.6},84 L${x},80 L${x+1.6},84 Z" fill="#8FD07A"/>`).join('')}</g>` : '';
+  /* ---- 腕 ---- */
+  const arm=(px,cls,inner)=>{ const sk=o.arm==='armor'?o.glove:SK;
+    let sleeve='';
+    if(o.sleeve==='puff') sleeve=`<ellipse cx="${px}" cy="95.5" rx="6.6" ry="6.2" fill="${G(o.sleeveC)}" ${ol(o.sleeveC)}/><path d="M${px-5.2},99.5 C${px-2},101.6 ${px+2},101.6 ${px+5.2},99.5 L${px+4.6},101.6 C${px+2},103.4 ${px-2},103.4 ${px-4.6},101.6 Z" fill="${o.sleeveBand}"/><path d="M${px-3.6},92.4 C${px-2},91.4 ${px},91.2 ${px+1.6},91.6" stroke="#fff" stroke-width="1" opacity=".6" fill="none"/>`;
+    if(o.sleeve==='frill') sleeve=`<path d="M${px-6.4},92 C${px-7},98 ${px-6},104 ${px-7.4},109 C${px-5},108 ${px-3.4},110 ${px-1.4},108.4 C${px},110 ${px+2.4},110 ${px+3.4},108.4 C${px+5},110 ${px+7},108 ${px+7.4},109 C${px+6},104 ${px+7},98 ${px+6.4},92 Z" fill="${G(o.sleeveC)}" ${ol(o.sleeveC)}/><path d="M${px-7.2},108.6 C${px-4},111.8 ${px+4},111.8 ${px+7.2},108.6" stroke="${o.sleeveBand}" stroke-width="1.6" fill="none"/>`;
+    if(o.sleeve==='pauldron'||o.sleeve==='pauldronO') { const pc=o.sleeve==='pauldron'?'#DCE2EC':o.sleeveC; sleeve=`<path d="M${px-8},97 C${px-8},89 ${px+8},89 ${px+8},97 C${px+5},100 ${px-5},100 ${px-8},97 Z" fill="${G(pc)}" ${ol(pc)}/><path d="M${px-7.4},96.4 C${px-4},99 ${px+4},99 ${px+7.4},96.4" stroke="${o.sleeveBand}" stroke-width="1.6" fill="none"/><circle cx="${px}" cy="93" r="1.3" fill="${o.sleeveBand}"/><path d="M${px-4},91.6 C${px-2},90.6 ${px},90.4 ${px+2},90.8" stroke="#fff" stroke-width="1" opacity=".7" fill="none"/>`; }
+    if(o.sleeve==='warmer') sleeve=`<ellipse cx="${px}" cy="94.6" rx="4.6" ry="4" fill="${SK}" ${ol(SKL,.7)}/>`;
+    const upper=`<path d="M${px-3.2},96 C${px-3.6},101 ${px-3.4},104 ${px-3},108 L${px+3},108 C${px+3.4},104 ${px+3.6},101 ${px+3.2},96 Z" fill="${o.arm==='armor'?G(o.glove,'h'):G(SK,'h')}" ${ol(o.arm==='armor'?o.glove:SKL,.7)}/>`;
+    const fore = o.sleeve==='warmer'
+      ? `<path d="M${px-3.4},104 C${px-3.6},109 ${px-3.2},113 ${px-3},117 L${px+3},117 C${px+3.2},113 ${px+3.6},109 ${px+3.4},104 Z" fill="${G(o.glove,'h')}" ${ol(o.glove,.7)}/>${[107,111,115].map(y=>`<path d="M${px-3.4},${y} L${px+3.4},${y-1}" stroke="${o.cuff}" stroke-width="1.1"/>`).join('')}`
+      : o.glove ? `<path d="M${px-3.1},108 C${px-3.2},111 ${px-3},114 ${px-2.9},117 L${px+2.9},117 C${px+3},114 ${px+3.2},111 ${px+3.1},108 Z" fill="${G(o.glove,'h')}" ${ol(o.glove,.7)}/><rect x="${px-3.6}" y="107" width="7.2" height="2.6" rx="1.2" fill="${o.cuff}" ${ol(o.cuff,.5)}/>`
+      : `<path d="M${px-3},108 C${px-3},111 ${px-2.8},114 ${px-2.7},117 L${px+2.7},117 C${px+2.8},114 ${px+3},111 ${px+3},108 Z" fill="${G(SK,'h')}" ${ol(SKL,.7)}/><rect x="${px-3.4}" y="112" width="6.8" height="2" rx="1" fill="${o.cuff}"/>`;
+    const handC=o.glove&&o.sleeve!=='puff'?o.glove:SK;
+    const hand=`<ellipse cx="${px}" cy="120" rx="3.5" ry="3.4" fill="${G(handC)}" ${ol(handC===SK?SKL:handC,.7)}/><ellipse cx="${px+2.6}" cy="118.6" rx="1.3" ry="1.8" fill="${handC}" ${ol(handC===SK?SKL:handC,.5)}/>`;
+    return `<g class="p ${cls}">${upper}${fore}${sleeve}${inner||''}${hand}</g>`; };
+  /* ---- 脚 ---- */
+  defs.push(`<clipPath id="${id}st"><rect x="0" y="${o.stockTop||200}" width="120" height="60"/></clipPath>`);
+  defs.push(`<pattern id="${id}net" width="2.6" height="2.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2.6" height="2.6" fill="${SK}"/><path d="M0,0 L2.6,0 M0,0 L0,2.6" stroke="#2A2238" stroke-width=".7"/></pattern>`);
+  const leg=(x,cls)=>{ const LP=`M${x-4.6},128 C${x-4.9},140 ${x-3.4},149 ${x-3.5},153 C${x-4},158 ${x-3.1},163 ${x-2.8},166 L${x+3},166 C${x+3.7},162 ${x+4.3},157 ${x+3.6},153 C${x+3.5},149 ${x+4.9},140 ${x+4.6},128 Z`;
+    let s=`<path d="${LP}" fill="${o.leg==='armor'?G('#DCE2EC','h'):G(SK,'h')}" ${ol(o.leg==='armor'?'#DCE2EC':SKL,.7)}/>`;
+    if(o.stock) s+=`<path d="${LP}" clip-path="url(#${id}st)" fill="${o.stock==='net'?`url(#${id}net)`:G(o.stock,'h')}" ${ol(o.stock==='net'?'#2A2238':o.stock,.7)}/>`+(o.garter?`<path d="M${x-4.3},${o.stockTop+.6} L${x+4.3},${o.stockTop+.6}" stroke="${o.garter}" stroke-width="1.8"/>`:'');
+    if(o.strap) s+=`<path d="M${x-4.6},141 L${x+4.6},139.6" stroke="${o.strap}" stroke-width="1.8"/><rect x="${x+1}" y="138.6" width="2.4" height="2.6" fill="#D9A22E"/>`;
+    if(o.leg==='armor') s+=`<ellipse cx="${x}" cy="152" rx="4.6" ry="3.6" fill="${G('#E8C26A')}" ${ol('#D9A22E',.6)}/>`;
+    const bt=o.bootTop;
+    s+=`<path d="M${x-4},${bt} L${x+4},${bt} C${x+4.2},${bt+6} ${x+3.6},${163} ${x+3.8},${166.6} C${x+8},${167} ${x+10.2},${169.4} ${x+9.6},${172.4} L${x-4.2},${172.4} C${x-4.8},${168} ${x-4.4},${bt+8} ${x-4},${bt} Z" fill="${G(o.boot,'h')}" ${ol(o.boot,.8)}/>
+       <path d="M${x-4.4},${bt} L${x+4.4},${bt}" stroke="${o.bootTrim}" stroke-width="2.2"/><path d="M${x-4.2},171.6 L${x+9.6},171.6" stroke="${D(o.boot,-60)}" stroke-width="1.6"/>
+       <path d="M${x-2.4},${bt+3} C${x-2.6},${bt+8} ${x-2.2},${bt+12} ${x-2},${bt+14}" stroke="#fff" stroke-width=".9" opacity=".45" fill="none"/>`;
+    if(o.mechKnee) s+=`<path d="M${x-5},148 L${x+5},148 L${x+4},156 L${x-4},156 Z" fill="${G('#E8752E')}" ${ol('#E8752E',.7)}/><circle cx="${x}" cy="152" r="1.4" fill="#FFE08A"/>`;
+    return `<g class="p ${cls}">${s}</g>`; };
+  /* ---- スカート ---- */
+  const hY=o.hemY, sk=o.skirtC;
+  let skirt='';
+  const bell=(y,wx,col,extra='')=>`<path d="M50,111 C46,118 ${60-wx+2},${y-6} ${60-wx},${y} C${60-wx*.5},${y+3.6} ${60+wx*.5},${y+3.6} ${60+wx},${y} C${60+wx-2},${y-6} 74,118 70,111 Z" fill="${G(col,'v')}" ${ol(col)} ${extra}/>`;
+  const scallop=(y,wx,col)=>{ let d=`M${60-wx},${y}`; const n=9; for(let k=0;k<n;k++){ const x0=60-wx+k*2*wx/n, x1=x0+2*wx/n; d+=` C${x0+1},${y+3.4} ${x1-1},${y+3.4} ${x1},${y}`; } return `<path d="${d} C${60+wx*.5},${y-1.4} ${60-wx*.5},${y-1.4} ${60-wx},${y} Z" fill="${col}" ${ol(col==='#F4EEE8'||col.startsWith('#F')?'#C8C2D0':col,.6)}/>`; };
+  if(o.skirt==='pleat'){ skirt=scallop(hY+1.4,25,o.petti)+bell(hY,24,sk)+[-14,-7,0,7,14].map(dx=>`<path d="M${60+dx*.35},113 L${60+dx},${hY+1.5}" stroke="${D(sk,-48)}" stroke-width=".8" opacity=".7"/>`).join('')+`<path d="M${36},${hY-.6} C${48},${hY+3.4} ${72},${hY+3.4} ${84},${hY-.6}" stroke="${o.hem}" stroke-width="2.4" fill="none"/>`; }
+  if(o.skirt==='layer'){ skirt=scallop(hY+1.8,26,o.petti)+bell(hY-1,24.5,o.petti)+`<path d="M50,111 C44,120 38,${hY-6} 35,${hY} C40,${hY+2} 45,${hY+1} 49,${hY-2} C53,${hY-12} 56,120 58,112 Z M70,111 C76,120 82,${hY-6} 85,${hY} C80,${hY+2} 75,${hY+1} 71,${hY-2} C67,${hY-12} 64,120 62,112 Z" fill="${G(sk,'v')}" ${ol(sk)}/>`
+      +`<path d="M35,${hY} C40,${hY+2} 45,${hY+1} 49,${hY-2} M85,${hY} C80,${hY+2} 75,${hY+1} 71,${hY-2}" stroke="${o.hem}" stroke-width="1.8" fill="none"/>`+[118,124,130].map(y=>`<path d="M${50},${y} C56,${y+2} 64,${y+2} 70,${y}" stroke="#C8D0E8" stroke-width=".8" fill="none"/>`).join(''); }
+  if(o.skirt==='ruffle'){ skirt=scallop(hY+2,22,o.petti)+scallop(hY,20.5,sk)+bell(hY-2,19,sk)+`<path d="M41,${hY-2.6} C50,${hY+1} 70,${hY+1} 79,${hY-2.6}" stroke="${o.hem}" stroke-width="1.6" fill="none"/>`; }
+  if(o.skirt==='leaf'){ let d='M50,111 C46,118 40,'+(hY-8)+' 36,'+(hY-2); const n=7; for(let k=0;k<n;k++){ const x0=36+k*48/n, x1=x0+48/n; d+=` C${x0+1.5},${hY+5} ${x1-2},${hY+5} ${x1-1},${hY-1} `; } d+=` C80,${hY-8} 74,118 70,111 Z`;
+      skirt=scallop(hY-1,23,o.petti)+`<path d="${d}" fill="${G(sk,'v')}" ${ol(sk)}/>`+[...Array(7)].map((_,k)=>{ const x=36+(k+.5)*48/7; return `<path d="M${x},${hY-2} L${x+.4},${hY+2.4}" stroke="${o.hem}" stroke-width="1" opacity=".9"/><path d="M${60+(x-60)*.4},114 L${x},${hY-1}" stroke="${D(sk,-40)}" stroke-width=".6" opacity=".6"/>`; }).join(''); }
+  if(o.skirt==='tasset'){ skirt=scallop(hY+1,25,'#F7F4EC')+bell(hY,24,sk)+`<path d="M36,${hY-.6} C48,${hY+3.4} 72,${hY+3.4} 84,${hY-.6}" stroke="${o.hem}" stroke-width="2" fill="none"/>`
+      +[[-11,-6],[-1,6],[9,6]].map(([dx])=>`<path d="M${60+dx-5},113 L${60+dx+5},113 L${60+dx*1.5+6},${126} L${60+dx*1.5-6},${126} Z" fill="${G('#DCE2EC')}" ${ol('#DCE2EC',.7)}/><path d="M${60+dx*1.5-6},125 L${60+dx*1.5+6},125" stroke="#D9A22E" stroke-width="1.4"/>`).join(''); }
+  if(o.skirt==='long'){ skirt=scallop(hY+1.6,30,o.hem)+bell(hY,29,sk)+bell(hY-14,24,H(sk,10))+[-18,-9,0,9,18].map(dx=>`<path d="M${60+dx*.3},113 C${60+dx*.6},128 ${60+dx*.9},140 ${60+dx*1.1},${hY+1}" stroke="${D(sk,-30)}" stroke-width=".8" fill="none" opacity=".7"/>`).join('')+`<path d="M37,${hY-14} C48,${hY-10} 72,${hY-10} 83,${hY-14}" stroke="${o.hem}" stroke-width="1.4" fill="none"/>`; }
+  if(o.skirt==='frill'){ skirt=scallop(hY+2.2,27,o.hem)+scallop(hY+.6,25.5,o.petti)+bell(hY-1,24,sk)+scallop(hY-9,20,o.hem)+`<path d="M40,${hY-9.4} C50,${hY-6} 70,${hY-6} 80,${hY-9.4}" stroke="${D(o.hem,-30)}" stroke-width=".6" fill="none"/>`; }
+  if(o.skirt==='plaid'){ defs.push(`<pattern id="${id}pl" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="${sk}"/><path d="M0,3 L6,3 M3,0 L3,6" stroke="#8A3A12" stroke-width="1.1" opacity=".75"/><path d="M0,1 L6,1" stroke="#FFD0A0" stroke-width=".5" opacity=".7"/></pattern>`);
+      skirt=scallop(hY+1.6,22,o.petti)+`<path d="M50,111 C46,118 ${41},${hY-6} ${39},${hY} C${49},${hY+3.6} ${71},${hY+3.6} ${81},${hY} C${79},${hY-6} 74,118 70,111 Z" fill="url(#${id}pl)" ${ol(sk)}/>`+[-12,-4,4,12].map(dx=>`<path d="M${60+dx*.4},113 L${60+dx},${hY+1.5}" stroke="#6A2A0A" stroke-width=".8" opacity=".6"/>`).join(''); }
+  /* ---- 胴体 ---- */
+  const bodTop= o.midriff? 104.5:113;
+  let torso=`<path d="M47.6,92.8 C47,100 49,${bodTop-5} 51,${bodTop} L69,${bodTop} C71,${bodTop-5} 73,100 72.4,92.8 C66,90.6 54,90.6 47.6,92.8 Z" fill="${G(o.top)}" ${ol(o.top)}/>`;
+  if(o.midriff) torso=`<path d="M50.6,103 C50,107 50.4,110 51,113 L69,113 C69.6,110 70,107 69.4,103 Z" fill="${G(SK,'h')}" ${ol(SKL,.7)}/><path d="M60,108 L60,109.4" stroke="${SKL}" stroke-width=".9" stroke-linecap="round"/><path d="M52,104.6 C56,106 64,106 68,104.6" stroke="${SKD}" stroke-width="1.6" fill="none" opacity=".7"/>`+torso;
+  if(o.armor) torso+=`<path d="M48.6,93.4 C48.4,99 50,106 52,112 L68,112 C70,106 71.6,99 71.4,93.4 C66,91.8 54,91.8 48.6,93.4 Z" fill="${G('#E4E9F2')}" ${ol('#DCE2EC')}/><path d="M60,94 L60,110 M51,101 C56,104 64,104 69,101" stroke="#D9A22E" stroke-width="1.4" fill="none"/><path d="M52,95 C53,99 54,103 56,106" stroke="#fff" stroke-width="1.2" opacity=".7" fill="none"/>`;
+  if(o.corset){ const pc=o.panel||o.top; torso+=`<path d="M51.4,${o.midriff?96:99} L68.6,${o.midriff?96:99} L67.6,113 L52.4,113 Z" fill="${G(pc)}" ${ol(pc,.7)}/>`+[101,104.5,108].map(y=>`<path d="M57.4,${y} L62.6,${y+3} M62.6,${y} L57.4,${y+3}" stroke="${o.lace}" stroke-width=".9"/>`).join('')+`<path d="M51.4,${o.midriff?96:99} L68.6,${o.midriff?96:99}" stroke="${o.trim}" stroke-width="1.2"/>`; }
+  torso+=`<path d="M54,91.6 C56,95.6 64,95.6 66,91.6" stroke="${o.trim}" stroke-width="1.3" fill="none"/>`;
+  if(o.choker) torso+=`<path d="M55.4,91 C58,92.4 62,92.4 64.6,91" stroke="${o.choker}" stroke-width="2" fill="none"/><circle cx="60" cy="92.4" r="1.2" fill="${o.trim}"/>`;
+  if(o.belt) torso+=`<path d="M50.4,110.6 C56,112.4 64,112.4 69.6,110.6 L69.8,113.6 C64,115.4 56,115.4 50.2,113.6 Z" fill="${G(o.belt)}" ${ol(o.belt,.6)}/><rect x="57.6" y="110.8" width="4.8" height="4" rx="1" fill="none" stroke="${o.buckle}" stroke-width="1.2"/>`;
+  if(o.bow) torso+=`<g transform="translate(60,${o.midriff?99:97})"><path d="M0,0 C-3,-3.6 -7.6,-3.4 -7.6,0 C-7.6,3.4 -3,3.6 0,0 Z M0,0 C3,-3.6 7.6,-3.4 7.6,0 C7.6,3.4 3,3.6 0,0 Z" fill="${G(o.bow)}" ${ol(o.bow,.6)}/><path d="M-1,1 L-3.4,7 M1,1 L3.4,7" stroke="${o.bow}" stroke-width="1.8" stroke-linecap="round"/><circle r="1.6" fill="${H(o.bow,20)}" ${ol(o.bow,.5)}/></g>`;
+  const neck=`<path d="M56.6,86 L56.4,92 C58.4,93.4 61.6,93.4 63.6,92 L63.4,86 Z" fill="${SKD}" ${ol(SKL,.6)}/>`;
+  const shield = c.shield ? `<g transform="translate(44,118)"><path d="M0,-17 C9,-17 13,-12 13,-4 C13,7 7,14 0,18 C-7,14 -13,7 -13,-4 C-13,-12 -9,-17 0,-17 Z" fill="${G('#F7F4EC')}" stroke="#B8902E" stroke-width="2.2"/><path d="M0,-12 L0,12 M-8,-3 L8,-3" stroke="#D9A22E" stroke-width="2.6" stroke-linecap="round"/><circle cy="-3" r="3" fill="#FFE08A" stroke="#B8902E" stroke-width=".8"/></g>` : '';
   const dual2 = c.wpn==='dual' ? chibiWeapon(c,46,120) : '';
-  return `<svg class="chibi" viewBox="0 0 120 180" xmlns="http://www.w3.org/2000/svg">
-   <defs><linearGradient id="chg${i}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c.hair}"/><stop offset="1" stop-color="${hairD}"/></linearGradient></defs>
-   <ellipse cx="60" cy="173" rx="26" ry="5" fill="#000" opacity=".35"/>
+  const pB=arm(46,'armB',shield+dual2), pL=leg(54,'legB')+leg(66,'legF'), pF=arm(74,'armF',chibiWeapon(c,74,120));
+  return `<svg class="chibi" viewBox="0 0 120 180" xmlns="http://www.w3.org/2000/svg"><defs>${defs.join('')}</defs>
+   <ellipse cx="60" cy="173" rx="24" ry="4.6" fill="#000" opacity=".35"/>
    <g class="p body">
-     ${backHair}${twin}
-     ${arm(46,'armB',shield+dual2)}
-     ${leg(54,'legB')}${leg(66,'legF')}
-     <path d="M44,${110} L76,${110} C80,120 84,128 88,${136} C74,${141} 46,${141} 32,${136} C36,128 40,120 44,${110} Z" fill="${c.skirt}" stroke="${shade(c.skirt,-50)}" stroke-width=".9"/>
-     <path d="M33,${135} C46,${140} 74,${140} 87,${135} L88,${138} C74,${144} 46,${144} 32,${138} Z" fill="${c.frill}"/>
-     <path d="M46,88 C52,86 68,86 74,88 L73,113 C66,115 54,115 47,113 Z" fill="${c.top}" stroke="${shade(c.top,-50)}" stroke-width=".9"/>
-     <path d="M50,96 L70,96 L68,112 L52,112 Z" fill="${c.acc}" opacity=".9"/><path d="M56,88 L60,95 L64,88" fill="none" stroke="${c.acc}" stroke-width="1.6"/>
+     ${cape}${quiver}${backHair}${twin}
+     ${pB}
+     ${pL}
+     ${skirt}
+     ${neck}${torso}
      <g class="p head"><image href="${ART.head[i]}" x="${hx}" y="${hy}" width="${iw}" height="${ih}"/></g>
-     ${arm(74,'armF',chibiWeapon(c,74,120))}
+     ${pF}
    </g></svg>`;
 }
 
