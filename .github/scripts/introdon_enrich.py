@@ -246,7 +246,8 @@ def hit_key(h):
 def cmd_lookup(args):
     hits = json.load(open(HITS, encoding="utf-8"))
     out = {}
-    mine = [h for i, h in enumerate(hits) if i % args.shards == args.shard]
+    todo = [h for h in hits if not (args.missing_only and h.get("id"))]
+    mine = [h for i, h in enumerate(todo) if i % args.shards == args.shard]
     print(f"shard {args.shard}: {len(mine)} songs", flush=True)
     ok = 0
     for n, h in enumerate(mine, 1):
@@ -263,6 +264,8 @@ def cmd_lookup(args):
             }
         elif lang == "network":
             out[hit_key(h)] = {"err": "network"}
+        else:
+            out[hit_key(h)] = {}
         if n % 25 == 0:
             print(f"  {n}/{len(mine)} (found {ok})", flush=True)
     json.dump(out, open(args.out, "w", encoding="utf-8"), ensure_ascii=False)
@@ -277,16 +280,19 @@ def cmd_merge(args):
             found.update(json.load(open(os.path.join(args.shards_dir, fn), encoding="utf-8")))
     n_ok = n_net = 0
     for h in hits:
-        for k in ("id", "ag", "aa", "ry", "ms"):
-            h.pop(k, None)
         f = found.get(hit_key(h))
-        if not f:
-            continue
+        if f is None:
+            if h.get("id"):
+                n_ok += 1
+            continue  # 今回は調べていない曲はそのまま
         if f.get("err"):
             n_net += 1
             continue
-        h.update(f)
-        n_ok += 1
+        for k in ("id", "ag", "aa", "ry", "ms"):
+            h.pop(k, None)
+        if f:
+            h.update(f)
+            n_ok += 1
     json.dump(hits, open(HITS, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     from collections import Counter
     g = Counter((h.get("ag") or "（未照合）") for h in hits)
@@ -305,6 +311,7 @@ def main():
     a.add_argument("--shard", type=int, required=True)
     a.add_argument("--shards", type=int, required=True)
     a.add_argument("--out", required=True)
+    a.add_argument("--missing-only", action="store_true")
     m = sub.add_parser("merge")
     m.add_argument("--shards-dir", required=True)
     args = p.parse_args()

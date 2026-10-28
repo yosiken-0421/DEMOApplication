@@ -4,6 +4,11 @@ name: イントロどんぴしゃ 曲データの照合
 # 原曲の trackId・ジャンル・発売年を書き込みます。曲リストを変えたときに「Run workflow」で実行します。
 on:
   workflow_dispatch:
+    inputs:
+      missing_only:
+        description: "照合できていない曲だけ調べる"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -23,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Apple の曲データと照合（${{ matrix.shard }}）
-        run: python3 .github/scripts/introdon_enrich.py lookup --shard ${{ matrix.shard }} --shards 12 --out shard-${{ matrix.shard }}.json
+        run: python3 .github/scripts/introdon_enrich.py lookup --shard ${{ matrix.shard }} --shards 12 --out shard-${{ matrix.shard }}.json ${{ inputs.missing_only && '--missing-only' || '' }}
       - uses: actions/upload-artifact@v4
         with:
           name: introdon-shard-${{ matrix.shard }}
