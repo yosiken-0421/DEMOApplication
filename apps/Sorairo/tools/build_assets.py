@@ -14,7 +14,7 @@ def uri(img, q=80):
 def main():
     heroes = Image.open('art/heroes.png').convert('RGB')
     mons = Image.open('art/monsters.png').convert('RGB')
-    A = {'face': [], 'bust': [], 'card': [], 'mon': [], 'mini': [], 'monCut': [], 'head': [], 'fig': [], 'pose': []}
+    A = {'face': [], 'bust': [], 'card': [], 'mon': [], 'mini': [], 'monCut': [], 'head': [], 'fig': [], 'pose': [], 'view': []}
     for k, (x, y) in enumerate(HERO_FACE):
         A['face'].append(uri(heroes.crop((x-72, y-72, x+72, y+72)).resize((168, 168), Image.LANCZOS), 82))
         cx0, cy0 = (k % 4) * 384, (k // 4) * 512
@@ -44,6 +44,9 @@ def main():
     import glob
     for k in range(8):
         A['pose'].append([uri(Image.open(f),86) for f in sorted(glob.glob(f'art/cut/pose_{k}_*.webp'))])
+    # 向き（art/sheet2.png の 正面・右側面・背面・左側面）
+    for k in range(8):
+        A['view'].append([uri(Image.open(f'art/cut/view_{k}_{j}.webp'),88) for j in range(4)])
     for k in range(8):
         A['head'].append(uri(Image.open(f'art/cut/head_{k}.webp'), 88))
     for m in range(50):
