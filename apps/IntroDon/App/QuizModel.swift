@@ -80,6 +80,8 @@ final class QuizModel: ObservableObject {
     @Published var tieUps: [TieUp] = []
     @Published var history: [HistoryItem] = []
     @Published var totalAsked = 0
+    /// 年代を広げたときのお知らせ
+    @Published var planNote: String?
 
     let settings: QuizSettings
     private let player = IntroPlayer()
@@ -109,6 +111,7 @@ final class QuizModel: ObservableObject {
         phase = .loading
         do {
             plan = try await SongProvider.makePlan(settings: settings)
+            planNote = plan.note
             queue = Self.makeQueue(plan: plan, fame: settings.fame)
             stages = Self.makeStages(settings: settings)
             stageIndex = 0; score = 0; history = []; totalAsked = 0
@@ -227,8 +230,9 @@ final class QuizModel: ObservableObject {
     /// 次の問題を作る（ヒット曲は Apple の曲データと照合して、再生できたものだけ出題）
     private func buildQuestion() async -> Question? {
         var tries = 0
-        let maxTries = settings.genre == .anime ? 12 : 8
-        while !queue.isEmpty && tries < maxTries {
+        // 照合済みの曲はまとめて Apple から情報を取っておく（通信1回で最大50曲）
+        await TrackLookup.shared.prefetch(queue.prefix(40).compactMap { $0.hit?.id })
+        while !queue.isEmpty && tries < 40 {
             let c = queue.removeFirst()
             let titleKey = TextMatch.core(c.title)
             guard !usedAnswerIDs.contains(c.id), !usedAnswerTitles.contains(titleKey) else { continue }

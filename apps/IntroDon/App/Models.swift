@@ -100,10 +100,12 @@ enum Genre: String, CaseIterable, Identifiable {
         case .all, .westernPop: return []
         case .jpop: return ["j-pop", "jポップ", "j-ポップ"]
         case .anime: return ["anime", "アニメ"]
-        case .rock: return ["rock", "ロック", "alternative", "オルタナティブ", "hard rock", "ハードロック", "j-rock", "jロック"]
-        case .enka: return ["enka", "演歌", "kayokyoku", "歌謡曲"]
-        case .hiphop: return ["hip-hop/rap", "ヒップホップ/ラップ", "hip-hop", "ヒップホップ", "rap", "ラップ"]
-        case .dance: return ["dance", "ダンス", "electronic", "エレクトロニック"]
+        case .rock: return ["rock", "ロック", "alternative", "オルタナティブ", "hard rock", "ハードロック", "j-rock", "jロック",
+                            "metal", "メタル", "punk", "パンク", "heavy metal", "ヘヴィメタル"]
+        case .enka: return ["enka", "演歌", "kayokyoku", "歌謡曲", "kayokyoku/enka"]
+        case .hiphop: return ["hip-hop/rap", "ヒップホップ/ラップ", "hip-hop", "ヒップホップ", "rap", "ラップ",
+                              "j-hip-hop", "jヒップホップ"]
+        case .dance: return ["dance", "ダンス", "electronic", "エレクトロニック", "j-dance", "jダンス", "house", "ハウス"]
         }
     }
 
@@ -121,20 +123,11 @@ enum Genre: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Apple のジャンル名で判定（洋楽はヒット曲リストの洋楽フラグで判定するので常に true）
+    /// Apple のジャンル名で判定（洋楽・全ジャンルは常に true）
     func matches(_ genreName: String?) -> Bool {
         if self == .all || self == .westernPop { return true }
         guard let g = genreName?.trimmingCharacters(in: .whitespaces).lowercased(), !g.isEmpty else { return false }
         return aliases.contains(g)
-    }
-
-    /// ヒット曲リストの「洋楽かどうか」で絞り込む
-    func allowsHit(western: Bool) -> Bool {
-        switch self {
-        case .all: return true
-        case .westernPop: return western
-        default: return !western
-        }
     }
 }
 
@@ -193,7 +186,7 @@ enum Fame: String, CaseIterable, Identifiable {
     var detail: String {
         switch self {
         case .famous:
-            return "年間ランキング上位のヒット曲（オリコン年間シングル／Billboard JAPAN年間HOT100／米Billboard Hot 100 1位）から出題。年代はランキングの年で分けます。"
+            return "年間ランキング上位のヒット曲（オリコン年間シングル／Billboard JAPAN年間HOT100／米Billboard Hot 100 1位／アニソンランキング）から、上位の曲ほど多めに出題。ジャンルはAppleのジャンル名で分けます。"
         case .minor:
             return "その年代のヒット歌手のアルバム曲など、ランキングに入っていない曲から出題。"
         case .mix:

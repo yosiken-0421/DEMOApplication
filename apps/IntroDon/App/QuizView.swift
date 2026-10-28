@@ -300,6 +300,13 @@ struct StageIntroView: View {
                 Text(st.subtitle)
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .opacity(show ? 1 : 0)
+                if let note = model.planNote {
+                    Text(note)
+                        .font(.footnote.bold()).foregroundStyle(Theme.gold)
+                        .multilineTextAlignment(.center)
+                        .padding(8)
+                        .background(Theme.gold.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                }
                 VStack(spacing: 6) {
                     Text(String(format: "イントロ %.1f秒 × %ld問", st.introSeconds, st.count))
                     if model.isShowRule {
