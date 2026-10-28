@@ -105,7 +105,7 @@ enum Genre: String, CaseIterable, Identifiable {
         case .enka: return ["enka", "演歌", "kayokyoku", "歌謡曲", "kayokyoku/enka"]
         case .hiphop: return ["hip-hop/rap", "ヒップホップ/ラップ", "hip-hop", "ヒップホップ", "rap", "ラップ",
                               "j-hip-hop", "jヒップホップ"]
-        case .dance: return ["dance", "ダンス", "electronic", "エレクトロニック", "j-dance", "jダンス", "house", "ハウス"]
+        case .dance: return ["dance", "ダンス", "electronic", "エレクトロニック", "j-dance", "jダンス", "house", "ハウス", "disco", "ディスコ"]
         }
     }
 
