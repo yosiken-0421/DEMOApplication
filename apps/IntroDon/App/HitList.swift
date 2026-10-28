@@ -5,6 +5,8 @@ import Foundation
 /// - 2008〜2025年: Billboard JAPAN 年間 HOT 100 上位
 /// - 洋楽: 米 Billboard Hot 100 で1位になった曲
 /// - アニメ: Billboard JAPAN 年間 Hot Animation、NHK・テレビ朝日のアニソンランキング
+/// - ヒップホップ: 米 Billboard のラップチャート1位曲、RAG MUSIC の邦楽ヒップホップ人気ランキング
+/// - ダンス: 米 Billboard Hot Dance/Electronic Songs の1位曲
 /// id / ag / aa / ry / ms は GitHub Actions「イントロどんぴしゃ 曲データの照合」で Apple の曲データから書き込む
 struct HitSong: Decodable, Hashable {
     let t: String   // 曲名
@@ -22,6 +24,7 @@ struct HitSong: Decodable, Hashable {
     let aa: String? // Apple の歌手名
     let ry: Int?    // Apple の発売年
     let ms: Int?    // 曲の長さ（ミリ秒）
+    let sg: String? // 出典のジャンル（hiphop / dance）：ジャンル別ランキングから入れた曲
 
     var western: Bool { w == 1 }
     var isAnime: Bool { g == "anime" }
@@ -54,6 +57,7 @@ struct HitSong: Decodable, Hashable {
         if western { set.insert(.westernPop) }
         if isAnime || Genre.anime.aliases.contains(gname) { set.insert(.anime) }
         for x in [Genre.rock, .hiphop, .dance] where x.aliases.contains(gname) { set.insert(x) }
+        if let sg, let x = Genre(rawValue: sg) { set.insert(x) }
         if !western {
             if Genre.enka.aliases.contains(gname) { set.insert(.enka) }
             if Genre.jpop.aliases.contains(gname) || Genre.anime.aliases.contains(gname) { set.insert(.jpop) }
