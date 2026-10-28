@@ -8,13 +8,13 @@ MON_X = [0,154,308,461,615,768,922,1075,1229,1382,1536]
 MON_Y = [66,247,437,629,822]
 
 def uri(img, q=80):
-    b = io.BytesIO(); img.save(b, 'WEBP', quality=q, method=6)
+    b = io.BytesIO(); img.save(b, 'WEBP', quality=q, method=6, exact=True)
     return 'data:image/webp;base64,' + base64.b64encode(b.getvalue()).decode()
 
 def main():
     heroes = Image.open('art/heroes.png').convert('RGB')
     mons = Image.open('art/monsters.png').convert('RGB')
-    A = {'face': [], 'bust': [], 'card': [], 'mon': []}
+    A = {'face': [], 'bust': [], 'card': [], 'mon': [], 'mini': [], 'monCut': []}
     for k, (x, y) in enumerate(HERO_FACE):
         A['face'].append(uri(heroes.crop((x-72, y-72, x+72, y+72)).resize((168, 168), Image.LANCZOS), 82))
         cx0, cy0 = (k % 4) * 384, (k // 4) * 512
@@ -26,6 +26,12 @@ def main():
             t = mons.crop((MON_X[c]+4, MON_Y[r]+3, MON_X[c+1]-3, MON_Y[r]+126))
             t = t.resize((t.width*2, t.height*2), Image.LANCZOS).filter(ImageFilter.UnsharpMask(radius=1.6, percent=70, threshold=2))
             A['mon'].append(uri(t, 74))
+    # 切り抜き済みのミニチュア（art/cut/ は tools/cutout.py で作成）
+    for k in range(8):
+        A['mini'].append(uri(Image.open(f'art/cut/hero_{k}.webp'), 84))
+    for m in range(50):
+        try: A['monCut'].append(uri(Image.open(f'art/cut/mon_{m}.webp'), 82))
+        except FileNotFoundError: A['monCut'].append(None)
     js = 'window.ART=' + json.dumps(A, separators=(',', ':')) + ';'
     p = 'Resources/index.html'
     s = open(p, encoding='utf-8').read()
