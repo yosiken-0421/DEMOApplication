@@ -50,7 +50,7 @@ struct HitSong: Decodable, Hashable {
     /// この曲が入るジャンル（Apple のジャンル名と、出典の種類で決める）
     var genres: Set<Genre> {
         var set: Set<Genre> = [.all]
-        let gname = (ag ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+        let gname = Genre.normalize(ag)
         if western { set.insert(.westernPop) }
         if isAnime || Genre.anime.aliases.contains(gname) { set.insert(.anime) }
         for x in [Genre.rock, .hiphop, .dance] where x.aliases.contains(gname) { set.insert(x) }

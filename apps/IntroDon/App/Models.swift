@@ -126,8 +126,15 @@ enum Genre: String, CaseIterable, Identifiable {
     /// Apple のジャンル名で判定（洋楽・全ジャンルは常に true）
     func matches(_ genreName: String?) -> Bool {
         if self == .all || self == .westernPop { return true }
-        guard let g = genreName?.trimmingCharacters(in: .whitespaces).lowercased(), !g.isEmpty else { return false }
+        let g = Genre.normalize(genreName)
+        guard !g.isEmpty else { return false }
         return aliases.contains(g)
+    }
+
+    /// Apple のジャンル名を比べやすくする（全角の「／」などを半角に、小文字に）
+    static func normalize(_ name: String?) -> String {
+        (name ?? "").precomposedStringWithCompatibilityMapping
+            .trimmingCharacters(in: .whitespaces).lowercased()
     }
 }
 
