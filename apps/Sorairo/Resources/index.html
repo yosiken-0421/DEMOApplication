@@ -274,8 +274,8 @@ html,body{background:radial-gradient(120% 70% at 50% 0%,#2C2350 0%,#15112A 60%,#
 .mini .fig{position:relative;transform-origin:50% 100%}
 .chibi{display:block;width:100%;overflow:visible;filter:var(--grade,none) drop-shadow(0 0 1.5px var(--rim,#fff8))}
 .chibi .p{transform-box:view-box}
-.chibi .body{transform-origin:60px 172px}
-.chibi .head{transform-origin:60px 94px}
+.chibi .body{transform-origin:60px 176px}
+.chibi .head{transform-origin:60px 70px}
 .chibi .armB{transform-origin:46px 90px}
 .chibi .armF{transform-origin:74px 90px}
 .chibi .legB{transform-origin:54px 132px}
@@ -812,8 +812,8 @@ const COSTUME=[
    leg:'skin', stock:'#2B2329', stockTop:143, garter:'#E8752E', boot:'#2B2329', bootTrim:'#E8752E', bootTop:150, cape:null, mechKnee:1 },
 ];
 function chibiSVG(i){
-  const c=CHIBI[i], o=COSTUME[i], [hw,hh,fx]=HEAD_META[i], sc=.44, iw=hw*sc, ih=hh*sc;
-  const hx=60-fx*sc, hy=96-ih, id='k'+i;
+  const c=CHIBI[i], o=COSTUME[i], [hw,hh,fx]=HEAD_META[i], sc=.36, iw=hw*sc, ih=hh*sc; const NY=69, SX=1.42, SY=1.33;
+  const hx=60-fx*sc, hy=NY+4-ih, id='k'+i;
   const SK='#FFE4D6', SKD='#F2BFAA', SKL='#E3A08E';
   const L=(col)=>shade(col,-78), D=(col,a=-34)=>shade(col,a), H=(col,a=30)=>shade(col,a);
   const defs=[]; const gid={};
@@ -823,9 +823,9 @@ function chibiSVG(i){
   const ol=(col,w=.9)=>`stroke="${L(col)}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"`;
   /* ---- 後ろ髪 ---- */
   const hg=`url(#${id}hair)`; defs.push(`<linearGradient id="${id}hair" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c.hair}"/><stop offset="1" stop-color="${c.hairD}"/></linearGradient>`);
-  const backHair = c.hairLen ? `<path d="M${60-iw*.3},${hy+ih*.45} C${60-iw*.42},${92+c.hairLen*.45} ${60-iw*.38},${92+c.hairLen*.95} ${60-iw*.22},${92+c.hairLen+3} C${60-iw*.12},${92+c.hairLen-2} ${60-iw*.04},${92+c.hairLen+4} ${60+iw*.04},${92+c.hairLen+1} C${60+iw*.12},${92+c.hairLen+5} ${60+iw*.2},${92+c.hairLen} ${60+iw*.24},${92+c.hairLen+3} C${60+iw*.38},${92+c.hairLen*.95} ${60+iw*.42},${92+c.hairLen*.45} ${60+iw*.3},${hy+ih*.45} Z" fill="${hg}" stroke="${c.hairD}" stroke-width="1"/>
-    <path d="M${60-iw*.24},${hy+ih*.75} C${60-iw*.32},${108} ${60-iw*.3},${92+c.hairLen-8} ${60-iw*.2},${92+c.hairLen} M${60+iw*.24},${hy+ih*.75} C${60+iw*.32},${108} ${60+iw*.3},${92+c.hairLen-8} ${60+iw*.2},${92+c.hairLen} M60,${hy+ih*.9} C61,110 59,${92+c.hairLen-10} 60,${92+c.hairLen-2}" stroke="${c.hairD}" stroke-width=".7" fill="none" opacity=".55"/>` : '';
-  const twin = c.twin ? [-1,1].map(s=>`<path d="M${60+s*iw*.3},${hy+ih*.28} C${60+s*iw*.56},${hy+ih*.55} ${60+s*iw*.56},${146} ${60+s*iw*.4},${162} C${60+s*iw*.42},${150} ${60+s*iw*.3},${152} ${60+s*iw*.34},${142} C${60+s*iw*.4},${128} ${60+s*iw*.38},${hy+ih*.7} ${60+s*iw*.3},${hy+ih*.42} Z" fill="${hg}" stroke="${c.hairD}" stroke-width="1"/>`).join('') : '';
+  const backHair = c.hairLen ? `<path d="M${60-iw*.3},${hy+ih*.45} C${60-iw*.42},${NY+c.hairLen*SY*.45} ${60-iw*.38},${NY+c.hairLen*SY*.95} ${60-iw*.22},${NY+c.hairLen*SY+3} C${60-iw*.12},${NY+c.hairLen*SY-2} ${60-iw*.04},${NY+c.hairLen*SY+4} ${60+iw*.04},${NY+c.hairLen*SY+1} C${60+iw*.12},${NY+c.hairLen*SY+5} ${60+iw*.2},${NY+c.hairLen*SY} ${60+iw*.24},${NY+c.hairLen*SY+3} C${60+iw*.38},${NY+c.hairLen*SY*.95} ${60+iw*.42},${NY+c.hairLen*SY*.45} ${60+iw*.3},${hy+ih*.45} Z" fill="${hg}" stroke="${c.hairD}" stroke-width="1"/>
+    <path d="M${60-iw*.24},${hy+ih*.75} C${60-iw*.32},${NY+16*SY} ${60-iw*.3},${NY+c.hairLen*SY-8} ${60-iw*.2},${NY+c.hairLen*SY} M${60+iw*.24},${hy+ih*.75} C${60+iw*.32},${NY+16*SY} ${60+iw*.3},${NY+c.hairLen*SY-8} ${60+iw*.2},${NY+c.hairLen*SY} M60,${hy+ih*.9} C61,110 59,${NY+c.hairLen*SY-10} 60,${NY+c.hairLen*SY-2}" stroke="${c.hairD}" stroke-width=".7" fill="none" opacity=".55"/>` : '';
+  const twin = c.twin ? [-1,1].map(s=>`<path d="M${60+s*iw*.3},${hy+ih*.28} C${60+s*iw*.56},${hy+ih*.55} ${60+s*iw*.56},${NY+54*SY} ${60+s*iw*.4},${NY+70*SY} C${60+s*iw*.42},${NY+58*SY} ${60+s*iw*.3},${NY+60*SY} ${60+s*iw*.34},${NY+50*SY} C${60+s*iw*.4},${NY+36*SY} ${60+s*iw*.38},${hy+ih*.7} ${60+s*iw*.3},${hy+ih*.42} Z" fill="${hg}" stroke="${c.hairD}" stroke-width="1"/>`).join('') : '';
   /* ---- マント・矢筒 ---- */
   const cape = o.cape ? `<g class="p cape"><path d="M47,91 C40,104 34,124 30,150 C36,147 40,152 46,149 C52,154 58,150 62,153 C68,150 74,154 80,149 C85,152 88,147 92,150 C88,124 82,104 73,91 Z" fill="${G(o.cape,'v')}" ${ol(o.cape)}/>
      <path d="M44,104 C40,122 38,136 37,148 M52,100 C50,120 50,136 51,150 M68,100 C70,120 71,136 70,150 M76,104 C80,122 82,136 84,148" stroke="${D(o.cape,-45)}" stroke-width=".8" fill="none" opacity=".6"/></g>` : '';
@@ -892,15 +892,12 @@ function chibiSVG(i){
   const dual2 = c.wpn==='dual' ? chibiWeapon(c,46,120) : '';
   const pB=arm(46,'armB',shield+dual2), pL=leg(54,'legB')+leg(66,'legF'), pF=arm(74,'armF',chibiWeapon(c,74,120));
   return `<svg class="chibi" viewBox="0 0 120 180" xmlns="http://www.w3.org/2000/svg"><defs>${defs.join('')}</defs>
-   <ellipse cx="60" cy="173" rx="24" ry="4.6" fill="#000" opacity=".35"/>
+   <ellipse cx="60" cy="176" rx="30" ry="5" fill="#000" opacity=".35"/>
    <g class="p body">
-     ${cape}${quiver}${backHair}${twin}
-     ${pB}
-     ${pL}
-     ${skirt}
-     ${neck}${torso}
+     ${backHair}${twin}
+     <g transform="translate(60,${NY}) scale(${SX},${SY}) translate(-60,-92)">${cape}${quiver}${pB}${pL}${skirt}${neck}${torso}</g>
      <g class="p head"><image href="${ART.head[i]}" x="${hx}" y="${hy}" width="${iw}" height="${ih}"/></g>
-     ${pF}
+     <g transform="translate(60,${NY}) scale(${SX},${SY}) translate(-60,-92)">${pF}</g>
    </g></svg>`;
 }
 
