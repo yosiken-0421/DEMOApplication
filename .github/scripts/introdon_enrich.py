@@ -56,20 +56,27 @@ def primary(a: str) -> str:
     return norm(cut(a, ARTIST_SEPS))
 
 
+SEG_RE = re.compile(r"\s*(?:\bfeat\.?|\bfeaturing\b|\bft\.|\bwith\b|\band\b|&|×|、|,|/|\s x\s)\s*", re.I)
+
+
+def segs(a: str):
+    return {norm(x) for x in SEG_RE.split(unicodedata.normalize("NFKC", a or "")) if norm(x)}
+
+
 def artist_score(hit_a: str, apple_a: str) -> int:
+    """3 = 同じ名前 / 2 = 共演者が付いているだけ、または Apple 側の名前が短い（「宮史郎とぴんからトリオ」→「ぴんからトリオ」）
+    トリビュートバンドなど、Apple 側の名前が長くなっているだけのものは一致にしない"""
     na, nb = norm(hit_a), norm(apple_a)
     if not na or not nb:
         return 0
     if na == nb:
         return 3
-    ph, pa = primary(hit_a), primary(apple_a)
-    if ph and (ph == pa or ph == nb):
+    sh, sa = segs(hit_a), segs(apple_a)
+    if sh and sh == sa:
         return 3
-    if pa and pa == na:
-        return 3
-    if len(ph) >= 3 and ph in nb:
+    if sh and sa and (sh <= sa or sa <= sh):
         return 2
-    if len(pa) >= 3 and pa in na:
+    if len(nb) >= 3 and nb in na:
         return 2
     return 0
 
@@ -107,11 +114,8 @@ def penalty(track: dict, hit_title: str) -> int:
     return p
 
 
-def search(term: str, lang: str, limit: int = 25):
+def fetch(url: str):
     global _last
-    q = urllib.parse.urlencode({"term": term, "country": "JP", "media": "music", "entity": "song",
-                                "limit": str(limit), "lang": lang})
-    url = "https://itunes.apple.com/search?" + q
     for attempt in range(6):
         wait = INTERVAL - (time.time() - _last)
         if wait > 0:
@@ -131,13 +135,30 @@ def search(term: str, lang: str, limit: int = 25):
     return None  # 取得できなかった
 
 
+def search(term: str, lang: str, limit: int = 25, country: str = "JP"):
+    q = urllib.parse.urlencode({"term": term, "country": country, "media": "music", "entity": "song",
+                                "limit": str(limit), "lang": lang})
+    return fetch("https://itunes.apple.com/search?" + q)
+
+
+def lookup_jp(ids):
+    q = urllib.parse.urlencode({"id": ",".join(str(i) for i in ids), "country": "JP", "lang": "ja_jp"})
+    res = fetch("https://itunes.apple.com/lookup?" + q)
+    return {r["trackId"]: r for r in (res or []) if r.get("trackId") and r.get("kind") in (None, "song")}
+
+
 ANIME_GENRES = {"anime", "アニメ"}
 
 
 def pick(results, hit):
+    r = ranked(results, hit)
+    return r[0] if r else None
+
+
+def ranked(results, hit):
     t, a = hit["t"], hit.get("a", "")
     want_core, want_full = core(t), norm(t)
-    best, best_key = None, None
+    out = []
     for r in results or []:
         if r.get("kind") not in (None, "song") or not r.get("trackId"):
             continue
@@ -156,13 +177,37 @@ def pick(results, hit):
             continue
         exact = 1 if norm(tn) == want_full else 0
         rd = r.get("releaseDate") or "9999"
-        key = (-s, -exact, rd)
-        if best_key is None or key < best_key:
-            best, best_key = r, key
-    return best
+        out.append(((-s, -exact, rd), r))
+    out.sort(key=lambda x: x[0])
+    return [r for _, r in out]
+
+
+def lookup_western(hit):
+    """洋楽: 日本のストアは歌手名がカタカナになることがあるので、米国ストアで原曲を特定してから日本で配信があるか確認"""
+    t, a = hit["t"], hit.get("a", "")
+    st1 = cut(t, SEARCH_SEPS) or t
+    at = cut(a, ARTIST_SEPS)
+    net = False
+    for term, limit in ((st1 + " " + at, 25), (st1, 50)):
+        res = search(term.strip(), "en_us", limit=limit, country="US")
+        if res is None:
+            net = True
+            continue
+        cands = ranked(res, hit)[:6]
+        if not cands:
+            continue
+        jp = lookup_jp([c["trackId"] for c in cands])
+        for c in cands:
+            if c["trackId"] in jp:
+                j = jp[c["trackId"]]
+                j.setdefault("releaseDate", c.get("releaseDate"))
+                return j, "en_us"
+    return None, ("network" if net else None)
 
 
 def lookup_one(hit):
+    if hit.get("w") == 1:
+        return lookup_western(hit)
     t, a = hit["t"], hit.get("a", "")
     st1 = cut(t, SEARCH_SEPS) or t
     titles = [st1]
@@ -201,7 +246,8 @@ def hit_key(h):
 def cmd_lookup(args):
     hits = json.load(open(HITS, encoding="utf-8"))
     out = {}
-    mine = [h for i, h in enumerate(hits) if i % args.shards == args.shard]
+    todo = [h for h in hits if not (args.missing_only and h.get("id"))]
+    mine = [h for i, h in enumerate(todo) if i % args.shards == args.shard]
     print(f"shard {args.shard}: {len(mine)} songs", flush=True)
     ok = 0
     for n, h in enumerate(mine, 1):
@@ -218,6 +264,8 @@ def cmd_lookup(args):
             }
         elif lang == "network":
             out[hit_key(h)] = {"err": "network"}
+        else:
+            out[hit_key(h)] = {}
         if n % 25 == 0:
             print(f"  {n}/{len(mine)} (found {ok})", flush=True)
     json.dump(out, open(args.out, "w", encoding="utf-8"), ensure_ascii=False)
@@ -232,16 +280,19 @@ def cmd_merge(args):
             found.update(json.load(open(os.path.join(args.shards_dir, fn), encoding="utf-8")))
     n_ok = n_net = 0
     for h in hits:
-        for k in ("id", "ag", "aa", "ry", "ms"):
-            h.pop(k, None)
         f = found.get(hit_key(h))
-        if not f:
-            continue
+        if f is None:
+            if h.get("id"):
+                n_ok += 1
+            continue  # 今回は調べていない曲はそのまま
         if f.get("err"):
             n_net += 1
             continue
-        h.update(f)
-        n_ok += 1
+        for k in ("id", "ag", "aa", "ry", "ms"):
+            h.pop(k, None)
+        if f:
+            h.update(f)
+            n_ok += 1
     json.dump(hits, open(HITS, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     from collections import Counter
     g = Counter((h.get("ag") or "（未照合）") for h in hits)
@@ -260,6 +311,7 @@ def main():
     a.add_argument("--shard", type=int, required=True)
     a.add_argument("--shards", type=int, required=True)
     a.add_argument("--out", required=True)
+    a.add_argument("--missing-only", action="store_true")
     m = sub.add_parser("merge")
     m.add_argument("--shards-dir", required=True)
     args = p.parse_args()
