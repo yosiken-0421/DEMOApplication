@@ -14,7 +14,7 @@ def uri(img, q=80):
 def main():
     heroes = Image.open('art/heroes.png').convert('RGB')
     mons = Image.open('art/monsters.png').convert('RGB')
-    A = {'face': [], 'bust': [], 'card': [], 'mon': [], 'mini': [], 'monCut': []}
+    A = {'face': [], 'bust': [], 'card': [], 'mon': [], 'mini': [], 'monCut': [], 'head': []}
     for k, (x, y) in enumerate(HERO_FACE):
         A['face'].append(uri(heroes.crop((x-72, y-72, x+72, y+72)).resize((168, 168), Image.LANCZOS), 82))
         cx0, cy0 = (k % 4) * 384, (k // 4) * 512
@@ -29,6 +29,8 @@ def main():
     # 切り抜き済みのミニチュア（art/cut/ は tools/cutout.py で作成）
     for k in range(8):
         A['mini'].append(uri(Image.open(f'art/cut/hero_{k}.webp'), 84))
+    for k in range(8):
+        A['head'].append(uri(Image.open(f'art/cut/head_{k}.webp'), 88))
     for m in range(50):
         try: A['monCut'].append(uri(Image.open(f'art/cut/mon_{m}.webp'), 82))
         except FileNotFoundError: A['monCut'].append(None)
