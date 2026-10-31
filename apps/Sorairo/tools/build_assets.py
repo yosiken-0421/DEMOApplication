@@ -52,6 +52,8 @@ def main():
     for m in range(50):
         try: A['monCut'].append(uri(Image.open(f'art/cut/mon_{m}.webp'), 82))
         except FileNotFoundError: A['monCut'].append(None)
+    # 仲間の絵は Resources/h*.webp・f*.webp（tools/cut_hd.py で作成）を直接読むので、ここではまものだけ埋め込む
+    A = {k: A[k] for k in ('mon', 'monCut')}
     js = 'window.ART=' + json.dumps(A, separators=(',', ':')) + ';'
     p = 'Resources/index.html'
     s = open(p, encoding='utf-8').read()

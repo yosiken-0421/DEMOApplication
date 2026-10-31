@@ -4,9 +4,10 @@
 アプリはそれを全画面で表示する Swift の入れ物です（セーブ・振動・通知をアプリ側で担当）。
 
 ## ゲームの中身
-- 仲間 8 人（art/heroes.png の絵）を雇ってレベルアップ。Lv10 で ×2、以降 25 レベルごとに ×3
+- 仲間 8 人（art/hd/ の 1キャラ7枚：正面・右・背面・左・構え・攻撃・決め）を雇ってレベルアップ。Lv10 で ×2、以降 25 レベルごとに ×3
 - まもの 50 種（art/monsters.png の絵）。ステージが進むほど強いまものが出る。キャラごとに属性つきの攻撃演出
-- 絵を差し替えたら `python3 tools/build_assets.py` で Resources/index.html に埋め込み直す
+- 仲間の絵を差し替えたら `python3 tools/cut_hd.py` で切り抜いて Resources/h*.webp・f*.webp を作り直す（要 tools/models/isnet-general-use.onnx）
+- まものの絵を差し替えたら `python3 tools/build_assets.py` で Resources/index.html に埋め込み直す
 - アプリを閉じていても仲間が戦い、コインが貯まる（最大 8 時間、強化で延長）。開くと「おかえり」報酬
 - 5 ステージごとにボス（30 秒）、25 ステージごとに大ボス。6 つのエリア
 - おやすみ（転生）：ステージ 40 から。そらの羽 1 枚でダメージ +10% がずっと続く

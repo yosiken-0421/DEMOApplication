@@ -40,9 +40,9 @@ struct GameView: UIViewRepresentable {
         web.scrollView.contentInsetAdjustmentBehavior = .never
         web.allowsLinkPreview = false
 
-        if let url = Bundle.main.url(forResource: "index", withExtension: "html"),
-           let html = try? String(contentsOf: url, encoding: .utf8) {
-            web.loadHTMLString(html, baseURL: URL(string: "https://sorairo.local/"))
+        // キャラ画像（h*.webp / f*.webp）を同じフォルダから読めるようにファイルとして開く
+        if let url = Bundle.main.url(forResource: "index", withExtension: "html") {
+            web.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         }
         return web
     }
