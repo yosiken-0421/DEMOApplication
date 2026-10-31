@@ -1,0 +1,34 @@
+name: イントロどんぴしゃ 読みの収集
+
+# 曲名・歌手名の読み（ふりがな）を日本語版 Wikipedia の記事の冒頭から集めて hits.json に書き込みます。
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "読みが入っている曲も調べ直す"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: introdon-readings
+  cancel-in-progress: false
+
+jobs:
+  readings:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wikipedia から読みを集める
+        run: python3 .github/scripts/introdon_readings.py ${{ inputs.force && '--force' || '' }}
+      - name: コミット
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/IntroDon/Resources/hits.json
+          if git diff --cached --quiet; then echo "変更なし"; exit 0; fi
+          git commit -m "イントロどんぴしゃ: 曲名・歌手名の読みをWikipediaから収集"
+          for i in 1 2 3; do git pull --rebase origin main && git push origin HEAD:main && break; sleep 5; done
