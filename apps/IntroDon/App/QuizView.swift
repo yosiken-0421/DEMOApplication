@@ -262,7 +262,8 @@ struct QuizView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             HStack(spacing: 10) {
-                smallButton("続きを聴く", icon: "play.fill") { model.listenMore() }
+                smallButton(model.listeningMore ? "止める" : "続きを聴く",
+                            icon: model.listeningMore ? "stop.fill" : "play.fill") { model.listenMore() }
                 if let url = q.song.storeURL {
                     smallButton("Apple Music", icon: "arrow.up.right.square") { openURL(url) }
                 }

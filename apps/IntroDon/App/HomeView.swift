@@ -106,6 +106,17 @@ struct HomeView: View {
                             }
                         }
                     }
+                    if !Speaker.hasHighQualityJapaneseVoice {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("🔊 読み上げの声をもっと自然にするには")
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                            Text("設定アプリ →「アクセシビリティ」→「読み上げコンテンツ」→「声」→「日本語」で、「拡張」や「プレミアム」と付いた声をダウンロードすると、このアプリが自動でその声を使います。")
+                                .font(.caption).opacity(0.75)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .background(Theme.cyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                    }
                     startButton
                     notes
                 }

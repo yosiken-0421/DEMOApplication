@@ -24,6 +24,8 @@ struct HitSong: Decodable, Hashable {
     let aa: String? // Apple の歌手名
     let ry: Int?    // Apple の発売年
     let ms: Int?    // 曲の長さ（ミリ秒）
+    let rt: String? // 曲名の読み（Wikipedia の記事の冒頭から）
+    let ra: String? // 歌手名の読み（Wikipedia の記事の冒頭から）
     let sg: String? // 出典のジャンル（hiphop / dance）：ジャンル別ランキングから入れた曲
 
     var western: Bool { w == 1 }

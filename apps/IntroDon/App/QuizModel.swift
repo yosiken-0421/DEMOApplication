@@ -2,18 +2,79 @@ import Foundation
 import AVFoundation
 import UIKit
 
-/// 答えの読み上げ（iPhone 内蔵の日本語音声）
+/// 読み上げる1かたまり（日本語か英語か、後ろの間）
+struct Speech {
+    enum Lang { case ja, en }
+    let text: String
+    var lang: Lang = .ja
+    var pause: Double = 0
+
+    static func ja(_ t: String, pause: Double = 0) -> Speech { Speech(text: t, lang: .ja, pause: pause) }
+    static func en(_ t: String, pause: Double = 0) -> Speech { Speech(text: t, lang: .en, pause: pause) }
+
+    /// 曲名・歌手名の読み上げ方
+    /// - 読み（ふりがな）が分かっている名前は読みで読む
+    /// - 洋楽は英語の声で読む
+    /// - 日本の曲で英字の部分は英語の声、それ以外は日本語の声
+    static func name(_ text: String, reading: String?, western: Bool) -> [Speech] {
+        if let r = reading, !r.isEmpty { return [.ja(r)] }
+        if western { return [.en(text)] }
+        var out: [Speech] = []
+        var buf = ""
+        var bufLatin: Bool? = nil
+        for ch in text {
+            let latin: Bool? = ch.isASCII && ch.isLetter ? true : ((ch.isASCII && !ch.isLetter) ? nil : false)
+            if let l = latin, let b = bufLatin, l != b {
+                out.append(Speech(text: buf, lang: b ? .en : .ja))
+                buf = ""
+            }
+            buf.append(ch)
+            if let l = latin { bufLatin = l }
+        }
+        if !buf.isEmpty { out.append(Speech(text: buf, lang: (bufLatin ?? false) ? .en : .ja)) }
+        return out
+    }
+}
+
+/// 答えの読み上げ（iPhone に入っている、いちばん品質の高い声を使う）
 @MainActor
 final class Speaker {
     private let synth = AVSpeechSynthesizer()
 
-    func say(_ text: String) {
+    private static func bestVoice(_ lang: String) -> AVSpeechSynthesisVoice? {
+        let voices = AVSpeechSynthesisVoice.speechVoices().filter { $0.language == lang }
+        return voices.first { $0.quality == .premium }
+            ?? voices.first { $0.quality == .enhanced }
+            ?? AVSpeechSynthesisVoice(language: lang)
+    }
+    private lazy var jaVoice = Speaker.bestVoice("ja-JP")
+    private lazy var enVoice = Speaker.bestVoice("en-US")
+
+    /// 品質の高い声（拡張・プレミアム）が入っているか
+    static var hasHighQualityJapaneseVoice: Bool {
+        AVSpeechSynthesisVoice.speechVoices().contains { $0.language == "ja-JP" && $0.quality != .default }
+    }
+
+    func say(_ text: String) { say([.ja(text)]) }
+
+    func say(_ parts: [Speech]) {
         synth.stopSpeaking(at: .immediate)
-        let u = AVSpeechUtterance(string: text)
-        u.voice = AVSpeechSynthesisVoice(language: "ja-JP")
-        u.rate = 0.52
-        u.pitchMultiplier = 1.1
-        synth.speak(u)
+        var queue: [AVSpeechUtterance] = []
+        for p in parts {
+            let t = p.text.trimmingCharacters(in: .whitespaces)
+            guard !t.isEmpty else {
+                // 文字のないかたまりは「間」だけ：前の読み上げのあとに足す
+                queue.last?.postUtteranceDelay += p.pause
+                continue
+            }
+            let u = AVSpeechUtterance(string: t)
+            u.voice = p.lang == .ja ? jaVoice : enVoice
+            u.rate = p.lang == .ja ? 0.5 : 0.47
+            u.pitchMultiplier = p.lang == .ja ? 1.05 : 1.0
+            u.postUtteranceDelay = p.pause
+            queue.append(u)
+        }
+        queue.forEach { synth.speak($0) }
     }
 
     func stop() { synth.stopSpeaking(at: .immediate) }
@@ -43,7 +104,14 @@ struct Question: Identifiable {
 
     var answerTitle: String { candidate.title }
     var answerArtist: String { candidate.artist.isEmpty ? song.artist : candidate.artist }
-    var spokenAnswer: String { "\(answerArtist)の、\(candidate.title)" }
+    /// 「（歌手）の（曲名）」を読み上げ用に（読みが分かっていれば読みで）
+    var spokenAnswer: [Speech] {
+        let hit = candidate.hit
+        let western = hit?.western ?? false
+        let artist = Speech.name(answerArtist, reading: hit?.ra, western: western)
+        let title = Speech.name(answerTitle, reading: hit?.rt, western: western)
+        return artist + [.ja("の、", pause: 0.05)] + title
+    }
 }
 
 enum Judgement: Equatable {
@@ -412,24 +480,26 @@ final class QuizModel: ObservableObject {
         markStopped()
         let pts = stage?.points ?? 1
         let ok = pick.id == q.candidate.id
-        var line: String
+        var line: [Speech]
         if ok {
             score += pts
             judgement = .correct(points: pts)
-            line = "ピンポーン！ 正解！ 答えは、\(q.spokenAnswer)、でした！"
+            line = [.ja("ピンポーン！", pause: 0.15), .ja("正解！", pause: 0.25), .ja("答えは、", pause: 0.1)]
+                + q.spokenAnswer + [.ja("、でした！")]
         } else {
             let penalty = isShowRule ? 5 : 0
             score -= penalty
             misses += 1
             judgement = .wrong(picked: pick, penalty: penalty)
-            line = "ブブー！ 残念！ 正解は、\(q.spokenAnswer)、でした。"
+            line = [.ja("ブブー！", pause: 0.15), .ja("残念！", pause: 0.25), .ja("正解は、", pause: 0.1)]
+                + q.spokenAnswer + [.ja("、でした。")]
             if isShowRule && misses >= 2 {
                 disqualified = true
                 score = 0
-                line += " バツが2つで失格！ 得点は没収です。"
+                line += [.ja("バツが2つで失格！", pause: 0.15), .ja("得点は没収です。")]
             }
         }
-        if let t = tieUps.first { line += " \(t.kind.rawValue)、\(t.name)、で使われた曲です。" }
+        line += tieUpSpeech
         finishQuestion(judgement!, speech: line)
         UINotificationFeedbackGenerator().notificationOccurred(ok ? .success : .error)
     }
@@ -440,12 +510,18 @@ final class QuizModel: ObservableObject {
         player.stop()
         markStopped()
         judgement = .revealed
-        var line = "答えは、\(q.spokenAnswer)、でした！"
-        if let t = tieUps.first { line += " \(t.kind.rawValue)、\(t.name)、で使われた曲です。" }
+        let line: [Speech] = [.ja("答えは、", pause: 0.1)] + q.spokenAnswer + [.ja("、でした！")] + tieUpSpeech
         finishQuestion(.revealed, speech: line)
     }
 
-    private func finishQuestion(_ j: Judgement, speech: String) {
+    /// 「アニメ、○○、で使われた曲です」
+    private var tieUpSpeech: [Speech] {
+        guard let t = tieUps.first else { return [] }
+        return [.ja("", pause: 0.3), .ja("\(t.kind.rawValue)、", pause: 0.05)]
+            + Speech.name(t.name, reading: nil, western: false) + [.ja("、で使われた曲です。")]
+    }
+
+    private func finishQuestion(_ j: Judgement, speech: [Speech]) {
         guard let q = current else { return }
         history.append(HistoryItem(stageTitle: stage?.title ?? "", title: q.answerTitle, artist: q.answerArtist,
                                    judgement: j, tieUps: tieUps))
@@ -454,12 +530,32 @@ final class QuizModel: ObservableObject {
     }
 
     /// 答え合わせの後に続きを聴く
+    /// 答え合わせのあとの「続きを聴く」で流れているか
+    @Published var listeningMore = false
+
+    /// 答え合わせの後に続きを聴く（曲の最後まで流れる）。流れているときに押すと止める
     func listenMore() {
         speaker.stop()
-        player.resume(for: 15)
+        if listeningMore {
+            player.stop()
+            listeningMore = false
+            return
+        }
+        player.resume(for: nil)
+        listeningMore = true
+        endWatch?.cancel()
+        endWatch = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            while let self, !Task.isCancelled, self.listeningMore {
+                if !self.player.isPlaying { self.listeningMore = false; return }
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
+        }
     }
 
     func next() {
+        listeningMore = false
+        endWatch?.cancel()
         player.stop()
         speaker.stop()
         advanceToNextQuestion()
