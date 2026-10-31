@@ -26,8 +26,8 @@ final class IntroPlayer {
     private var stopTask: Task<Void, Never>?
     private var playToken = 0
 
-    /// `start` 秒の位置（試聴音源は常に試聴の頭）から `seconds` 秒再生する
-    func playIntro(_ song: Song, from start: Double = 0, seconds: Double) async throws {
+    /// `start` 秒の位置（試聴音源は常に試聴の頭）から `seconds` 秒再生する（nil = 止めるまで流し続ける）
+    func playIntro(_ song: Song, from start: Double = 0, seconds: Double?) async throws {
         stop()
         playToken += 1
         let token = playToken
@@ -42,6 +42,12 @@ final class IntroPlayer {
     /// 試聴モードかどうか（QuizModel から設定）
     var currentModeIsPreview = false
 
+    /// 再生の準備中も含めて止める（待っている再生はキャンセル）
+    func cancel() {
+        playToken += 1
+        stop()
+    }
+
     func stop() {
         stopTask?.cancel()
         stopTask = nil
@@ -51,7 +57,7 @@ final class IntroPlayer {
 
     // MARK: 試聴音源（AVPlayer でストリーミング再生。保存はしない）
 
-    private func playPreview(url: URL, songID: String, seconds: Double, token: Int) async throws {
+    private func playPreview(url: URL, songID: String, seconds: Double?, token: Int) async throws {
         if loadedSongID != songID || av == nil {
             av = AVPlayer(url: url)
             loadedSongID = songID
@@ -65,7 +71,7 @@ final class IntroPlayer {
 
     // MARK: iPhone のミュージック / Apple Music（曲の頭から）
 
-    private func playMusic(_ song: Song, from start: Double, seconds: Double, token: Int) async throws {
+    private func playMusic(_ song: Song, from start: Double, seconds: Double?, token: Int) async throws {
         if loadedSongID != song.id {
             if let pid = song.libraryID {
                 guard let item = SongProvider.libraryItems[pid] else { throw IntroPlayerError.notPlayable }
@@ -93,8 +99,8 @@ final class IntroPlayer {
         scheduleStop(after: seconds, token: token)
     }
 
-    /// 答えの後に「続きを聴く」用：止まっている位置から再生を続ける
-    func resume(for seconds: Double) {
+    /// 止めた位置から再生を続ける（nil = 止めるまで流し続ける）
+    func resume(for seconds: Double?) {
         playToken += 1
         let token = playToken
         if currentModeIsPreview { av?.play() } else { music.play() }
@@ -115,8 +121,15 @@ final class IntroPlayer {
         }
     }
 
-    private func scheduleStop(after seconds: Double, token: Int) {
+    /// 今、音が出ているか
+    var isPlaying: Bool {
+        if currentModeIsPreview { return av?.timeControlStatus == .playing }
+        return music.playbackState == .playing
+    }
+
+    private func scheduleStop(after seconds: Double?, token: Int) {
         stopTask?.cancel()
+        guard let seconds else { stopTask = nil; return }
         stopTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
             guard !Task.isCancelled, let self, self.playToken == token else { return }

@@ -148,6 +148,13 @@ final class QuizModel: ObservableObject {
             let a = Int((Double(n) / 3).rounded(.up))
             let b = Int((Double(n - a) / 2).rounded(.up))
             let c = max(1, n - a - b)
+            if settings.stopMode == .manual {
+                return [
+                    Stage(title: "イントロクイズ", subtitle: "正解で5点", points: 5, introSeconds: base, count: a),
+                    Stage(title: "ウルトラ イントロクイズ", subtitle: "点数アップ！ 正解で10点", points: 10, introSeconds: base, count: b),
+                    Stage(title: "超ウルトラ イントロクイズ", subtitle: "最後の勝負！ 正解で20点", points: 20, introSeconds: base, count: c),
+                ]
+            }
             return [
                 Stage(title: "イントロクイズ", subtitle: "正解で5点", points: 5, introSeconds: base, count: a),
                 Stage(title: "ウルトラ イントロクイズ", subtitle: "もっと短く！ 正解で10点", points: 10,
@@ -278,6 +285,9 @@ final class QuizModel: ObservableObject {
     private func resetQuestionState() {
         judgement = nil
         playCount = 0
+        isPaused = false
+        listenedBefore = 0
+        playStartedAt = nil
         extraSeconds = 0
         playError = nil
         startLabel = nil
@@ -300,25 +310,86 @@ final class QuizModel: ObservableObject {
         return 0
     }
 
-    /// 「ドン！」：イントロを流す
+    /// 自分で止めるモードか
+    var isManualStop: Bool { settings.stopMode == .manual }
+    /// 自分で止めるモードで、途中で止めている状態
+    @Published var isPaused = false
+    /// 聴いた秒数の表示用（今回の再生を始めた時刻と、それまでに聴いた秒数）
+    @Published var playStartedAt: Date?
+    @Published var listenedBefore: Double = 0
+    private var endWatch: Task<Void, Never>?
+
+    /// 「ドン！」：イントロを流す（自分で止めるモードは、止めるまで流れ続ける）
     func play() {
         guard let q = current, phase == .ready || phase == .waiting else { return }
         speaker.stop()
         playError = nil
+        isPaused = false
+        listenedBefore = 0
+        playStartedAt = nil
         phase = .playing
-        let length = introLength
+        let length: Double? = isManualStop ? nil : introLength
         Task {
             do {
                 let start = await startTime(for: q.song)
                 guard phase == .playing else { return }
                 try await player.playIntro(q.song, from: start, seconds: length)
+                guard phase == .playing else { player.stop(); return }
                 playCount += 1
-                try? await Task.sleep(nanoseconds: UInt64(length * 1_000_000_000))
-                if phase == .playing { phase = .waiting }
+                playStartedAt = Date()
+                if let length {
+                    try? await Task.sleep(nanoseconds: UInt64(length * 1_000_000_000))
+                    if phase == .playing { phase = .waiting; markStopped() }
+                } else {
+                    watchForEnd()
+                }
             } catch is CancellationError {
             } catch {
                 playError = error.localizedDescription
                 if phase == .playing { phase = .waiting }
+            }
+        }
+    }
+
+    /// 「ストップ」：流れている曲を止める
+    func stopPlayback() {
+        guard phase == .playing else { return }
+        player.cancel()
+        markStopped()
+        isPaused = playCount > 0
+        phase = .waiting
+    }
+
+    /// 「つづきを流す」：止めたところから再開
+    func resumePlayback() {
+        guard current != nil, phase == .waiting, isPaused else { return }
+        speaker.stop()
+        player.resume(for: nil)
+        isPaused = false
+        playStartedAt = Date()
+        phase = .playing
+        watchForEnd()
+    }
+
+    private func markStopped() {
+        endWatch?.cancel()
+        if let t = playStartedAt { listenedBefore += Date().timeIntervalSince(t) }
+        playStartedAt = nil
+    }
+
+    /// 曲（試聴音源は30秒）が最後まで流れたら止まった状態にする
+    private func watchForEnd() {
+        endWatch?.cancel()
+        endWatch = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            while let self, !Task.isCancelled, self.phase == .playing {
+                if !self.player.isPlaying {
+                    self.markStopped()
+                    self.isPaused = false
+                    self.phase = .waiting
+                    return
+                }
+                try? await Task.sleep(nanoseconds: 300_000_000)
             }
         }
     }
@@ -338,6 +409,7 @@ final class QuizModel: ObservableObject {
     func answer(_ pick: Choice) {
         guard let q = current, canAnswer else { return }
         player.stop()
+        markStopped()
         let pts = stage?.points ?? 1
         let ok = pick.id == q.candidate.id
         var line: String
@@ -366,6 +438,7 @@ final class QuizModel: ObservableObject {
     func reveal() {
         guard let q = current, phase != .judged, phase != .preparing else { return }
         player.stop()
+        markStopped()
         judgement = .revealed
         var line = "答えは、\(q.spokenAnswer)、でした！"
         if let t = tieUps.first { line += " \(t.kind.rawValue)、\(t.name)、で使われた曲です。" }
@@ -399,6 +472,7 @@ final class QuizModel: ObservableObject {
     }
 
     func quit() {
+        endWatch?.cancel()
         prefetchTask?.cancel()
         player.stop()
         speaker.stop()

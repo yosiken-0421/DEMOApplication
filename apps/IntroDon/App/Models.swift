@@ -143,21 +143,30 @@ enum Genre: String, CaseIterable, Identifiable {
 struct Era: Hashable, Identifiable {
     /// nil = 全年代
     let start: Int?
+    /// 5 = 前半・後半、10 = その年代まるごと
+    let length: Int
 
-    var id: String { start.map(String.init) ?? "all" }
+    init(start: Int?, length: Int = 5) {
+        self.start = start
+        self.length = length
+    }
+
+    var id: String { start.map { "\($0)-\(length)" } ?? "all" }
 
     static let all = Era(start: nil)
+    static func decade(_ d: Int) -> Era { Era(start: d, length: 10) }
     static let buckets: [Era] = stride(from: 1970, through: 2025, by: 5).map { Era(start: $0) }
     static let choices: [Era] = [.all] + buckets
 
     var years: ClosedRange<Int>? {
         guard let s = start else { return nil }
-        return s...(s + 4)
+        return s...(s + length - 1)
     }
 
     var label: String {
         guard let s = start else { return "全年代" }
         let decade = s / 10 * 10
+        if length >= 10 { return decade < 2000 ? "\(decade % 100)年代" : "\(decade)年代" }
         let half = s % 10 == 0 ? "前半" : "後半"
         if decade < 2000 { return "\(decade % 100)年代\(half)" }
         return "\(decade)年代\(half)"
@@ -227,6 +236,28 @@ struct Song: Identifiable, Hashable {
     var spokenAnswer: String { "\(artist)の、\(title)" }
 }
 
+// MARK: - 曲の止め方
+
+enum StopMode: String, CaseIterable, Identifiable {
+    case manual, auto
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .manual: return "⏹ 自分で止める"
+        case .auto: return "⏱ 秒数で自動で止める"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .manual: return "「ドン！」で曲が流れ続けます。歌い出しまで聴いたら「ストップ」で止めて答えます。「つづきを流す」で再開もできます。"
+        case .auto: return "決めた秒数だけ流れて自動で止まります。"
+        }
+    }
+}
+
 struct QuizSettings {
     var source: MusicSource = .library
     var genre: Genre = .all
@@ -237,4 +268,5 @@ struct QuizSettings {
     var questionCount: Int = 10
     /// true = 歌い出し（最初の歌詞）の少し前から再生 / false = 曲の頭から
     var startFromVocal: Bool = true
+    var stopMode: StopMode = .manual
 }

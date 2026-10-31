@@ -116,17 +116,32 @@ struct QuizView: View {
 
     private var donButton: some View {
         let isPlaying = model.phase == .playing
-        return Button { model.play() } label: {
+        let manual = model.isManualStop
+        let stopStyle = isPlaying && manual
+        return Button {
+            if stopStyle { model.stopPlayback() }
+            else if manual && model.isPaused { model.resumePlayback() }
+            else { model.play() }
+        } label: {
             ZStack {
                 if isPlaying { PulseRings() }
                 Circle()
-                    .fill(LinearGradient(colors: [Theme.pink, Color.orange], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .fill(LinearGradient(colors: stopStyle ? [Theme.wrong, Color.purple] : [Theme.pink, Color.orange],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
                     .frame(width: 170, height: 170)
-                    .shadow(color: Theme.pink.opacity(0.7), radius: 20)
+                    .shadow(color: (stopStyle ? Theme.wrong : Theme.pink).opacity(0.7), radius: 20)
                 VStack(spacing: 4) {
-                    Text(isPlaying ? "♪♪♪" : "ドン！")
-                        .font(.system(size: 40, weight: .black, design: .rounded))
-                    Text(isPlaying ? "わかったら選んで！" : (model.playCount == 0 ? "タップでイントロ" : "もう一度"))
+                    if stopStyle {
+                        Image(systemName: "stop.fill").font(.system(size: 34, weight: .black))
+                        Text("ストップ").font(.system(size: 30, weight: .black, design: .rounded))
+                    } else if manual && model.isPaused {
+                        Image(systemName: "play.fill").font(.system(size: 30, weight: .black))
+                        Text("つづきを流す").font(.system(size: 24, weight: .black, design: .rounded))
+                    } else {
+                        Text(isPlaying ? "♪♪♪" : "ドン！")
+                            .font(.system(size: 40, weight: .black, design: .rounded))
+                    }
+                    Text(buttonCaption(isPlaying: isPlaying, manual: manual))
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                 }
             }
@@ -135,13 +150,23 @@ struct QuizView: View {
             .animation(.spring(response: 0.3, dampingFraction: 0.5), value: isPlaying)
         }
         .buttonStyle(.plain)
-        .disabled(isPlaying || model.phase == .judged)
+        .disabled((isPlaying && !manual) || model.phase == .judged)
+    }
+
+    private func buttonCaption(isPlaying: Bool, manual: Bool) -> String {
+        if isPlaying { return manual ? "歌い出しまで来たら止めよう" : "わかったら選んで！" }
+        if manual && model.isPaused { return "止めたところから" }
+        return model.playCount == 0 ? "タップでイントロ" : "もう一度"
     }
 
     private var controlRow: some View {
         HStack(spacing: 10) {
             if model.phase != .judged && model.phase != .preparing {
-                if !model.isShowRule {
+                if model.isManualStop {
+                    if model.playCount > 0 && model.phase != .playing {
+                        smallButton("最初から", icon: "backward.end.fill") { model.play() }
+                    }
+                } else if !model.isShowRule {
                     smallButton("+1秒で聴く", icon: "plus.circle") { model.playLonger() }
                         .disabled(model.phase == .playing)
                 }
@@ -149,8 +174,18 @@ struct QuizView: View {
             }
         }
         .overlay(alignment: .bottom) {
-            Text(String(format: "イントロ %.1f秒", model.introLength) + (model.startLabel.map { "・\($0)" } ?? ""))
-                .font(.caption).opacity(0.6).offset(y: 22).fixedSize()
+            Group {
+                if model.isManualStop {
+                    TimelineView(.periodic(from: .now, by: 0.1)) { ctx in
+                        let now = model.playStartedAt.map { ctx.date.timeIntervalSince($0) } ?? 0
+                        Text(String(format: "聴いた時間 %.1f秒", model.listenedBefore + now)
+                             + (model.startLabel.map { "・\($0)" } ?? ""))
+                    }
+                } else {
+                    Text(String(format: "イントロ %.1f秒", model.introLength) + (model.startLabel.map { "・\($0)" } ?? ""))
+                }
+            }
+            .font(.caption).opacity(0.6).offset(y: 22).fixedSize()
         }
     }
 
@@ -308,7 +343,11 @@ struct StageIntroView: View {
                         .background(Theme.gold.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
                 }
                 VStack(spacing: 6) {
-                    Text(String(format: "イントロ %.1f秒 × %ld問", st.introSeconds, st.count))
+                    if model.isManualStop {
+                        Text("\(st.count)問・曲は「ストップ」を押すまで流れます")
+                    } else {
+                        Text(String(format: "イントロ %.1f秒 × %ld問", st.introSeconds, st.count))
+                    }
                     if model.isShowRule {
                         Text("お手つき・不正解は −5点、✕2つで失格（得点没収）")
                     }

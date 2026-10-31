@@ -45,6 +45,7 @@ struct HomeView: View {
                                         .font(.system(size: 13, weight: .bold, design: .rounded))
                                         .frame(width: 70, alignment: .leading)
                                         .opacity(0.8)
+                                    Chip(text: "全部", selected: settings.era == .decade(decade)) { settings.era = .decade(decade) }
                                     ForEach([decade, decade + 5], id: \.self) { y in
                                         let e = Era(start: y)
                                         Chip(text: y % 10 == 0 ? "前半" : "後半", selected: settings.era == e) { settings.era = e }
@@ -69,10 +70,21 @@ struct HomeView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     card {
-                        SectionTitle(text: settings.rule == .show ? "最初のステージのイントロの長さ" : "イントロの長さ")
+                        SectionTitle(text: "曲の止め方")
                         FlowLayout {
-                            ForEach([1.0, 3.0, 5.0, 10.0], id: \.self) { sec in
-                                Chip(text: "\(Int(sec))秒", selected: settings.introSeconds == sec) { settings.introSeconds = sec }
+                            ForEach(StopMode.allCases) { m in
+                                Chip(text: m.label, selected: settings.stopMode == m) { settings.stopMode = m }
+                            }
+                        }
+                        Text(settings.stopMode.detail)
+                            .font(.caption).foregroundStyle(.white.opacity(0.6))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if settings.stopMode == .auto {
+                            SectionTitle(text: settings.rule == .show ? "最初のステージのイントロの長さ" : "イントロの長さ").padding(.top, 6)
+                            FlowLayout {
+                                ForEach([1.0, 3.0, 5.0, 10.0], id: \.self) { sec in
+                                    Chip(text: "\(Int(sec))秒", selected: settings.introSeconds == sec) { settings.introSeconds = sec }
+                                }
                             }
                         }
                         if settings.source != .preview {
