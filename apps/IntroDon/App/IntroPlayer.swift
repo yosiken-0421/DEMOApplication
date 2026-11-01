@@ -39,6 +39,68 @@ final class IntroPlayer {
         }
     }
 
+    /// 出題する前に曲を読み込んでおく。失敗したら少し待って最大3回やり直す。
+    /// それでも読み込めない曲は false（その曲は出題しない）
+    func prepare(_ song: Song) async -> Bool {
+        cancel()
+        return await loadWithRetry(song)
+    }
+
+    private func loadWithRetry(_ song: Song) async -> Bool {
+        for attempt in 0..<3 {
+            if attempt > 0 { try? await Task.sleep(nanoseconds: UInt64(400_000_000 * attempt)) }
+            loadedSongID = nil
+            do {
+                if currentModeIsPreview {
+                    guard let url = song.previewURL else { return false }
+                    try await preparePreview(url: url, songID: song.id)
+                } else {
+                    try await loadMusic(song)
+                }
+                return true
+            } catch {
+                continue
+            }
+        }
+        return false
+    }
+
+    /// 試聴音源を読み込んで、再生できる状態になるまで待つ
+    private func preparePreview(url: URL, songID: String) async throws {
+        let item = AVPlayerItem(url: url)
+        let p = AVPlayer(playerItem: item)
+        let deadline = Date().addingTimeInterval(10)
+        while item.status != .readyToPlay {
+            if item.status == .failed { throw IntroPlayerError.notPlayable }
+            if Date() > deadline { throw IntroPlayerError.startTimeout }
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        av = p
+        loadedSongID = songID
+    }
+
+    /// iPhone のミュージック / Apple Music の曲を読み込む
+    private func loadMusic(_ song: Song) async throws {
+        music.stop()
+        if let pid = song.libraryID {
+            guard let item = SongProvider.libraryItems[pid] else { throw IntroPlayerError.notPlayable }
+            music.setQueue(with: MPMediaItemCollection(items: [item]))
+        } else if let sid = song.storeID {
+            music.setQueue(with: MPMusicPlayerStoreQueueDescriptor(storeIDs: [sid]))
+        } else {
+            throw IntroPlayerError.notPlayable
+        }
+        music.repeatMode = .none
+        music.shuffleMode = .off
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            music.prepareToPlay { error in
+                if let error { cont.resume(throwing: IntroPlayerError.prepare(error.localizedDescription)) }
+                else { cont.resume() }
+            }
+        }
+        loadedSongID = song.id
+    }
+
     /// 試聴モードかどうか（QuizModel から設定）
     var currentModeIsPreview = false
 
@@ -73,23 +135,8 @@ final class IntroPlayer {
 
     private func playMusic(_ song: Song, from start: Double, seconds: Double?, token: Int) async throws {
         if loadedSongID != song.id {
-            if let pid = song.libraryID {
-                guard let item = SongProvider.libraryItems[pid] else { throw IntroPlayerError.notPlayable }
-                music.setQueue(with: MPMediaItemCollection(items: [item]))
-            } else if let sid = song.storeID {
-                music.setQueue(with: MPMusicPlayerStoreQueueDescriptor(storeIDs: [sid]))
-            } else {
-                throw IntroPlayerError.notPlayable
-            }
-            music.repeatMode = .none
-            music.shuffleMode = .off
-            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-                music.prepareToPlay { error in
-                    if let error { cont.resume(throwing: IntroPlayerError.prepare(error.localizedDescription)) }
-                    else { cont.resume() }
-                }
-            }
-            loadedSongID = song.id
+            // 念のため：読み込めていなければ、ここでもやり直しつきで読み込む
+            guard await loadWithRetry(song) else { throw IntroPlayerError.notPlayable }
         }
         music.currentPlaybackTime = start
         music.play()

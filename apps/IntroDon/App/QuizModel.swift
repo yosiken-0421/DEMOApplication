@@ -281,6 +281,13 @@ final class QuizModel: ObservableObject {
                 else { q = await buildQuestion() }
             }
             prefetchTask = nil
+            // 出題する前に曲を読み込んでおく。読み込めない曲（配信が止まった・地域で聴けない等）は
+            // エラーを出さずに別の曲に差し替える
+            var skipped = 0
+            while let cand = q, !(await player.prepare(cand.song)) {
+                skipped += 1
+                q = skipped <= 15 ? await buildQuestion() : nil
+            }
             guard let q else {
                 // もう出せる曲がない
                 finish()
@@ -401,7 +408,15 @@ final class QuizModel: ObservableObject {
             do {
                 let start = await startTime(for: q.song)
                 guard phase == .playing else { return }
-                try await player.playIntro(q.song, from: start, seconds: length)
+                do {
+                    try await player.playIntro(q.song, from: start, seconds: length)
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    // 一度だけ読み込み直してやり直す
+                    guard phase == .playing, await player.prepare(q.song), phase == .playing else { throw error }
+                    try await player.playIntro(q.song, from: start, seconds: length)
+                }
                 guard phase == .playing else { player.stop(); return }
                 playCount += 1
                 playStartedAt = Date()

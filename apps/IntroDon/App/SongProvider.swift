@@ -210,6 +210,7 @@ enum SongProvider {
         let previewUrl: String?
         let trackViewUrl: String?
         let artworkUrl100: String?
+        let isStreamable: Bool?
     }
     struct SearchResponse: Decodable { let results: [Track] }
 
@@ -307,6 +308,8 @@ enum SongProvider {
     static func resolve(_ c: Candidate, settings: QuizSettings) async -> Song? {
         if let s = c.song { return s }
         guard let id = c.hit?.id, let t = await TrackLookup.shared.track(id) else { return nil }
+        // Apple Music で配信されていない（購入のみの）曲は Apple Music モードでは再生できない
+        if settings.source == .appleMusic, t.isStreamable == false { return nil }
         return makeSong(t, needPreview: settings.source == .preview, overrideYear: c.year)
     }
 

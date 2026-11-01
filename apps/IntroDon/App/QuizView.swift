@@ -60,7 +60,7 @@ struct QuizView: View {
             }
             controlRow
             if let err = model.playError {
-                Text(err).font(.footnote).foregroundStyle(Theme.gold).multilineTextAlignment(.center)
+                Text(err).font(.footnote).foregroundStyle(Theme.gold).multilineTextAlignment(.center).padding(.top, 26)
             }
             Spacer(minLength: 0)
             if model.phase == .judged, let q = model.current {
