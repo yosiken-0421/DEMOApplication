@@ -15,9 +15,10 @@ test('javascript syntax',()=>{
  assert.match(html,/<script src="logic\.js"><\/script><script>/);
 });
 test('8d6c54以前の不具合が再発しない',()=>{
- // 八街市の気象庁一次細分区域は未確認のため固定しない
- assert.match(html,/name:"八街市",lat:35\.665,lon:140\.318,office:"120000"\}/);
  assert.doesNotMatch(html,/i===0\?"今日/);
+ // 地域は全国データから選ぶ（八街市を推測の予報区で固定しない）
+ assert.match(html,/<script src="municipalities\.js"><\/script><script src="logic\.js"><\/script>/);
+ assert.match(html,/"12230"/);
 });
 test('required source and warning attribution',()=>{
  assert.match(html,/Open-Meteo.com/);

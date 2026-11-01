@@ -1,0 +1,8 @@
+{"results":{"bindings":[
+{"code":{"value":"121002"},"coord":{"value":"Point(140.1233 35.6074)"},"label":{"value":"千葉市"}},
+{"code":{"value":"122301"},"coord":{"value":"Point(140.3181 35.6658)"},"label":{"value":"八街市"}},
+{"code":{"value":"131016"},"coord":{"value":"Point(139.7536 35.6940)"},"label":{"value":"千代田区"}},
+{"code":{"value":"132063"},"coord":{"value":"Point(139.4777 35.6689)"},"label":{"value":"府中市"}},
+{"code":{"value":"221309"},"coord":{"value":"Point(137.7261 34.7108)"},"label":{"value":"浜松市"}},
+{"code":{"value":"999999"},"coord":{"value":"Point(0 0)"}}
+]}}

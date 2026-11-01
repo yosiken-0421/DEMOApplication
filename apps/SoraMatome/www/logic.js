@@ -99,6 +99,46 @@
       now.getTime() - saved.time < maxHours * 3600000);
   }
 
-  const api = { officeForPrefecture, weatherInfo, jstParts, hourlyStart, dayLabel, parseJmaForecast, placeFromGeocode, cacheUsable };
+  // ---- 全国市区町村の検索（www/municipalities.js、端末内で完結） ----
+  function normalize(x) {
+    return String(x || "").normalize("NFKC").toLowerCase().replace(/ヶ/g, "ケ")
+      .replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60))
+      .replace(/[\s・･,，、.。()（）]/g, "");
+  }
+  const PREF_SHORT = PREFS.slice(1).map(p => [p, p === "北海道" ? p : p.replace(/[都府県]$/, "")]);
+
+  function rowToPlace(r) {
+    return { code: r[0], name: r[1], kana: r[2], pref: r[4], lat: r[5], lon: r[6], office: r[7], area: r[8] || undefined };
+  }
+
+  // 戻り値：候補の地点（最大 limit 件）。漢字・ひらがな・カタカナ・ローマ字、「市」なし、県名つきに対応。
+  // 「福島町（北海道）」のように県名で始まる市町村もあるため、県名として読む解釈と読まない解釈の両方で探す。
+  function searchMunicipalities(rows, query, limit) {
+    const q0 = normalize(query);
+    if (!q0 || !Array.isArray(rows)) return [];
+    const tries = [[q0, null]];
+    for (const [full, short] of PREF_SHORT) {
+      const head = [normalize(full), normalize(short)].find(h => q0.startsWith(h));
+      if (head) { tries.push([q0.slice(head.length), full]); break; }
+    }
+    const best = new Map();
+    for (const [q, pref] of tries) {
+      for (const r of rows) {
+        if (pref && r[4] !== pref) continue;
+        const name = normalize(r[1]), kana = normalize(r[2]), en = normalize(r[3]);
+        let score;
+        if (q && (name === q || kana === q)) score = 0;
+        else if (name.startsWith(q) || kana.startsWith(q)) score = 1;   // q が空（県名だけ）ならその県の全件
+        else if (en && en.startsWith(q)) score = 2;
+        else if (q.length >= 2 && (name.includes(q) || kana.includes(q))) score = 3;
+        else continue;
+        if (!best.has(r[0]) || best.get(r[0])[0] > score) best.set(r[0], [score, /[市区]$/.test(r[1]) ? 0 : 1, r]);
+      }
+    }
+    return [...best.values()].sort((a, b) => a[0] - b[0] || a[1] - b[1] || (a[2][0] < b[2][0] ? -1 : 1))
+      .slice(0, limit || 20).map(x => rowToPlace(x[2]));
+  }
+
+  const api = { normalize, searchMunicipalities, rowToPlace, officeForPrefecture, weatherInfo, jstParts, hourlyStart, dayLabel, parseJmaForecast, placeFromGeocode, cacheUsable };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.SoraLogic = api;
 })(typeof window !== "undefined" ? window : globalThis);

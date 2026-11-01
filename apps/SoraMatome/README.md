@@ -2,7 +2,7 @@
 
 開発の本体は https://github.com/yosiken-0421/SoraMatome-iOS です。ここは TestFlight 配布用のコピーで、
 このリポジトリに登録済みの API キー（ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_P8 / APPLE_TEAM_ID）で署名します。
-変更は SoraMatome-iOS で行い、同じ内容をここへ反映してください（www / tests / ios-native を丸ごと上書き）。
+変更は SoraMatome-iOS で行い、同じ内容をここへ反映してください（www / tests / ios-native / tools を丸ごと上書き）。
 
 - アプリ名：空まとめ ／ Bundle ID：com.yosiken0421.soramatome ／ iOS 17 以上
 - 一般公開はしません（TestFlight の内部テストのみ）
