@@ -1,0 +1,4 @@
+ios-native/.build/
+ios-native/SoraMatome.xcodeproj/
+ios-native/SoraMatome/www/
+ios-native/SoraMatome/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
