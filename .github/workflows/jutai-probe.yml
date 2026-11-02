@@ -1,0 +1,26 @@
+name: 渋滞ナビ / データ形式の調査
+
+# JARTIC「道路交通情報Now!!」のデータの形式を調べるための一時的なワークフロー（アプリのビルドとは無関係）
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/jutai-probe.yml", ".github/scripts/jutai_probe.py"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: 調査
+        run: python3 .github/scripts/jutai_probe.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jutai-probe
+          path: probe-out/
+          retention-days: 3
