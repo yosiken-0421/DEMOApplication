@@ -139,6 +139,41 @@
       .slice(0, limit || 20).map(x => rowToPlace(x[2]));
   }
 
-  const api = { normalize, searchMunicipalities, rowToPlace, officeForPrefecture, weatherInfo, jstParts, hourlyStart, dayLabel, parseJmaForecast, placeFromGeocode, cacheUsable };
+  // ---- お気に入り地域（端末内に保存） ----
+  const FAVORITE_MAX = 12;
+  function placeKey(p) {
+    return p && p.code ? "c:" + p.code : p ? "g:" + Number(p.lat).toFixed(2) + "," + Number(p.lon).toFixed(2) : "";
+  }
+  function validPlace(p) {
+    return !!(p && typeof p.name === "string" && p.name && Number.isFinite(p.lat) && Number.isFinite(p.lon) &&
+      p.lat > 20 && p.lat < 46.5 && p.lon > 122 && p.lon < 154.5);
+  }
+  // 保存データ（壊れていることもある）を安全な一覧に戻す。団体コードがあれば最新の一覧データで置き換える。
+  function loadFavorites(raw, byCode) {
+    let list;
+    try { list = typeof raw === "string" ? JSON.parse(raw) : raw; } catch (_) { return null; }
+    if (!Array.isArray(list)) return null;
+    const out = [], seen = new Set();
+    for (const x of list) {
+      const p = x && x.code && byCode ? byCode(x.code) || x : x;
+      if (!validPlace(p) || seen.has(placeKey(p))) continue;
+      seen.add(placeKey(p)); out.push(p);
+      if (out.length >= FAVORITE_MAX) break;
+    }
+    return out;
+  }
+  function isFavorite(list, p) { return list.some(x => placeKey(x) === placeKey(p)); }
+  function addFavorite(list, p) {
+    if (!validPlace(p) || isFavorite(list, p) || list.length >= FAVORITE_MAX) return list;
+    return [...list, p];
+  }
+  function removeFavorite(list, p) { return list.filter(x => placeKey(x) !== placeKey(p)); }
+  function moveFavorite(list, p, delta) {
+    const i = list.findIndex(x => placeKey(x) === placeKey(p)), j = i + delta;
+    if (i < 0 || j < 0 || j >= list.length) return list;
+    const out = list.slice(); [out[i], out[j]] = [out[j], out[i]]; return out;
+  }
+
+  const api = { FAVORITE_MAX, placeKey, validPlace, loadFavorites, isFavorite, addFavorite, removeFavorite, moveFavorite, normalize, searchMunicipalities, rowToPlace, officeForPrefecture, weatherInfo, jstParts, hourlyStart, dayLabel, parseJmaForecast, placeFromGeocode, cacheUsable };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.SoraLogic = api;
 })(typeof window !== "undefined" ? window : globalThis);
