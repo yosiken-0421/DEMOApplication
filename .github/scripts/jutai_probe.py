@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""JARTIC 道路交通情報Now!! のデータ形式を調べてログに出す（調査用・2回目）。"""
-import re, urllib.request, urllib.parse, html as H
+"""JARTIC 道路交通情報Now!! のデータ形式を調べてログに出す（調査用・3回目）。"""
+import re, json, urllib.request
 
 UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
+B = "https://www.jartic.or.jp"
 
 
-def get(url, limit=3_000_000, ref="https://www.jartic.or.jp/map/"):
+def get(url, limit=3_000_000):
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": UA, "Referer": ref, "X-Requested-With": "XMLHttpRequest"})
+        req = urllib.request.Request(url, headers={"User-Agent": UA, "Referer": B + "/map/"})
         with urllib.request.urlopen(req, timeout=20) as r:
             d = r.read(limit)
             print(f"[{r.status}] {r.headers.get('content-type','')} {len(d)}B {url}")
@@ -17,41 +18,28 @@ def get(url, limit=3_000_000, ref="https://www.jartic.or.jp/map/"):
         return ""
 
 
-def text(h):
-    h = re.sub(r"(?s)<(script|style)[^>]*>.*?</\1>", " ", h)
-    return re.sub(r"\s+", " ", H.unescape(re.sub(r"<[^>]+>", " ", h)))
+main = get(B + "/js/main.js")
+k = main.find("TRAFFIC_EVENT")
+print("===== main.js 設定 =====")
+print(main[max(0, k - 1500): k + 3000])
 
-
-print("===== map.js の URL らしき箇所 =====")
-mj = get("https://www.jartic.or.jp/js/map.js")
-hits = set()
-for m in re.finditer(r'(/d/[A-Za-z0-9_./{}$+-]*|traffic_info[A-Za-z0-9_./-]*|\.json)', mj):
-    s = mj[max(0, m.start() - 160): m.end() + 120].replace("\n", " ")
-    key = m.group(0)
-    if (key, s[:60]) in hits:
-        continue
-    hits.add((key, s[:60]))
-for k, _ in sorted(hits)[:10]:
-    pass
-seen = 0
-for m in re.finditer(r'/d/[A-Za-z0-9_./-]*', mj):
-    if seen > 80:
+mj = get(B + "/js/map.js")
+print("\n===== map.js ポップアップ（getProperties）=====")
+n = 0
+for m in re.finditer(r"getProperties\(\)", mj):
+    n += 1
+    if n > 45:
         break
-    seen += 1
-    print("---", mj[max(0, m.start() - 220): m.end() + 160].replace("\n", " "))
+    print("---", mj[max(0, m.start() - 250): m.end() + 900].replace("\n", " "))
 
-print("\n===== 高速の渋滞ページ =====")
-for u in ["https://www.jartic.or.jp/service/trafficjam/trafficjam_highway/",
-          "https://www.jartic.or.jp/service/trafficjam/trafficjam_highway/map/?p=1",
-          "https://www.jartic.or.jp/service/trafficjam/trafficjam_highway/map/?p=3"]:
-    h = get(u)
-    print(text(h)[:2500])
-    for m in re.findall(r'(?:src|href|data-[a-z-]+)=["\']([^"\']+)["\']', h):
-        if any(x in m for x in ("json", "/d/", "list", "map", "js")):
-            print("   ref:", m)
+print("\n===== map.js の r1〜r5 / map_type / date の使われ方 =====")
+for kw in ["map_type", "{date}", "TRAFFIC_EVENT_R1", "TRAFFIC_EVENT_R2", "target.json", "highway", "HIGHWAY"]:
+    for m in list(re.finditer(re.escape(kw), mj))[:6]:
+        print(f"--- [{kw}]", mj[max(0, m.start() - 300): m.end() + 300].replace("\n", " "))
 
-print("\n===== main.js / common-lib.js の /d/ =====")
-for js in ["https://www.jartic.or.jp/js/main.js", "https://www.jartic.or.jp/js/common-lib.js"]:
-    t = get(js)
-    for m in list(re.finditer(r'/d/[A-Za-z0-9_./-]*', t))[:20]:
-        print("---", t[max(0, m.start() - 200): m.end() + 120].replace("\n", " "))
+print("\n===== target.json =====")
+for base in ["/d/traffic_info", "/s/traffic_info", "/d/traffic_info/r1", ""]:
+    for r in ["r1", "r2", "r3", "r4", "r5"]:
+        t = get(f"{B}{base}/{r}/target.json")
+        if t:
+            print("   ", t[:800])
