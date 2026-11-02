@@ -216,6 +216,7 @@ jobs:
           B=$(/usr/libexec/PlistBuddy -c "Print CFBundleVersion" "$APP/Info.plist")
           BID=$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Info.plist")
           echo "Archive: $BID $V ($B)"
+          /usr/libexec/PlistBuddy -c "Print UIBackgroundModes" "$APP/Info.plist" || echo "::warning::バックグラウンド音声の設定がありません"
           test -d "$APP/Metadata.appintents" || echo "::warning::Siri 用の情報（Metadata.appintents）が見つかりません"
           if [ "$V" != "$APP_VERSION" ] || [ "$B" != "$APP_BUILD" ] || [ "$BID" != "$BUNDLE_ID" ]; then
             echo "::error::バージョン/ビルド番号/Bundle ID が想定と違います: $BID $V ($B)"; exit 1

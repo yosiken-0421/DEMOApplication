@@ -15,6 +15,10 @@ targets:
     platform: iOS
     sources:
       - path: JutaiNavi
+    info:
+      path: JutaiNavi/Info.plist
+      properties:
+        UIBackgroundModes: [audio]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yosiken0421.jutainavi

@@ -1,5 +1,7 @@
 import AppIntents
+import AVFoundation
 import Foundation
+import SwiftUI
 
 extension Road: AppEnum {
     static var typeDisplayRepresentation: TypeDisplayRepresentation = "高速道路"
@@ -57,14 +59,16 @@ struct RoadTrafficIntent: AppIntent {
     init() {}
     init(road: Road) { self.road = road }
 
-    func perform() async throws -> some IntentResult & ProvidesDialog {
+    func perform() async throws -> some IntentResult & ShowsSnippetView {
+        let text: String
         do {
             let snap = try await TrafficService.shared.road(road)
-            let text = TrafficText.speech(road: road, items: snap.items, updated: snap.updated)
-            return .result(dialog: "\(text)")
+            text = TrafficText.speech(road: road, items: snap.items, updated: snap.updated)
         } catch {
-            return .result(dialog: "交通情報を取得できませんでした。少し時間をおいてもう一度聞いてください。")
+            text = "交通情報を取得できませんでした。少し時間をおいてもう一度聞いてください。"
         }
+        await IntentSpeaker.shared.speak(text)
+        return .result(view: SpeechSnippet(text: text))
     }
 }
 
@@ -74,7 +78,8 @@ struct FavoriteTrafficIntent: AppIntent {
     static var description = IntentDescription("アプリで登録した「いつもの道路」の渋滞情報を読み上げます。")
     static var openAppWhenRun: Bool = false
 
-    func perform() async throws -> some IntentResult & ProvidesDialog {
+    func perform() async throws -> some IntentResult & ShowsSnippetView {
+        let text: String
         do {
             let roads = Favorites.load()
             let snap = try await TrafficService.shared.all()
@@ -84,10 +89,48 @@ struct FavoriteTrafficIntent: AppIntent {
                 parts.append(TrafficText.speech(road: road, items: items, updated: nil))
             }
             if let u = snap.updated { parts.append("\(TrafficText.timeText(u))時点の情報です。") }
-            return .result(dialog: "\(parts.joined())")
+            text = parts.joined()
         } catch {
-            return .result(dialog: "交通情報を取得できませんでした。少し時間をおいてもう一度聞いてください。")
+            text = "交通情報を取得できませんでした。少し時間をおいてもう一度聞いてください。"
         }
+        await IntentSpeaker.shared.speak(text)
+        return .result(view: SpeechSnippet(text: text))
+    }
+}
+
+/// Siri の設定（声で応答しない設定など）に関係なく、アプリ自身が声で読み上げる。
+/// 読み上げは裏で続くので、Siri の画面が閉じても最後まで読む（バックグラウンド音声）。
+@MainActor
+final class IntentSpeaker: NSObject, AVSpeechSynthesizerDelegate {
+    static let shared = IntentSpeaker()
+    private let synth = AVSpeechSynthesizer()
+    override init() { super.init(); synth.delegate = self }
+
+    func speak(_ text: String) {
+        if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .voicePrompt, options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
+        try? session.setActive(true)
+        let u = AVSpeechUtterance(string: text)
+        u.voice = AVSpeechSynthesisVoice(language: "ja-JP")
+        u.rate = 0.52
+        u.preUtteranceDelay = 0.3
+        synth.speak(u)
+    }
+
+    nonisolated func speechSynthesizer(_ s: AVSpeechSynthesizer, didFinish u: AVSpeechUtterance) {
+        Task { @MainActor in try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) }
+    }
+}
+
+/// Siri の画面に出す文字（声はアプリが読む）
+struct SpeechSnippet: View {
+    let text: String
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("渋滞ナビ", systemImage: "speaker.wave.2.fill").font(.caption.bold()).foregroundStyle(.green)
+            Text(text).font(.subheadline)
+        }.padding()
     }
 }
 
