@@ -1,71 +1,57 @@
 #!/usr/bin/env python3
-"""JARTIC 道路交通情報Now!! のページ・スクリプト・データURLを調べて probe-out/ に保存する（調査用）。"""
-import os, re, urllib.request, urllib.parse, json
+"""JARTIC 道路交通情報Now!! のデータ形式を調べてログに出す（調査用・2回目）。"""
+import re, urllib.request, urllib.parse, html as H
 
-OUT = "probe-out"
-os.makedirs(OUT, exist_ok=True)
 UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1"
-seen = {}
 
 
-def get(url, limit=3_000_000):
-    if url in seen:
-        return seen[url]
+def get(url, limit=3_000_000, ref="https://www.jartic.or.jp/map/"):
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": UA, "Referer": "https://www.jartic.or.jp/"})
+        req = urllib.request.Request(url, headers={"User-Agent": UA, "Referer": ref, "X-Requested-With": "XMLHttpRequest"})
         with urllib.request.urlopen(req, timeout=20) as r:
-            data = r.read(limit)
-            info = (r.status, r.headers.get("content-type", ""), len(data))
+            d = r.read(limit)
+            print(f"[{r.status}] {r.headers.get('content-type','')} {len(d)}B {url}")
+            return d.decode("utf-8", "replace")
     except Exception as e:
-        data, info = b"", ("ERR", str(e), 0)
-    seen[url] = (info, data)
-    print(f"[{info[0]}] {info[1]} {info[2]}B  {url}")
-    return seen[url]
+        print(f"[ERR] {e} {url}")
+        return ""
 
 
-def save(name, data):
-    p = os.path.join(OUT, re.sub(r"[^A-Za-z0-9._-]", "_", name)[:150])
-    with open(p, "wb") as f:
-        f.write(data)
+def text(h):
+    h = re.sub(r"(?s)<(script|style)[^>]*>.*?</\1>", " ", h)
+    return re.sub(r"\s+", " ", H.unescape(re.sub(r"<[^>]+>", " ", h)))
 
 
-start = ["https://www.jartic.or.jp/", "https://www.jartic.or.jp/map/", "https://www.jartic.or.jp/d/traffic_info/",
-         "https://www.jartic.or.jp/s/", "https://www.jartic.or.jp/d/"]
-urls = set()
-for u in start:
-    info, data = get(u)
-    save("page_" + u, data)
-    html = data.decode("utf-8", "replace")
-    for m in re.findall(r'(?:src|href)=["\']([^"\']+)["\']', html):
-        urls.add(urllib.parse.urljoin(u, m))
-
-js = [u for u in urls if re.search(r"\.js(\?|$)", u) and "jartic" in u]
-cands = set()
-for u in sorted(js)[:60]:
-    info, data = get(u)
-    t = data.decode("utf-8", "replace")
-    save("js_" + u, data)
-    for m in re.findall(r'["\'`]([^"\'`\s]*?(?:\.json|/api/|/d/|traffic|jam|kisei|regulation|tile)[^"\'`\s]*)["\'`]', t):
-        cands.add(m)
-
-with open(os.path.join(OUT, "candidates.txt"), "w") as f:
-    f.write("\n".join(sorted(cands)))
-print("\n==== 候補URL/パス ====")
-for c in sorted(cands)[:400]:
-    print(c)
-
-print("\n==== 候補の取得 ====")
-for c in sorted(cands)[:150]:
-    if "${" in c or "{" in c:
+print("===== map.js の URL らしき箇所 =====")
+mj = get("https://www.jartic.or.jp/js/map.js")
+hits = set()
+for m in re.finditer(r'(/d/[A-Za-z0-9_./{}$+-]*|traffic_info[A-Za-z0-9_./-]*|\.json)', mj):
+    s = mj[max(0, m.start() - 160): m.end() + 120].replace("\n", " ")
+    key = m.group(0)
+    if (key, s[:60]) in hits:
         continue
-    full = urllib.parse.urljoin("https://www.jartic.or.jp/", c)
-    if "jartic" not in full:
-        continue
-    info, data = get(full, 400_000)
-    if data and ("json" in info[1] or data[:1] in (b"{", b"[")):
-        save("data_" + full, data)
-        print("   先頭:", data[:600].decode("utf-8", "replace").replace("\n", " "))
+    hits.add((key, s[:60]))
+for k, _ in sorted(hits)[:10]:
+    pass
+seen = 0
+for m in re.finditer(r'/d/[A-Za-z0-9_./-]*', mj):
+    if seen > 80:
+        break
+    seen += 1
+    print("---", mj[max(0, m.start() - 220): m.end() + 160].replace("\n", " "))
 
-# 旧形式の確認
-for cd in ["13", "12", "11", "M_13_301"]:
-    get(f"https://www.jartic.or.jp/_json/M_{cd}_301.json")
+print("\n===== 高速の渋滞ページ =====")
+for u in ["https://www.jartic.or.jp/service/trafficjam/trafficjam_highway/",
+          "https://www.jartic.or.jp/service/trafficjam/trafficjam_highway/map/?p=1",
+          "https://www.jartic.or.jp/service/trafficjam/trafficjam_highway/map/?p=3"]:
+    h = get(u)
+    print(text(h)[:2500])
+    for m in re.findall(r'(?:src|href|data-[a-z-]+)=["\']([^"\']+)["\']', h):
+        if any(x in m for x in ("json", "/d/", "list", "map", "js")):
+            print("   ref:", m)
+
+print("\n===== main.js / common-lib.js の /d/ =====")
+for js in ["https://www.jartic.or.jp/js/main.js", "https://www.jartic.or.jp/js/common-lib.js"]:
+    t = get(js)
+    for m in list(re.finditer(r'/d/[A-Za-z0-9_./-]*', t))[:20]:
+        print("---", t[max(0, m.start() - 200): m.end() + 120].replace("\n", " "))
