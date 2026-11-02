@@ -263,6 +263,12 @@ enum TrafficText {
             .replacingOccurrences(of: "Ｎ", with: "N").replacingOccurrences(of: "Ｓ", with: "S")
             .replacingOccurrences(of: "Ｐ", with: "P").replacingOccurrences(of: "Ａ", with: "A")
             .replacingOccurrences(of: "ｋｍ", with: "km")
+            .replacingOccurrences(of: "￫", with: "→")
+    }
+
+    /// 読み上げ用の場所（「Ａ→Ｂ」→「AからB」）
+    static func spokenPlace(_ s: String) -> String {
+        normalize(s).replacingOccurrences(of: "→", with: "から").replacingOccurrences(of: "～", with: "から")
     }
 
     static func isIncident(_ cause: String) -> Bool {
@@ -312,7 +318,7 @@ enum TrafficText {
     static func sentence(_ it: TrafficItem, includeRoad: Bool = false) -> String {
         let road = includeRoad ? normalize(it.roadName) + "、" : ""
         let dir = direction(it.direction)
-        let head = road + (dir.isEmpty ? "" : dir + "、") + normalize(it.place)
+        let head = road + (dir.isEmpty ? "" : dir + "、") + spokenPlace(it.place)
         switch it.kind {
         case .jam:
             let km = it.lengthKm.map { $0 == $0.rounded() ? String(Int($0)) : String($0) } ?? "?"

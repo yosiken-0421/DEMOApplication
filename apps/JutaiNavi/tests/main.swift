@@ -41,6 +41,8 @@ check(speech.contains("外回り"), "方向を「外回り」と読む")
 check(speech.contains("12時57分時点"), "更新時刻")
 check(speech.contains("IC"), "全角のＩＣを半角にする")
 let empty = TrafficText.speech(road: .chuo, items: [], updated: nil)
+check(speech.contains("市川中央ICから松戸ICで事故"), "区間の矢印を「から」と読む")
+check(TrafficText.normalize("市川中央ＩＣ→松戸ＩＣ") == "市川中央IC→松戸IC", "画面では矢印のまま")
 check(empty.contains("渋滞や事故の情報はありません"), "情報なしのとき")
 
 check(Road.find(in: "外環の渋滞情報を教えて") == .gaikan, "文章から外環を探す")
