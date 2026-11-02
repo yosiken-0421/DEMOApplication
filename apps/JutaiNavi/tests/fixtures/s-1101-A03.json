@@ -1,0 +1,4 @@
+{"type":"FeatureCollection","features":[
+{"type":"Feature","geometry":{"type":"Point","coordinates":[139.6,35.9]},"properties":{"r":"東北道","rn":"10170032","d":"上り","sapa":"蓮田ＳＡ","f":"0","j":"空","t":1,"pd":"東北道"}},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[139.6,36.1]},"properties":{"r":"東北道","rn":"10170032","d":"上り","sapa":"羽生ＰＡ","f":"1","j":"混雑","t":2,"pd":"東北道"}}
+]}

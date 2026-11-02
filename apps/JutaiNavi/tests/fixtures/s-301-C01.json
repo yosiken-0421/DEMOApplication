@@ -1,0 +1,12 @@
+{"type":"FeatureCollection","features":[
+{"type":"Feature","geometry":{"type":"Point","coordinates":[139.6,35.8]},"properties":{"cs":"70","r":"東京外環道","rn":"10230072","d":"内回","i":"外環浦和ＩＣ付近","c":"故障車","rd":"規制なし","a":"その他","l":"t","lo":841,"pd":["東京外環道"],"b":[],"z":8}},
+{"type":"Feature","geometry":{"type":"MultiPolygon","coordinates":[]},"properties":{"cs":"401","r":"東京外環道","rn":"10230072","d":"内回","i":"草加ＩＣ付近","j":"1km","z":8}},
+{"type":"Feature","geometry":{"type":"MultiPolygon","coordinates":[]},"properties":{"cs":"401","r":"東京外環道","rn":"10230072","d":"内回","i":"草加ＩＣ付近","j":"1km","z":9}},
+{"type":"Feature","geometry":{"type":"MultiPolygon","coordinates":[]},"properties":{"cs":"401","r":"東京外環道","rn":"10230075","d":"外回","i":"川口東ＩＣ付近","j":"3km","z":8}},
+{"type":"Feature","geometry":{"type":"MultiPolygon","coordinates":[]},"properties":{"cs":"402","r":"東京外環道","rn":"10230075","d":"外回","i":"川口東ＩＣ付近","j":"3km","z":9}},
+{"type":"Feature","geometry":{"type":"MultiPolygon","coordinates":[]},"properties":{"b":[],"c":"事故","d":"外回","i":"市川中央ＩＣ→松戸ＩＣ","l":"t","r":"東京外環道","z":8,"cs":"01","lo":10,"pd":["東京外環道"],"rd":"第１走行規制","rn":"10230075"}},
+{"type":"Feature","geometry":{"type":"MultiPolygon","coordinates":[]},"properties":{"c":"工事","d":"内回","i":"新富町出口","l":"t","r":"都心環状線　新富町出口","z":8,"ar":0,"cs":"201","lo":11,"pd":["都心環状線"],"rd":"通行止","rn":"20012002"}},
+{"type":"Feature","geometry":{"type":"MultiPolygon","coordinates":[]},"properties":{"c":"工事","d":"内回","i":"新富町出口","l":"f","r":"都心環状線　新富町出口","z":9,"ar":0,"cs":"201","lo":11,"pd":["都心環状線"],"rd":"通行止","rn":"20012002"}},
+{"type":"Feature","geometry":{"type":"MultiPolygon","coordinates":[]},"properties":{"c":"工事","d":"上り","i":"三郷南ＩＣ付近","l":"t","r":"東京外環道","cs":"31","lo":310,"pd":["東京外環道"],"rd":"追越車線規制","rn":"10230072"}},
+{"type":"Feature","geometry":{"type":"MultiPolygon","coordinates":[]},"properties":{"cs":"401","r":"東名阪道","rn":"10450302","d":"下り","i":"四日市ＩＣ付近","j":"2km","z":8}}
+]}
