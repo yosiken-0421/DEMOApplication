@@ -114,7 +114,8 @@ final class IntentSpeaker: NSObject, AVSpeechSynthesizerDelegate {
         let u = AVSpeechUtterance(string: text)
         u.voice = AVSpeechSynthesisVoice(language: "ja-JP")
         u.rate = 0.52
-        u.preUtteranceDelay = 0.3
+        // Siri の画面に文字が出てから読み始める
+        u.preUtteranceDelay = 1.2
         synth.speak(u)
     }
 
@@ -146,6 +147,12 @@ struct JutaiShortcuts: AppShortcutsProvider {
                 "\(.applicationName)、\(\.$road)の渋滞情報を教えて",
                 "\(.applicationName)、\(\.$road)の渋滞",
                 "\(.applicationName)で\(\.$road)",
+                "\(.applicationName)、\(\.$road)",
+                "\(.applicationName) \(\.$road)",
+                "\(.applicationName)で\(\.$road)は？",
+                "\(.applicationName)で\(\.$road)の状況",
+                "\(\.$road)の渋滞を\(.applicationName)で",
+                "\(\.$road)の渋滞情報を\(.applicationName)で教えて",
             ],
             shortTitle: "高速道路の渋滞",
             systemImageName: "car.2.fill"
