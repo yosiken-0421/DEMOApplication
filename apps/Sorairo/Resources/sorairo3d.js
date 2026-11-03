@@ -4,7 +4,7 @@
    - 攻撃は AnimationClip / AnimationMixer（予備動作→踏み込み→命中→振り抜き→復帰）
    - ダメージ量はゲーム側で計算済みの値をそのまま使い、命中フレームで渡すだけ
      （アニメ中に次の攻撃が来たら、モーションは重ねずダメージだけ入れる）
-   いまの対象：モモ（ガントレット）・ルル（杖）・ノクア（大鎌）
+   いまの対象：ユキナ（ユーザー提供の3Dモデル・槍）、モモ・ルル・ノクア（コードで組んだ簡易モデル）
    ===================================================================== */
 (function(){
 "use strict";
@@ -14,6 +14,7 @@ const D2R = Math.PI/180;
 
 /* ---------- 見た目の設定（設定画の色・形に合わせる） ---------- */
 const LOOK = {
+  1: { name:'ユキナ', model:true, attack:'thrust', melee:true }, // ユーザー提供の3Dモデル（model_h1.js）
   7: { name:'モモ', skin:'#FFE2D2', hair:'#F7A0AC', hairD:'#D9707F', eye:'#E2452E',
        top:'#2A2228', top2:'#F2EEE6', jacket:'#F07A28', jacketD:'#B4501A', bottom:'#2A2228', frill:'#FFFFFF',
        sock:'#FFFFFF', boot:'#F07A28', bootD:'#2A2228', skirt:null, hairStyle:'buns', weapon:'gauntlet',
@@ -272,12 +273,13 @@ function buildWeapon(L, sk, group){
 }
 
 /* ---------- アニメーション（骨ごとのキーフレーム） ---------- */
-function clip(name, dur, keys, base){
+function clip(name, dur, keys, base, hb){
+  hb=hb||[0,0.95,0];
   const tracks=[];
   const names=new Set([...Object.keys(base||{}), ...Object.keys(keys)]);
   for(const n of names){
     if(n==='hips.pos'){ const k=keys[n]||[[0,0,0,0],[dur,0,0,0]];
-      tracks.push(new T.VectorKeyframeTrack('hips.position', k.map(e=>e[0]), k.flatMap(e=>[e[1],0.95+e[2],e[3]]))); continue; }
+      tracks.push(new T.VectorKeyframeTrack('hips.position', k.map(e=>e[0]), k.flatMap(e=>[hb[0]+e[1],hb[1]+e[2],hb[2]+e[3]]))); continue; }
     const k=keys[n] || [[0,...base[n]],[dur,...base[n]]];
     const times=k.map(e=>e[0]), vals=[];
     for(const e of k){ const q=new T.Quaternion().setFromEuler(new T.Euler(e[1]*D2R,e[2]*D2R,e[3]*D2R,'YXZ')); vals.push(q.x,q.y,q.z,q.w); }
@@ -353,8 +355,79 @@ function makeClips(L){
   return {idle, run, attack, hitT};
 }
 
+/* ---------- 3Dモデル（model_h*.js）から骨格つきキャラをつくる ---------- */
+function b64(s, Ctor){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let k=0;k<bin.length;k++) u[k]=bin.charCodeAt(k); return new Ctor(u.buffer); }
+function buildModelSkeleton(M){
+  const bones={}, list=[];
+  for(const n of M.bones){ const b=new T.Bone(); b.name=n; const j=M.joints[n], p=M.parent[n];
+    const pj=p? M.joints[p] : [0,0,0]; b.position.set(j[0]-pj[0], j[1]-pj[1], j[2]-pj[2]);
+    if(n==='root') b.position.set(0,0,0);
+    bones[n]=b; list.push(b); if(p) bones[p].add(b); }
+  return {bones, list};
+}
+// 槍の時間配分：構え0–0.16 踏み込み0.16–0.32 突き（命中）0.32–0.43 振り抜き0.43–0.60 復帰0.60–0.86
+function makeModelClips(M){
+  const hj=M.joints.hips, hb=[hj[0]-M.joints.root[0]*0, hj[1], hj[2]];
+  const base={spine:[0,0,0],chest:[0,0,0],neck:[0,0,0],head:[0,0,0],upperArmL:[0,0,0],foreArmL:[0,0,0],handL:[0,0,0],
+    upperArmR:[0,0,0],foreArmR:[0,0,0],handR:[0,0,0],thighL:[0,0,0],thighR:[0,0,0],shinL:[0,0,0],shinR:[0,0,0],footL:[0,0,0],footR:[0,0,0]};
+  const idle=clip('idle',1.8,{
+    chest:[[0,2,0,0],[0.9,-1,0,0],[1.8,2,0,0]], head:[[0,0,0,-2],[0.9,2,0,1.5],[1.8,0,0,-2]],
+    upperArmL:[[0,0,0,0],[0.9,0,0,3],[1.8,0,0,0]], upperArmR:[[0,0,0,0],[0.9,-3,0,0],[1.8,0,0,0]],
+    'hips.pos':[[0,0,0,0],[0.9,0,-0.02,0],[1.8,0,0,0]] }, base, hb);
+  const run=clip('run',0.44,{
+    thighL:[[0,-28,0,0],[0.22,22,0,0],[0.44,-28,0,0]], thighR:[[0,22,0,0],[0.22,-28,0,0],[0.44,22,0,0]],
+    shinL:[[0,20,0,0],[0.11,45,0,0],[0.22,8,0,0],[0.44,20,0,0]], shinR:[[0,8,0,0],[0.22,20,0,0],[0.33,45,0,0],[0.44,8,0,0]],
+    upperArmR:[[0,-30,0,0],[0.22,25,0,0],[0.44,-30,0,0]],
+    chest:[[0,-10,5,0],[0.22,-10,-5,0],[0.44,-10,5,0]], spine:[[0,-5,0,0],[0.44,-5,0,0]], handL:[[0,40,0,0],[0.44,40,0,0]],
+    'hips.pos':[[0,0,0,0],[0.11,0,0.05,0],[0.22,0,0,0],[0.33,0,0.05,0],[0.44,0,0,0]] }, base, hb);
+  const A=window.SORAIRO_THRUST || {
+    'hips.pos':[[0,0,0,0],[0.16,0,-0.07,-0.12],[0.32,0,-0.08,0.18],[0.40,0,-0.08,0.28],[0.60,0,-0.06,0.24],[0.86,0,0,0]],
+    spine:  [[0,0,0,0],[0.16,6,-22,0],[0.32,-4,6,0],[0.40,-10,20,0],[0.60,-8,16,0],[0.86,0,0,0]],
+    chest:  [[0,0,0,0],[0.16,4,-14,0],[0.32,-4,6,0],[0.40,-8,14,0],[0.60,-6,12,0],[0.86,0,0,0]],
+    head:   [[0,0,0,0],[0.16,0,10,0],[0.40,4,-12,0],[0.60,2,-10,0],[0.86,0,0,0]],
+    upperArmL:[[0,0,0,0],[0.16,-8,22,0],[0.30,-4,-10,0],[0.38,0,-38,0],[0.60,0,-32,0],[0.86,0,0,0]],
+    handL:  [[0,0,0,0],[0.10,40,0,10],[0.16,78,-18,14],[0.30,90,8,14],[0.38,94,36,14],[0.60,92,30,14],[0.72,40,10,8],[0.86,0,0,0]],
+    upperArmR:[[0,0,0,0],[0.16,-20,0,-15],[0.38,20,0,-30],[0.60,16,0,-25],[0.86,0,0,0]],
+    thighL: [[0,0,0,0],[0.16,-6,0,0],[0.32,-26,0,0],[0.40,-30,0,0],[0.60,-27,0,0],[0.86,0,0,0]],
+    shinL:  [[0,0,0,0],[0.16,12,0,0],[0.32,22,0,0],[0.40,24,0,0],[0.86,0,0,0]],
+    thighR: [[0,0,0,0],[0.16,-10,0,0],[0.32,16,0,0],[0.40,20,0,0],[0.60,18,0,0],[0.86,0,0,0]],
+    shinR:  [[0,0,0,0],[0.16,22,0,0],[0.32,10,0,0],[0.40,8,0,0],[0.86,0,0,0]] };
+  const attack=clip('attack',0.86,A,base,hb);
+  return {idle, run, attack, hitT:0.38};
+}
+function buildModelCharacter(i, M){
+  const L=LOOK[i]; const sk=buildModelSkeleton(M);
+  const n=M.count, q=b64(M.pos,Uint16Array), nn=b64(M.nor,Int8Array), uq=b64(M.uv,Uint16Array);
+  const pos=new Float32Array(n*3), nor=new Float32Array(n*3), uv=new Float32Array(n*2);
+  for(let k=0;k<n;k++){ for(let a=0;a<3;a++){ pos[k*3+a]=M.lo[a]+q[k*3+a]/65535*M.sc[a]; nor[k*3+a]=nn[k*3+a]/127; }
+    uv[k*2]=uq[k*2]/65535; uv[k*2+1]=uq[k*2+1]/65535; }
+  const si=b64(M.si,Uint8Array), sw=b64(M.sw,Uint8Array), swf=new Float32Array(sw.length); for(let k=0;k<sw.length;k++) swf[k]=sw[k]/255;
+  const geo=new T.BufferGeometry();
+  geo.setAttribute('position',new T.BufferAttribute(pos,3)); geo.setAttribute('normal',new T.BufferAttribute(nor,3));
+  geo.setAttribute('uv',new T.BufferAttribute(uv,2));
+  geo.setAttribute('skinIndex',new T.Uint16BufferAttribute(Array.from(si),4)); geo.setAttribute('skinWeight',new T.BufferAttribute(swf,4));
+  geo.setIndex(new T.BufferAttribute(b64(M.idx,Uint16Array),1));
+  const img=new Image(); const tex=new T.Texture(img); tex.flipY=false; tex.colorSpace=T.SRGBColorSpace; tex.anisotropy=4;
+  img.onload=()=>{ tex.needsUpdate=true; }; img.src=M.tex;
+  if(!GRAD) GRAD=gradientTex();
+  const mat=new T.MeshToonMaterial({map:tex, gradientMap:GRAD});
+  const body=new T.SkinnedMesh(geo, mat); body.name='body';
+  // 線画はテクスチャに入っているので、輪郭用の拡大メッシュは使わない（薄い布が黒く割れて見えるため）
+  const group=new T.Group(); group.name='hero'+i;
+  body.add(sk.bones.root);
+  const skeleton=new T.Skeleton(sk.list); body.bind(skeleton);
+  body.frustumCulled=false; group.add(body);
+  // 槍の穂先（命中位置）を左手の骨につける
+  const hj=M.joints.handL, tip=new T.Object3D(); tip.position.set(0.86-hj[0], 2.83-hj[1], 0.63-hj[2]); sk.bones.handL.add(tip); group.userData.tip=tip;
+  const mixer=new T.AnimationMixer(sk.bones.root); const C=makeModelClips(M);
+  const acts={ idle:mixer.clipAction(C.idle), run:mixer.clipAction(C.run), attack:mixer.clipAction(C.attack) };
+  acts.attack.setLoop(T.LoopOnce,1); acts.attack.clampWhenFinished=true; acts.idle.play();
+  return {i, L, group, body, skeleton, bones:sk.bones, mixer, acts, hitT:C.hitT, state:'idle', cur:acts.idle};
+}
+
 /* ---------- キャラ1体をつくる ---------- */
 function buildCharacter(i){
+  const M=window.SORAIRO_MODELS && window.SORAIRO_MODELS[i]; if(M) return buildModelCharacter(i, M);
   const L=LOOK[i]; const sk=buildSkeleton();
   const group=new T.Group(); group.name='hero'+i;
   const geo=buildBody(L, sk);
@@ -417,7 +490,7 @@ function syncParty(){
   if(!enabled) return;
   const els=[...document.querySelectorAll('#party .mini')];
   const want=new Set();
-  for(const el of els){ const i=+el.dataset.heroTap; if(!LOOK[i]) continue; want.add(i);
+  for(const el of els){ const i=+el.dataset.heroTap; if(!window.Sorairo3D.has(i)) continue; want.add(i);
     el.classList.add('mini3d'); const c=attach(i); c.el=el; c.tilt.visible=true; }
   for(const k in chars) if(!want.has(+k)) chars[k].tilt.visible=false;
 }
@@ -462,7 +535,7 @@ function onHit(c){
   const g=game, tip=tipScreen(c)||{x:W*.6,y:H*.5};
   if(c.pending){ const d=c.pending; c.pending=null;
     if(c.L.attack==='cast') g.shoot(c.i, d, tip, 'water');              // 弾が届いた時に命中
-    else { g.strike(c.i, d, tip, c.L.attack==='punch'?'punch':'scythe'); c.hitStop=0.06; } }
+    else { g.strike(c.i, d, tip, c.L.attack==='punch'?'punch':c.L.attack==='thrust'?'spear':'scythe'); c.hitStop=0.06; } }
 }
 /* 攻撃（ゲーム側から呼ばれる）。モーション中ならダメージだけ入れる */
 function attack(i, dmg){
@@ -474,8 +547,10 @@ function attack(i, dmg){
   if(c.L.melee){
     const br=document.getElementById('battle').getBoundingClientRect(), er=document.getElementById('enemy').getBoundingClientRect(), fr=el.querySelector('.floor').getBoundingClientRect();
     const mv=el.querySelector('.mover'); const cur=game.curPos(mv);
-    const reach = c.L.attack==='sweep'? 0.42 : 0.30; // 武器の長さに合わせて止まる位置を変える
-    const tx=(er.left-br.left+er.width*reach)-(fr.left-br.left+fr.width/2)+cur[0];
+    const reach = c.L.attack==='sweep'? 0.42 : c.L.attack==='thrust'? 0.10 : 0.30; // 武器の長さに合わせて止まる位置を変える
+    // 槍は長いので、穂先が敵に届く距離（槍の長さぶん手前）で止まる
+    const stopX = c.L.attack==='thrust' ? er.left-br.left+er.width*0.12-(el.getBoundingClientRect().width*1.08/2.85)*1.15 : er.left-br.left+er.width*reach;
+    const tx=stopX-(fr.left-br.left+fr.width/2)+cur[0];
     const ty=((er.bottom-br.top-er.height*0.12)-(fr.top-br.top))*0.5+cur[1];
     game.moveMini(el,tx,ty,260,()=>{ start(); c.onEnd=()=>{ game.moveMini(el,0,0,340,()=>{ el._busy=false; }); }; });
   } else { start(); c.onEnd=()=>{ el._busy=false; }; }
@@ -483,13 +558,13 @@ function attack(i, dmg){
 }
 window.Sorairo3D={
   available:true, chars, stat, LOOK,
-  has:(i)=>!!LOOK[i],
+  has:(i)=>!!LOOK[i] && (!LOOK[i].model || !!(window.SORAIRO_MODELS&&window.SORAIRO_MODELS[i])),
   enabled:()=>enabled,
   enable(on, api){ game=api||game; if(on){ if(!ensure()) return false; enabled=true; document.body.classList.add('use3d'); if(!raf) raf=requestAnimationFrame(loop); syncParty(); }
     else { enabled=false; document.body.classList.remove('use3d'); document.querySelectorAll('.mini3d').forEach(e=>e.classList.remove('mini3d')); for(const k in chars) chars[k].tilt.visible=false; if(renderer) renderer.clear(); }
     return true; },
   syncParty, attack,
   /* テスト用：骨と輪郭の確認 */
-  _debug:{ T, buildCharacter, scene:()=>scene, cam:()=>cam, renderer:()=>renderer },
+  _debug:{ T, buildCharacter, makeModelClips, scene:()=>scene, cam:()=>cam, renderer:()=>renderer },
 };
 })();
