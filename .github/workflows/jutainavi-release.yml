@@ -21,7 +21,7 @@ on:
           - build_only
         default: testflight
       version:
-        description: "表示バージョン（例 1.0.1）。空なら 1.1.1"
+        description: "表示バージョン（例 1.0.1）。空なら 1.1.2"
         required: false
         type: string
       build_number:
@@ -62,7 +62,7 @@ jobs:
           IN_VERSION: ${{ inputs.version }}
           IN_BUILD: ${{ inputs.build_number }}
         run: |
-          VERSION="${IN_VERSION:-1.1.1}"
+          VERSION="${IN_VERSION:-1.1.2}"
           if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then echo "::error::version は 0.4.0 のような数字で入力してください"; exit 1; fi
           BUILD=$((GITHUB_RUN_NUMBER + 1000))
           if [ -n "$IN_BUILD" ]; then

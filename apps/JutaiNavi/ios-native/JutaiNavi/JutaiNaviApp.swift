@@ -418,7 +418,7 @@ struct SettingsView: View {
                         siriLine("Hey Siri、渋滞ナビで首都高の渋滞")
                         siriLine("Hey Siri、渋滞ナビで通勤の渋滞（登録した区間の名前）")
                         siriLine("Hey Siri、渋滞ナビの渋滞情報")
-                        Text("最後の言い方は、区間を登録していれば一番上の区間を、なければ「いつもの道路」を読み上げます。ロック画面やCarPlayからでも使えます。")
+                        Text("最後の言い方は、区間を登録していれば一番上の区間を、なければ「いつもの道路」を読み上げます。ロック画面やCarPlayからでも使えます。\n\n画面を見ているときも読み上げてほしい場合は、iPhoneの「設定」→「Apple Intelligence と Siri」（または「Siri」）→「Siriの応答」で「音声での応答を優先」を選んでください。")
                             .font(.footnote).foregroundStyle(.secondary)
                     }.padding(.vertical, 4)
                     ShortcutsLink()

@@ -59,7 +59,7 @@ struct RoadTrafficIntent: AppIntent {
     init() {}
     init(road: Road) { self.road = road }
 
-    func perform() async throws -> some IntentResult & ShowsSnippetView {
+    func perform() async throws -> some IntentResult & ProvidesDialog {
         let text: String
         do {
             let snap = try await TrafficService.shared.road(road)
@@ -67,8 +67,7 @@ struct RoadTrafficIntent: AppIntent {
         } catch {
             text = "交通情報を取得できませんでした。少し時間をおいてもう一度聞いてください。"
         }
-        await IntentSpeaker.shared.speak(text)
-        return .result(view: SpeechSnippet(text: text))
+        return .result(dialog: IntentDialog(stringLiteral: text))
     }
 }
 
@@ -78,13 +77,12 @@ struct FavoriteTrafficIntent: AppIntent {
     static var description = IntentDescription("アプリで登録した「いつもの道路」の渋滞情報を読み上げます。")
     static var openAppWhenRun: Bool = false
 
-    func perform() async throws -> some IntentResult & ShowsSnippetView {
+    func perform() async throws -> some IntentResult & ProvidesDialog {
         let text: String
         do {
             if let first = RouteStore.load().first {
                 text = try await RouteTrafficIntent.speech(for: first)
-                await IntentSpeaker.shared.speak(text)
-                return .result(view: SpeechSnippet(text: text))
+                return .result(dialog: IntentDialog(stringLiteral: text))
             }
             let roads = Favorites.load()
             let snap = try await TrafficService.shared.all()
@@ -98,8 +96,7 @@ struct FavoriteTrafficIntent: AppIntent {
         } catch {
             text = "交通情報を取得できませんでした。少し時間をおいてもう一度聞いてください。"
         }
-        await IntentSpeaker.shared.speak(text)
-        return .result(view: SpeechSnippet(text: text))
+        return .result(dialog: IntentDialog(stringLiteral: text))
     }
 }
 
@@ -142,7 +139,7 @@ struct RouteTrafficIntent: AppIntent {
 
     init() {}
 
-    func perform() async throws -> some IntentResult & ShowsSnippetView {
+    func perform() async throws -> some IntentResult & ProvidesDialog {
         let text: String
         if let r = RouteStore.find(route.id) {
             do { text = try await Self.speech(for: r) }
@@ -150,8 +147,7 @@ struct RouteTrafficIntent: AppIntent {
         } else {
             text = "その区間が見つかりませんでした。アプリで区間を登録してください。"
         }
-        await IntentSpeaker.shared.speak(text)
-        return .result(view: SpeechSnippet(text: text))
+        return .result(dialog: IntentDialog(stringLiteral: text))
     }
 
     static func speech(for r: SavedRoute) async throws -> String {
@@ -254,7 +250,7 @@ struct TrafficTargetIntent: AppIntent {
 
     init() {}
 
-    func perform() async throws -> some IntentResult & ShowsSnippetView {
+    func perform() async throws -> some IntentResult & ProvidesDialog {
         var text: String
         do {
             if let t = target, t.id.hasPrefix("route:"), let id = UUID(uuidString: String(t.id.dropFirst(6))), let r = RouteStore.find(id) {
@@ -272,8 +268,7 @@ struct TrafficTargetIntent: AppIntent {
         } catch {
             text = "交通情報を取得できませんでした。少し時間をおいてもう一度聞いてください。"
         }
-        await IntentSpeaker.shared.speak(text)
-        return .result(view: SpeechSnippet(text: text))
+        return .result(dialog: IntentDialog(stringLiteral: text))
     }
 }
 
