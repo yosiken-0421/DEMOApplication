@@ -8,6 +8,7 @@ actor TrafficService {
     /// 高速道路の地域図（A01〜A10）と都市高速図（C01〜C05）
     private let areas = (1...10).map { String(format: "A%02d", $0) } + (1...5).map { String(format: "C%02d", $0) }
     private var cache: (time: Date, target: String, items: [TrafficItem])?
+    private var digitalCache: (time: Date, target: String, items: [TrafficItem])?
 
     struct Snapshot: Sendable {
         let items: [TrafficItem]
@@ -60,6 +61,40 @@ actor TrafficService {
     func road(_ road: Road, force: Bool = false) async throws -> Snapshot {
         let s = try await all(force: force)
         return Snapshot(items: s.items.filter { road.matches(roadName: $0.roadName, routeNo: $0.routeNo) }, updated: s.updated)
+    }
+
+    /// 位置つき（デジタル地図）の高速道路の情報。区間の絞り込みに使う
+    func digital(force: Bool = false) async throws -> Snapshot {
+        if !force, let c = digitalCache, Date().timeIntervalSince(c.time) < 60 {
+            return Snapshot(items: c.items, updated: TrafficParser.parseTarget(c.target))
+        }
+        let target = try await fetchTarget()
+        let s = session
+        let b = base
+        let areaList = areas
+        let items: [TrafficItem] = await withTaskGroup(of: [TrafficItem].self) { group in
+            for a in areaList {
+                group.addTask { await Self.load(s, "\(b)/r1/\(target)/d/301/\(a).json", TrafficParser.parseEvents) }
+                if a.hasPrefix("A") {
+                    group.addTask { await Self.load(s, "\(b)/r1/\(target)/d/1101/\(a).json", TrafficParser.parseSAPA) }
+                } else {
+                    group.addTask { await Self.load(s, "\(b)/r1/\(target)/d/801/\(a).json", TrafficParser.parseICClosures) }
+                }
+            }
+            var all: [TrafficItem] = []
+            for await part in group { all += part }
+            return all
+        }
+        let unique = TrafficParser.dedupe(items)
+        digitalCache = (Date(), target, unique)
+        return Snapshot(items: unique, updated: TrafficParser.parseTarget(target))
+    }
+
+    /// 登録した区間の上の情報だけを、走る順に
+    func route(_ route: SavedRoute, force: Bool = false) async throws -> Snapshot {
+        let snap = try await digital(force: force)
+        let matched = RouteMatcher(path: route.path).match(snap.items).map(\.item)
+        return Snapshot(items: matched, updated: snap.updated)
     }
 
     private func fetchTarget() async throws -> String {

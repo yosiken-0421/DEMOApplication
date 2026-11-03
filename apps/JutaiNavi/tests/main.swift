@@ -50,5 +50,40 @@ check(Road.find(in: "東名阪の渋滞") == .higashiMeihan, "東名阪を東名
 check(Road.find(in: "首都高速は？") == .shutoko, "首都高速")
 check(TrafficParser.parseKm("１２km") == 12, "全角の距離")
 
+// ---- 区間（ルート）の絞り込み ----
+func line(_ lat: Double, _ lon1: Double, _ lon2: Double, n: Int = 6) -> [[Double]] {
+    (0..<n).map { k in [lon1 + (lon2 - lon1) * Double(k) / Double(n - 1), lat] }
+}
+func mk(_ kind: TrafficKind, _ road: String, _ dir: String, _ place: String, km: Double? = nil, cause: String = "", rd: String = "", _ coords: [[Double]]) -> TrafficItem {
+    TrafficItem(kind: kind, roadName: road, routeNo: "1", direction: dir, place: place, cause: cause, regulation: rd, lengthKm: km, coords: coords)
+}
+let path = stride(from: 139.70, through: 139.80, by: 0.005).map { GeoPoint(lat: 35.80, lon: $0) }   // 東へ進む約9km
+let fwd = mk(.jam, "東京外環道", "外回", "川口東ＩＣ付近", km: 2, line(35.80005, 139.72, 139.73))
+let rev = mk(.jam, "東京外環道", "内回", "草加ＩＣ付近", km: 3, line(35.8003, 139.73, 139.72))
+let far = mk(.jam, "東京外環道", "外回", "遠くＩＣ付近", km: 1, line(35.85, 139.72, 139.73))
+let revPoint = mk(.incident, "東京外環道", "内回", "草加ＩＣ", cause: "故障車", rd: "規制なし", [[139.76, 35.8003]])
+let fwdPoint = mk(.incident, "東京外環道", "外回", "外環浦和ＩＣ付近", cause: "事故", rd: "第１走行規制", [[139.705, 35.80002]])
+let cross = mk(.regulation, "５号池袋線", "上り", "交差する道路", cause: "工事", rd: "１車線規制",
+               (0..<7).map { [139.75, 35.79 + 0.02 * Double($0) / 6] })
+let after = mk(.jam, "東京外環道", "外回", "区間の先", km: 4, line(35.80, 139.83, 139.85))
+let matched = RouteMatcher(path: path).match([fwd, rev, far, revPoint, fwdPoint, cross, after]).map(\.item)
+check(matched.contains(fwd), "区間の上で同じ向きの渋滞は入る")
+check(!matched.contains(rev), "反対車線の渋滞は入らない")
+check(!matched.contains(far), "区間から離れた情報は入らない")
+check(!matched.contains(revPoint), "反対車線の点の情報（向きは方向名で判断）は入らない")
+check(matched.contains(fwdPoint), "同じ方向名の点の情報は入る")
+check(!matched.contains(cross), "交差するだけの道路は入らない")
+check(!matched.contains(after), "区間の先の情報は入らない")
+check(matched.first == fwdPoint, "走る順に並ぶ（手前の事故が先）")
+let route = SavedRoute(name: "通勤", fromName: "佐倉ＩＣ", toName: "和光北ＩＣ", waypoints: [path.first!, path.last!], path: path, lengthKm: 9)
+let rs = TrafficText.routeSpeech(route: route, items: matched, updated: nil, etaMinutes: 75)
+print("区間の読み上げ例: \(rs)")
+check(rs.hasPrefix("佐倉ICから和光北ICの交通情報です。"), "区間の読み上げの始まり")
+check(rs.contains("渋滞が1か所、合計2キロ、抜けるまで合計約6分"), "区間の渋滞の合計")
+check(rs.contains("東京外環道、外回り"), "区間では道路名も読む")
+check(rs.contains("約1時間15分"), "到着予想")
+let none = TrafficText.routeSpeech(route: route, items: [], updated: nil, etaMinutes: nil)
+check(none.contains("この区間に、渋滞や事故の情報はありません"), "区間に情報がないとき")
+
 if failures > 0 { print("失敗 \(failures) 件"); exit(1) }
 print("すべて成功")

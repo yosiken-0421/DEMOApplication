@@ -21,7 +21,7 @@ on:
           - build_only
         default: testflight
       version:
-        description: "表示バージョン（例 1.0.1）。空なら 1.0.0"
+        description: "表示バージョン（例 1.0.1）。空なら 1.1.0"
         required: false
         type: string
       build_number:
@@ -62,7 +62,7 @@ jobs:
           IN_VERSION: ${{ inputs.version }}
           IN_BUILD: ${{ inputs.build_number }}
         run: |
-          VERSION="${IN_VERSION:-1.0.0}"
+          VERSION="${IN_VERSION:-1.1.0}"
           if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then echo "::error::version は 0.4.0 のような数字で入力してください"; exit 1; fi
           BUILD=$((GITHUB_RUN_NUMBER + 1000))
           if [ -n "$IN_BUILD" ]; then
@@ -77,7 +77,7 @@ jobs:
         id: test
         working-directory: apps/JutaiNavi
         run: |
-          swiftc -O -o "$RUNNER_TEMP/jutai-tests" ios-native/JutaiNavi/TrafficCore.swift tests/main.swift
+          swiftc -O -o "$RUNNER_TEMP/jutai-tests" ios-native/JutaiNavi/TrafficCore.swift ios-native/JutaiNavi/RouteCore.swift tests/main.swift
           "$RUNNER_TEMP/jutai-tests" tests/fixtures
 
       - name: 実データの確認（JARTIC の形式が変わっていないか・参考）
@@ -95,6 +95,11 @@ jobs:
           print(f"更新 {t}／関東の高速：情報 {len(props)} 件、うち渋滞 {len(jams)} 件")
           for p in jams[:5]:
               print(" ", p.get("r"), p.get("d"), p.get("i"), p.get("j"))
+          d = json.loads(get(f"https://www.jartic.or.jp/d/traffic_info/r1/{t}/d/301/C01.json"))
+          withpos = [f for f in d.get("features", []) if (f.get("geometry") or {}).get("coordinates")]
+          print(f"首都高（位置つきデータ）：{len(d.get('features', []))} 件、うち位置あり {len(withpos)} 件")
+          if not withpos:
+              print("::warning::位置つきデータ（区間の絞り込み用）が読めません")
           if not props or "r" not in props[0]:
               print("::warning::JARTIC のデータ形式が変わった可能性があります")
           PY

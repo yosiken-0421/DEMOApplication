@@ -81,6 +81,11 @@ struct FavoriteTrafficIntent: AppIntent {
     func perform() async throws -> some IntentResult & ShowsSnippetView {
         let text: String
         do {
+            if let first = RouteStore.load().first {
+                text = try await RouteTrafficIntent.speech(for: first)
+                await IntentSpeaker.shared.speak(text)
+                return .result(view: SpeechSnippet(text: text))
+            }
             let roads = Favorites.load()
             let snap = try await TrafficService.shared.all()
             var parts: [String] = []
@@ -95,6 +100,65 @@ struct FavoriteTrafficIntent: AppIntent {
         }
         await IntentSpeaker.shared.speak(text)
         return .result(view: SpeechSnippet(text: text))
+    }
+}
+
+// MARK: - 登録した区間
+
+struct RouteEntity: AppEntity {
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "区間"
+    static var defaultQuery = RouteQuery()
+    let id: UUID
+    let name: String
+    let summary: String
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: "\(name)", subtitle: "\(summary)")
+    }
+    init(_ r: SavedRoute) { id = r.id; name = r.name; summary = r.summary }
+}
+
+struct RouteQuery: EntityStringQuery {
+    func entities(for identifiers: [UUID]) async throws -> [RouteEntity] {
+        RouteStore.load().filter { identifiers.contains($0.id) }.map(RouteEntity.init)
+    }
+    func suggestedEntities() async throws -> [RouteEntity] { RouteStore.load().map(RouteEntity.init) }
+    func entities(matching string: String) async throws -> [RouteEntity] {
+        let q = TrafficText.normalize(string)
+        return RouteStore.load().filter {
+            let n = TrafficText.normalize($0.name)
+            return n.contains(q) || q.contains(n)
+        }.map(RouteEntity.init)
+    }
+}
+
+/// 「Hey Siri、渋滞ナビで通勤の渋滞」→ 登録した区間の上の情報だけを走る順に
+struct RouteTrafficIntent: AppIntent {
+    static var title: LocalizedStringResource = "登録した区間の渋滞情報"
+    static var description = IntentDescription("登録した区間（例：佐倉IC→和光北IC）の上の渋滞・事故・規制を走る順に読み上げます。")
+    static var openAppWhenRun: Bool = false
+
+    @Parameter(title: "区間", requestValueDialog: IntentDialog("どの区間ですか？"))
+    var route: RouteEntity
+
+    init() {}
+
+    func perform() async throws -> some IntentResult & ShowsSnippetView {
+        let text: String
+        if let r = RouteStore.find(route.id) {
+            do { text = try await Self.speech(for: r) }
+            catch { text = "交通情報を取得できませんでした。少し時間をおいてもう一度聞いてください。" }
+        } else {
+            text = "その区間が見つかりませんでした。アプリで区間を登録してください。"
+        }
+        await IntentSpeaker.shared.speak(text)
+        return .result(view: SpeechSnippet(text: text))
+    }
+
+    static func speech(for r: SavedRoute) async throws -> String {
+        async let snap = TrafficService.shared.route(r)
+        async let eta = RouteMapKit.eta(r.waypoints)
+        let s = try await snap
+        return TrafficText.routeSpeech(route: r, items: s.items, updated: s.updated, etaMinutes: await eta)
     }
 }
 
@@ -156,6 +220,21 @@ struct JutaiShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "高速道路の渋滞",
             systemImageName: "car.2.fill"
+        )
+        AppShortcut(
+            intent: RouteTrafficIntent(),
+            phrases: [
+                "\(.applicationName)で\(\.$route)の渋滞情報を教えて",
+                "\(.applicationName)で\(\.$route)の渋滞情報",
+                "\(.applicationName)で\(\.$route)の渋滞",
+                "\(.applicationName)で\(\.$route)の交通情報",
+                "\(.applicationName)、\(\.$route)の渋滞",
+                "\(.applicationName)で\(\.$route)",
+                "\(.applicationName)、\(\.$route)",
+                "\(\.$route)の渋滞を\(.applicationName)で",
+            ],
+            shortTitle: "登録した区間",
+            systemImageName: "point.topleft.down.to.point.bottomright.curvepath"
         )
         AppShortcut(
             intent: FavoriteTrafficIntent(),

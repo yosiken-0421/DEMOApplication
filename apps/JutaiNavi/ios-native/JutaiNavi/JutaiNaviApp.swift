@@ -56,6 +56,10 @@ final class TrafficModel: ObservableObject {
     @Published var loading = false
     @Published var error: String?
     @Published var favorites: [Road] { didSet { Favorites.save(favorites) } }
+    /// 区間を選んでいるとき（nil なら路線全体）
+    @Published var route: SavedRoute?
+    @Published var routes: [SavedRoute] = RouteStore.load()
+    @Published var eta: Int?
 
     init() {
         let f = Favorites.load()
@@ -67,16 +71,46 @@ final class TrafficModel: ObservableObject {
         loading = true
         defer { loading = false }
         do {
-            let s = try await TrafficService.shared.road(road, force: force)
-            items = s.items
-            updated = s.updated
+            if let r = route {
+                let s = try await TrafficService.shared.route(r, force: force)
+                items = s.items
+                updated = s.updated
+                eta = await RouteMapKit.eta(r.waypoints)
+            } else {
+                let s = try await TrafficService.shared.road(road, force: force)
+                items = s.items
+                updated = s.updated
+                eta = nil
+            }
             error = nil
         } catch {
             self.error = error.localizedDescription
         }
     }
 
-    var speech: String { TrafficText.speech(road: road, items: items, updated: updated) }
+    var speech: String {
+        if let r = route { return TrafficText.routeSpeech(route: r, items: items, updated: updated, etaMinutes: eta) }
+        return TrafficText.speech(road: road, items: items, updated: updated)
+    }
+
+    func selectRoad(_ r: Road) { route = nil; road = r; Task { await load() } }
+    func selectRoute(_ r: SavedRoute) { route = r; Task { await load() } }
+
+    func saveRoute(_ r: SavedRoute) {
+        if let i = routes.firstIndex(where: { $0.id == r.id }) { routes[i] = r } else { routes.append(r) }
+        persistRoutes()
+    }
+    func deleteRoutes(at offsets: IndexSet) {
+        let removed = offsets.map { routes[$0].id }
+        routes.remove(atOffsets: offsets)
+        if let cur = route, removed.contains(cur.id) { route = nil; Task { await load() } }
+        persistRoutes()
+    }
+    func moveRoutes(from: IndexSet, to: Int) { routes.move(fromOffsets: from, toOffset: to); persistRoutes() }
+    private func persistRoutes() {
+        RouteStore.save(routes)
+        JutaiShortcuts.updateAppShortcutParameters()
+    }
 
     func items(_ kinds: [TrafficKind]) -> [TrafficItem] { items.filter { kinds.contains($0.kind) } }
 }
@@ -88,6 +122,7 @@ struct ContentView: View {
     @StateObject private var speaker = Speaker()
     @State private var showSettings = false
     @State private var showAllRoads = false
+    @State private var showNewRoute = false
     private let timer = Timer.publish(every: 300, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -103,11 +138,15 @@ struct ContentView: View {
                     Section { Label(e, systemImage: "wifi.exclamationmark").foregroundStyle(.secondary) }
                 }
 
+                if model.route != nil {
+                    routeList
+                } else {
                 group("事故・通行止め", icon: "exclamationmark.triangle.fill", color: .alertRed, kinds: [.closure, .incident])
                 group("渋滞", icon: "car.2.fill", color: .jamOrange, kinds: [.jam])
                 group("出入口の閉鎖", icon: "xmark.octagon.fill", color: .alertRed, kinds: [.icClosed])
                 group("工事などの規制", icon: "cone.fill", color: .yellow, kinds: [.regulation])
                 group("SA・PAの混雑", icon: "fork.knife", color: .blue, kinds: [.sapa])
+                }
 
                 Section {
                     Text("情報：日本道路交通情報センター（JARTIC）「道路交通情報Now!!」より。5分ごと更新。通過時間は渋滞を平均時速20kmで走った場合の目安です。")
@@ -129,10 +168,12 @@ struct ContentView: View {
             .refreshable { await model.load(force: true) }
             .task { await model.load() }
             .onReceive(timer) { _ in Task { await model.load(force: true) } }
-            .onChange(of: model.road) { _ in Task { await model.load() } }
             .sheet(isPresented: $showSettings) { SettingsView(model: model) }
+            .sheet(isPresented: $showNewRoute) {
+                RouteEditorView(original: nil) { r in model.saveRoute(r); model.selectRoute(r) }
+            }
             .sheet(isPresented: $showAllRoads) {
-                RoadPicker(selected: $model.road).presentationDetents([.medium, .large])
+                RoadPicker(selected: model.road) { model.selectRoad($0) }.presentationDetents([.medium, .large])
             }
         }
         .tint(.signGreen)
@@ -141,14 +182,29 @@ struct ContentView: View {
     private var roadChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(chipRoads, id: \.self) { r in
-                    Button { model.road = r } label: {
-                        Text(r.title).font(.subheadline.bold())
+                ForEach(model.routes) { r in
+                    let on = model.route?.id == r.id
+                    Button { model.selectRoute(r) } label: {
+                        Label(r.name, systemImage: "point.topleft.down.to.point.bottomright.curvepath").font(.subheadline.bold())
                             .padding(.horizontal, 14).padding(.vertical, 8)
-                            .background(model.road == r ? Color.signGreen : Color(.secondarySystemBackground), in: Capsule())
-                            .foregroundStyle(model.road == r ? .white : .primary)
+                            .background(on ? Color.jamOrange : Color(.secondarySystemBackground), in: Capsule())
+                            .foregroundStyle(on ? .white : .primary)
                     }.buttonStyle(.plain)
                 }
+                ForEach(chipRoads, id: \.self) { r in
+                    let on = model.route == nil && model.road == r
+                    Button { model.selectRoad(r) } label: {
+                        Text(r.title).font(.subheadline.bold())
+                            .padding(.horizontal, 14).padding(.vertical, 8)
+                            .background(on ? Color.signGreen : Color(.secondarySystemBackground), in: Capsule())
+                            .foregroundStyle(on ? .white : .primary)
+                    }.buttonStyle(.plain)
+                }
+                Button { showNewRoute = true } label: {
+                    Label("区間を登録", systemImage: "plus").font(.subheadline)
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .background(Color(.secondarySystemBackground), in: Capsule())
+                }.buttonStyle(.plain)
                 Button { showAllRoads = true } label: {
                     Label("ほかの道路", systemImage: "list.bullet").font(.subheadline)
                         .padding(.horizontal, 14).padding(.vertical, 8)
@@ -167,7 +223,10 @@ struct ContentView: View {
     private var summaryCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(model.road.title).font(.title2.bold())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(model.route?.name ?? model.road.title).font(.title2.bold())
+                    if let r = model.route { Text(r.summary).font(.caption).foregroundStyle(.secondary) }
+                }
                 Spacer()
                 if let u = model.updated {
                     Text("\(TrafficText.timeText(u)) 時点").font(.caption).foregroundStyle(.secondary)
@@ -178,6 +237,10 @@ struct ContentView: View {
                 stat("渋滞", "\(jams.count)", .jamOrange)
                 stat("事故・通行止め", "\(alerts.count)", .alertRed)
                 stat("規制", "\(regs.count)", .yellow)
+            }
+            if let r = model.route {
+                Text("区間 約\(Int(r.lengthKm.rounded()))km\(model.eta.map { "・到着予想 約\(TrafficText.durationText($0))" } ?? "")")
+                    .font(.footnote.bold())
             }
             if let longest = jams.max(by: { ($0.lengthKm ?? 0) < ($1.lengthKm ?? 0) }), let km = longest.lengthKm {
                 Text("最長 \(TrafficText.normalize(longest.place)) \(String(format: km == km.rounded() ? "%.0f" : "%.1f", km))km（抜けるまで約\(longest.passMinutes ?? 0)分）")
@@ -200,6 +263,32 @@ struct ContentView: View {
         .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10))
     }
 
+    /// 区間：走る順にすべて並べる
+    @ViewBuilder
+    private var routeList: some View {
+        let list = model.items
+        if list.isEmpty {
+            Section { Label("この区間に、渋滞や事故の情報はありません", systemImage: "checkmark.circle").foregroundStyle(.secondary) }
+        } else {
+            Section {
+                ForEach(list) { it in
+                    let style = Self.style(it.kind)
+                    ItemRow(item: it, color: style.1, icon: style.0, showRoad: true)
+                }
+            } header: { Text("走る順（\(list.count)件）") }
+        }
+    }
+
+    static func style(_ k: TrafficKind) -> (String, Color) {
+        switch k {
+        case .closure, .incident: return ("exclamationmark.triangle.fill", .alertRed)
+        case .jam: return ("car.2.fill", .jamOrange)
+        case .icClosed: return ("xmark.octagon.fill", .alertRed)
+        case .regulation: return ("cone.fill", .yellow)
+        case .sapa: return ("fork.knife", .blue)
+        }
+    }
+
     @ViewBuilder
     private func group(_ title: String, icon: String, color: Color, kinds: [TrafficKind]) -> some View {
         let list = model.items(kinds)
@@ -215,11 +304,13 @@ struct ItemRow: View {
     let item: TrafficItem
     let color: Color
     let icon: String
+    var showRoad = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon).foregroundStyle(color).frame(width: 22).padding(.top, 2)
             VStack(alignment: .leading, spacing: 4) {
+                if showRoad { Text(TrafficText.normalize(item.roadName)).font(.caption).foregroundStyle(.secondary) }
                 HStack(spacing: 6) {
                     if !item.direction.isEmpty {
                         Text(TrafficText.direction(item.direction)).font(.caption.bold())
@@ -293,14 +384,15 @@ struct LaneView: View {
 // MARK: - 道路の一覧
 
 struct RoadPicker: View {
-    @Binding var selected: Road
+    let selected: Road
+    let onPick: (Road) -> Void
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             List(Road.allCases, id: \.self) { r in
                 Button {
-                    selected = r; dismiss()
+                    onPick(r); dismiss()
                 } label: {
                     HStack { Text(r.title).foregroundStyle(.primary); Spacer(); if r == selected { Image(systemName: "checkmark") } }
                 }
@@ -324,12 +416,33 @@ struct SettingsView: View {
                         Text("アプリを開かずに、声だけで聞けます").font(.headline)
                         siriLine("Hey Siri、渋滞ナビで外環の渋滞情報を教えて")
                         siriLine("Hey Siri、渋滞ナビで首都高の渋滞")
+                        siriLine("Hey Siri、渋滞ナビで通勤の渋滞（登録した区間の名前）")
                         siriLine("Hey Siri、渋滞ナビの渋滞情報")
-                        Text("最後の言い方は、下の「いつもの道路」をまとめて読み上げます。ロック画面やCarPlayからでも使えます。")
+                        Text("最後の言い方は、区間を登録していれば一番上の区間を、なければ「いつもの道路」を読み上げます。ロック画面やCarPlayからでも使えます。")
                             .font(.footnote).foregroundStyle(.secondary)
                     }.padding(.vertical, 4)
                     ShortcutsLink()
                 } header: { Text("Siriで聞く") }
+
+                Section {
+                    ForEach(model.routes) { r in
+                        NavigationLink {
+                            RouteEditorView(original: r) { model.saveRoute($0) }
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(r.name).font(.body.bold())
+                                Text(r.summary).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .onDelete { model.deleteRoutes(at: $0) }
+                    .onMove { model.moveRoutes(from: $0, to: $1) }
+                    NavigationLink {
+                        RouteEditorView(original: nil) { model.saveRoute($0) }
+                    } label: { Label("区間を登録", systemImage: "plus") }
+                } header: { Text("登録した区間（例：佐倉IC → 和光北IC）") } footer: {
+                    Text("区間の上で、進む向きが同じ情報だけを走る順に読み上げます。左にスワイプで削除できます。")
+                }
 
                 Section {
                     ForEach(Road.allCases, id: \.self) { r in

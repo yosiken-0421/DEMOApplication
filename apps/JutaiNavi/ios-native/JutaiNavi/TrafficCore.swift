@@ -140,6 +140,8 @@ struct TrafficItem: Identifiable, Hashable, Codable, Sendable {
     let cause: String         // 例: 事故 / 故障車 / 工事
     let regulation: String    // 例: 第１走行規制
     let lengthKm: Double?     // 渋滞の長さ
+    /// 位置（[経度, 緯度] の並び。デジタル地図のデータでは進む向きの順）
+    var coords: [[Double]] = []
 
     var key: String { [kind.rawValue, routeNo, roadName, direction, place, cause, regulation, lengthKm.map { String($0) } ?? ""].joined(separator: "|") }
 
@@ -165,7 +167,7 @@ enum TrafficParser {
             let roadName = road.components(separatedBy: "　").first ?? road
             if let j = p["j"] as? String, let km = parseKm(j) {
                 out.append(TrafficItem(kind: .jam, roadName: roadName, routeNo: rn, direction: d, place: i,
-                                       cause: "", regulation: "", lengthKm: km))
+                                       cause: "", regulation: "", lengthKm: km, coords: coords(f)))
                 continue
             }
             let c = str(p["c"]), rd = str(p["rd"])
@@ -175,7 +177,7 @@ enum TrafficParser {
             else if TrafficText.isIncident(c) { kind = .incident }
             else { kind = .regulation }
             out.append(TrafficItem(kind: kind, roadName: roadName, routeNo: rn, direction: d, place: i,
-                                   cause: c, regulation: rd, lengthKm: nil))
+                                   cause: c, regulation: rd, lengthKm: nil, coords: coords(f)))
         }
         return out
     }
@@ -191,7 +193,7 @@ enum TrafficParser {
             let road = str(p["r"])
             return TrafficItem(kind: .icClosed, roadName: road.components(separatedBy: "　").first ?? road,
                                routeNo: str(p["rn"]), direction: str(p["d"]), place: ic + io,
-                               cause: "", regulation: "閉鎖", lengthKm: nil)
+                               cause: "", regulation: "閉鎖", lengthKm: nil, coords: coords(f))
         }
     }
 
@@ -205,8 +207,24 @@ enum TrafficParser {
             guard !name.isEmpty, j.contains("混") || j.contains("満") else { return nil }
             let road = str(p["r"])
             return TrafficItem(kind: .sapa, roadName: road, routeNo: str(p["rn"]), direction: str(p["d"]),
-                               place: name, cause: "", regulation: j, lengthKm: nil)
+                               place: name, cause: "", regulation: j, lengthKm: nil, coords: coords(f))
         }
+    }
+
+    /// geometry の座標をすべて取り出す（[経度, 緯度]）
+    static func coords(_ f: [String: Any]) -> [[Double]] {
+        guard let g = f["geometry"] as? [String: Any], let c = g["coordinates"] else { return [] }
+        var out: [[Double]] = []
+        func walk(_ v: Any) {
+            guard let a = v as? [Any], !a.isEmpty else { return }
+            if a.count >= 2, !(a[0] is [Any]), let x = (a[0] as? NSNumber)?.doubleValue, let y = (a[1] as? NSNumber)?.doubleValue {
+                out.append([x, y])
+            } else {
+                a.forEach(walk)
+            }
+        }
+        walk(c)
+        return out
     }
 
     static func parseKm(_ s: String) -> Double? {
