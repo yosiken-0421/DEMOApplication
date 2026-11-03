@@ -1,29 +1,28 @@
 import json, urllib.request
 UA = {"User-Agent": "Mozilla/5.0 (iPhone)", "Referer": "https://www.jartic.or.jp/map/"}
 B = "https://www.jartic.or.jp/d/traffic_info"
-def get(u):
-    try: return json.loads(urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=20).read())
-    except Exception as e: print("ERR", u, e); return None
-t = get(B + "/r1/target.json")["target"]
-def coords(g):
-    out = []
-    def walk(c):
-        if isinstance(c, list) and c and isinstance(c[0], (int, float)): out.append(c)
-        elif isinstance(c, list):
-            for x in c: walk(x)
-    walk((g or {}).get("coordinates")); return out
-for mt in ["s", "d"]:
-    for code in ["A03", "C01"]:
-        j = get(f"{B}/r1/{t}/{mt}/301/{code}.json")
-        if not j: continue
-        n = 0
-        for f in j.get("features", []):
-            p = f.get("properties") or {}
-            if p.get("l") == "f": continue
-            r = p.get("r", "")
-            if not any(k in r for k in ("外環", "東関東", "湾岸", "京葉", "６号", "中央環状", "５号")): continue
-            cs = coords(f.get("geometry"))
-            n += 1
-            if n > 14: break
-            print(mt, code, p.get("z"), r, p.get("d"), p.get("i"), p.get("j") or p.get("rd"), "| p=", p.get("p"), "ce=", p.get("ce"),
-                  "| geom", (f.get("geometry") or {}).get("type"), len(cs), "first", cs[:2], "last", cs[-2:])
+def raw(u):
+    try: return urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=20).read()
+    except Exception as e: return b""
+t = json.loads(raw(B + "/r1/target.json"))["target"]
+codes = [f"A{i:02d}" for i in range(1, 12)] + [f"C{i:02d}" for i in range(1, 6)]
+for ev in ["301", "801", "1101"]:
+    for c in codes:
+        d = raw(f"{B}/r1/{t}/d/{ev}/{c}.json")
+        if not d: print(ev, c, "なし"); continue
+        j = json.loads(d); fs = j.get("features", [])
+        jams = [f for f in fs if "j" in (f.get("properties") or {})]
+        xs = [];
+        def walk(x):
+            if isinstance(x, list) and x and isinstance(x[0], (int, float)): xs.append(x)
+            elif isinstance(x, list):
+                for y in x: walk(y)
+        for f in fs: walk((f.get("geometry") or {}).get("coordinates"))
+        bb = (min(p[0] for p in xs), min(p[1] for p in xs), max(p[0] for p in xs), max(p[1] for p in xs)) if xs else None
+        print(ev, c, f"{len(d)//1024}KB", "features", len(fs), "jams", len(jams), "bbox", bb)
+        if c == "A03" and ev == "301":
+            for f in jams[:4]:
+                p = f["properties"]; g = f["geometry"]
+                print("   jam", {k: v for k, v in p.items() if k != "p"}, g["type"], str(g["coordinates"])[:200])
+        if ev in ("801", "1101") and c in ("A03", "C01") and fs:
+            print("   例", fs[0].get("properties"), fs[0].get("geometry"))
