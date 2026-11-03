@@ -199,42 +199,105 @@ struct SpeechSnippet: View {
     }
 }
 
+// MARK: - 道路と区間をまとめた「聞く対象」（呼び方を1つにして、選択画面が出ないようにする）
+
+struct TargetEntity: AppEntity {
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "道路・区間"
+    static var defaultQuery = TargetQuery()
+    let id: String          // "route:UUID" または "road:gaikan"
+    let name: String
+    let subtitle: String
+    let synonyms: [String]
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: "\(name)", subtitle: "\(subtitle)", synonyms: synonyms.map { "\($0)" })
+    }
+    init(route r: SavedRoute) {
+        id = "route:" + r.id.uuidString; name = r.name; subtitle = r.summary
+        let short = TrafficText.normalize(r.name).replacingOccurrences(of: " ", with: "")
+        synonyms = short == r.name ? [] : [short]
+    }
+    init(road: Road) {
+        id = "road:" + road.rawValue; name = road.title; subtitle = "路線全体"; synonyms = road.synonyms
+    }
+    static func all() -> [TargetEntity] {
+        RouteStore.load().map { TargetEntity(route: $0) } + Road.allCases.map { TargetEntity(road: $0) }
+    }
+}
+
+struct TargetQuery: EntityStringQuery {
+    func entities(for identifiers: [String]) async throws -> [TargetEntity] {
+        TargetEntity.all().filter { identifiers.contains($0.id) }
+    }
+    func suggestedEntities() async throws -> [TargetEntity] { TargetEntity.all() }
+    func entities(matching string: String) async throws -> [TargetEntity] {
+        let q = TrafficText.normalize(string)
+        // 区間の名前を先に探す（「通勤」など）
+        let routes = RouteStore.load().filter {
+            let n = TrafficText.normalize($0.name)
+            return !n.isEmpty && (q.contains(n) || n.contains(q))
+        }.map { TargetEntity(route: $0) }
+        if !routes.isEmpty { return routes }
+        if let road = Road.find(in: q) { return [TargetEntity(road: road)] }
+        return []
+    }
+}
+
+/// 「Hey Siri、渋滞ナビで通勤の渋滞情報を教えて」「〜で首都高の渋滞」
+/// 名前が区間なら区間、道路なら路線全体。聞き取れなかったら「いつもの」を読み上げる（選択画面は出さない）
+struct TrafficTargetIntent: AppIntent {
+    static var title: LocalizedStringResource = "渋滞情報を聞く"
+    static var description = IntentDescription("登録した区間、または高速道路の渋滞・事故・規制を読み上げます。")
+    static var openAppWhenRun: Bool = false
+
+    @Parameter(title: "道路・区間")
+    var target: TargetEntity?
+
+    init() {}
+
+    func perform() async throws -> some IntentResult & ShowsSnippetView {
+        var text: String
+        do {
+            if let t = target, t.id.hasPrefix("route:"), let id = UUID(uuidString: String(t.id.dropFirst(6))), let r = RouteStore.find(id) {
+                text = try await RouteTrafficIntent.speech(for: r)
+            } else if let t = target, t.id.hasPrefix("road:"), let road = Road(rawValue: String(t.id.dropFirst(5))) {
+                let snap = try await TrafficService.shared.road(road)
+                text = TrafficText.speech(road: road, items: snap.items, updated: snap.updated)
+            } else if let first = RouteStore.load().first {
+                text = try await RouteTrafficIntent.speech(for: first)
+            } else {
+                let road = Favorites.load().first ?? .gaikan
+                let snap = try await TrafficService.shared.road(road)
+                text = TrafficText.speech(road: road, items: snap.items, updated: snap.updated)
+            }
+        } catch {
+            text = "交通情報を取得できませんでした。少し時間をおいてもう一度聞いてください。"
+        }
+        await IntentSpeaker.shared.speak(text)
+        return .result(view: SpeechSnippet(text: text))
+    }
+}
+
 struct JutaiShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
-            intent: RoadTrafficIntent(),
+            intent: TrafficTargetIntent(),
             phrases: [
-                "\(.applicationName)で\(\.$road)の渋滞情報を教えて",
-                "\(.applicationName)で\(\.$road)の渋滞情報",
-                "\(.applicationName)で\(\.$road)の渋滞",
-                "\(.applicationName)で\(\.$road)の交通情報",
-                "\(.applicationName)、\(\.$road)の渋滞情報を教えて",
-                "\(.applicationName)、\(\.$road)の渋滞",
-                "\(.applicationName)で\(\.$road)",
-                "\(.applicationName)、\(\.$road)",
-                "\(.applicationName) \(\.$road)",
-                "\(.applicationName)で\(\.$road)は？",
-                "\(.applicationName)で\(\.$road)の状況",
-                "\(\.$road)の渋滞を\(.applicationName)で",
-                "\(\.$road)の渋滞情報を\(.applicationName)で教えて",
+                "\(.applicationName)で\(\.$target)の渋滞情報を教えて",
+                "\(.applicationName)で\(\.$target)の渋滞情報",
+                "\(.applicationName)で\(\.$target)の渋滞",
+                "\(.applicationName)で\(\.$target)の交通情報",
+                "\(.applicationName)、\(\.$target)の渋滞情報を教えて",
+                "\(.applicationName)、\(\.$target)の渋滞",
+                "\(.applicationName)で\(\.$target)",
+                "\(.applicationName)、\(\.$target)",
+                "\(.applicationName) \(\.$target)",
+                "\(.applicationName)で\(\.$target)は？",
+                "\(.applicationName)で\(\.$target)の状況",
+                "\(\.$target)の渋滞を\(.applicationName)で",
+                "\(\.$target)の渋滞情報を\(.applicationName)で教えて",
             ],
-            shortTitle: "高速道路の渋滞",
+            shortTitle: "渋滞情報",
             systemImageName: "car.2.fill"
-        )
-        AppShortcut(
-            intent: RouteTrafficIntent(),
-            phrases: [
-                "\(.applicationName)で\(\.$route)の渋滞情報を教えて",
-                "\(.applicationName)で\(\.$route)の渋滞情報",
-                "\(.applicationName)で\(\.$route)の渋滞",
-                "\(.applicationName)で\(\.$route)の交通情報",
-                "\(.applicationName)、\(\.$route)の渋滞",
-                "\(.applicationName)で\(\.$route)",
-                "\(.applicationName)、\(\.$route)",
-                "\(\.$route)の渋滞を\(.applicationName)で",
-            ],
-            shortTitle: "登録した区間",
-            systemImageName: "point.topleft.down.to.point.bottomright.curvepath"
         )
         AppShortcut(
             intent: FavoriteTrafficIntent(),
@@ -244,7 +307,7 @@ struct JutaiShortcuts: AppShortcutsProvider {
                 "\(.applicationName)で渋滞",
                 "\(.applicationName)",
             ],
-            shortTitle: "いつもの道路",
+            shortTitle: "いつもの",
             systemImageName: "star.fill"
         )
     }
