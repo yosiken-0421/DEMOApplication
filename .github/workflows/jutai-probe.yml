@@ -1,0 +1,14 @@
+name: 渋滞ナビ / データ形式の調査
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/jutai-probe.yml", ".github/scripts/jutai_probe.py"]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 .github/scripts/jutai_probe.py
