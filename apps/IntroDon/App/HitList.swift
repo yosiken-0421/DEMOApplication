@@ -82,7 +82,9 @@ struct HitSong: Decodable, Hashable {
         switch r {
         case 1...10: return 6
         case 11...20: return 3
-        default: return 1.5
+        case 21...30: return 1.5
+        case 31...50: return 1
+        default: return 0.7
         }
     }
 

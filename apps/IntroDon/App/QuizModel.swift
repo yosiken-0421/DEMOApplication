@@ -192,12 +192,21 @@ final class QuizModel: ObservableObject {
     }
 
     private static func makeQueue(plan: QuizPlan, fame: Fame) -> [Candidate] {
+        // 最近のゲームで出た曲は後回し（古く出た曲ほど先に戻ってくる）
+        let recent = RecentSongs.load()
+        let order = Dictionary(recent.enumerated().map { ($1, $0) }, uniquingKeysWith: { a, _ in a })
+        func sorted(_ list: [Candidate]) -> [Candidate] {
+            let fresh = list.filter { order[RecentSongs.key($0)] == nil }
+            let old = list.filter { order[RecentSongs.key($0)] != nil }
+                .sorted { order[RecentSongs.key($0)]! < order[RecentSongs.key($1)]! }
+            return fresh + old
+        }
+        let f = sorted(plan.famous), m = sorted(plan.minor)
         switch fame {
-        case .famous: return plan.famous
-        case .minor: return plan.minor
+        case .famous: return f
+        case .minor: return m
         case .mix:
             var out: [Candidate] = []
-            let f = plan.famous, m = plan.minor
             for i in 0..<max(f.count, m.count) {
                 if i < f.count { out.append(f[i]) }
                 if i < m.count { out.append(m[i]) }
@@ -296,6 +305,7 @@ final class QuizModel: ObservableObject {
             current = q
             numberInStage += 1
             totalAsked += 1
+            RecentSongs.add(q.candidate)
             phase = .ready
             let qid = q.id
             if let an = q.candidate.hit?.animeName {
@@ -587,5 +597,27 @@ final class QuizModel: ObservableObject {
         prefetchTask?.cancel()
         player.stop()
         speaker.stop()
+    }
+}
+
+/// 最近出題した曲（この iPhone の中だけに保存。古い順）
+enum RecentSongs {
+    private static let storeKey = "introdon.recentSongs"
+    private static let limit = 600
+
+    static func key(_ c: Candidate) -> String {
+        TextMatch.core(c.title) + "|" + TextMatch.primaryArtist(c.artist)
+    }
+
+    static func load() -> [String] {
+        UserDefaults.standard.stringArray(forKey: storeKey) ?? []
+    }
+
+    static func add(_ c: Candidate) {
+        let k = key(c)
+        var list = load().filter { $0 != k }
+        list.append(k)
+        if list.count > limit { list.removeFirst(list.count - limit) }
+        UserDefaults.standard.set(list, forKey: storeKey)
     }
 }
