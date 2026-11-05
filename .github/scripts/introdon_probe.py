@@ -9,5 +9,5 @@ for url in sys.argv[1:]:
         try: html=raw.decode(enc); break
         except: continue
     print("=====",url,len(html),enc)
-    i=html.find("<table")
-    print(html[i:i+2500])
+    i=html.find("青春アミーゴ")
+    print(html[max(0,i-1500):i+2500])
