@@ -52,6 +52,14 @@ struct HitSong: Decodable, Hashable {
         }
     }
 
+    /// 生まれ年モード用：ランキングの年がこの範囲に入り、しかも元の曲がそれより前に出た曲ではない
+    /// （例：2003年の曲が2016年に再ヒットした場合は、2014年〜の範囲には入れない）
+    func fitsStrictly(_ range: ClosedRange<Int>) -> Bool {
+        guard y > 0, range.contains(y) else { return false }
+        if let ry, ry > 0, ry < range.lowerBound - 1 { return false }
+        return true
+    }
+
     /// この曲が入るジャンル（Apple のジャンル名と、出典の種類で決める）
     var genres: Set<Genre> {
         var set: Set<Genre> = [.all]
@@ -95,6 +103,11 @@ enum HitList {
         for h in all { d[TextMatch.core(h.t), default: []].append(h) }
         return d
     }()
+
+    /// 生まれ年モード用（年代を広げない）
+    static func strict(genre: Genre, years: ClosedRange<Int>, playableOnly: Bool = true) -> [HitSong] {
+        all.filter { h in (!playableOnly || h.id != nil) && h.genres.contains(genre) && h.fitsStrictly(years) }
+    }
 
     static func filtered(genre: Genre, years: ClosedRange<Int>?, playableOnly: Bool) -> [HitSong] {
         all.filter { h in

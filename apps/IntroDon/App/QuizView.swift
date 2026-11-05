@@ -85,7 +85,8 @@ struct QuizView: View {
                     .foregroundStyle(Theme.gold)
                 Text("第\(model.numberInStage)問 / \(model.stage?.count ?? 0)")
                     .font(.system(size: 18, weight: .heavy, design: .rounded))
-                Text("\(model.settings.genre.label)・\(model.settings.era.label)・\(model.settings.fame.label)")
+                Text(model.settings.birth.map { "\($0.label)・\(model.settings.genre.label)" }
+                     ?? "\(model.settings.genre.label)・\(model.settings.era.label)・\(model.settings.fame.label)")
                     .font(.caption2).opacity(0.6)
             }
             Spacer()

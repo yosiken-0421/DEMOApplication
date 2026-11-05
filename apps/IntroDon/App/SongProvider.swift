@@ -181,6 +181,10 @@ enum SongProvider {
             if let h = c.hit { return h.isIn(r) || (c.year.map { r.contains($0) } ?? false) }
             return c.year.map { r.contains($0) } ?? false
         }
+        if let b = settings.birth {
+            let f = famousSorted.filter { $0.hit?.fitsStrictly(b.years) ?? false }
+            return QuizPlan(famous: f, minor: [], years: b.years, note: nil)
+        }
         let (lists, years, note) = widen(settings.era.years, need: needed(settings)) { r -> (Int, ([Candidate], [Candidate])) in
             let f = famousSorted.filter { inRange($0, r) }
             let m = minorShuffled.filter { inRange($0, r) }
@@ -216,6 +220,14 @@ enum SongProvider {
 
     static func catalogPlan(settings: QuizSettings) async throws -> QuizPlan {
         let need = needed(settings)
+        // 生まれ年モード：その年のヒット曲だけ（年代を広げない・マイナー曲は使わない）
+        if let b = settings.birth {
+            let hits = HitList.weightedShuffle(HitList.strict(genre: settings.genre, years: b.years), genre: settings.genre)
+            let famous = hits.map { h in
+                Candidate(id: "hit-" + h.key, title: h.t, artist: h.artist, year: h.year, hit: h, song: nil)
+            }
+            return QuizPlan(famous: famous, minor: [], years: b.years, note: nil)
+        }
         // 有名な曲：Apple の原曲が確認できているヒット曲
         let (hits, years, note) = widen(settings.era.years, need: need) { r -> (Int, [HitSong]) in
             let h = HitList.filtered(genre: settings.genre, years: r, playableOnly: true)

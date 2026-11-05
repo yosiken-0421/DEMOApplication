@@ -258,6 +258,23 @@ enum StopMode: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - 生まれ年でイントロドン
+
+/// 「この生まれ年の人なら知っている曲」。小学5年生（10歳）〜高校卒業（18歳）の年のヒット曲だけを使う
+struct BirthRange: Hashable, Identifiable {
+    let from: Int
+    let to: Int
+
+    var id: Int { from }
+    static let all: [BirthRange] = stride(from: 1990, through: 2004, by: 2).map { BirthRange(from: $0, to: $0 + 1) }
+
+    /// 曲を選ぶ年（ランキングの年）
+    var years: ClosedRange<Int> { (from + 10)...(to + 18) }
+    var label: String { "\(from)・\(to)年生まれ" }
+    var shortLabel: String { "\(from)〜\(to % 100)" }
+    var rangeLabel: String { "\(years.lowerBound)年〜\(years.upperBound)年のヒット曲（10歳〜18歳のころ）" }
+}
+
 struct QuizSettings {
     var source: MusicSource = .library
     var genre: Genre = .all
@@ -269,4 +286,6 @@ struct QuizSettings {
     /// true = 歌い出し（最初の歌詞）の少し前から再生 / false = 曲の頭から
     var startFromVocal: Bool = true
     var stopMode: StopMode = .manual
+    /// 生まれ年モード（nil = ふつうのモード）
+    var birth: BirthRange? = nil
 }

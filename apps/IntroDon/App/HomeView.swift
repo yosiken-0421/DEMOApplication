@@ -3,6 +3,8 @@ import SwiftUI
 struct HomeView: View {
     @State private var settings = QuizSettings()
     @State private var playing = false
+    @State private var launch = QuizSettings()
+    @State private var birth: BirthRange? = nil
     @State private var logoBounce = false
 
     var body: some View {
@@ -17,6 +19,7 @@ struct HomeView: View {
                             ForEach(MusicSource.allCases) { s in sourceRow(s) }
                         }
                     }
+                    birthCard
                     card {
                         SectionTitle(text: "遊び方")
                         FlowLayout {
@@ -125,7 +128,67 @@ struct HomeView: View {
             }
         }
         .fullScreenCover(isPresented: $playing) {
-            QuizView(settings: settings)
+            QuizView(settings: launch)
+        }
+    }
+
+    // MARK: 生まれ年でイントロドン
+
+    private var birthCard: some View {
+        card {
+            SectionTitle(text: "🎂 生まれ年でイントロドン")
+            Text("生まれ年を選ぶと、10歳〜18歳のころのヒット曲だけで出題します。ジャンルを押すとすぐ始まります。")
+                .font(.caption).foregroundStyle(.white.opacity(0.7))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+                ForEach(BirthRange.all) { b in
+                    Button { withAnimation(.spring(response: 0.3)) { birth = (birth == b) ? nil : b } } label: {
+                        VStack(spacing: 0) {
+                            Text("\(b.from)").font(.system(size: 15, weight: .heavy, design: .rounded))
+                            Text("・\(b.to)年").font(.system(size: 11, weight: .bold, design: .rounded)).opacity(0.8)
+                        }
+                        .frame(maxWidth: .infinity).padding(.vertical, 8)
+                        .background(birth == b ? Theme.gold : Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
+                        .foregroundStyle(birth == b ? Color.black : Color.white)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            if let b = birth {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("\(b.label)：\(b.rangeLabel)")
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(Theme.gold)
+                    let need = settings.questionCount + 4
+                    let genres = Genre.allCases.map { ($0, HitList.strict(genre: $0, years: b.years).count) }
+                        .filter { $0.1 >= need }
+                    FlowLayout {
+                        ForEach(genres, id: \.0) { item in
+                            let g = item.0, n = item.1
+                            Button {
+                                var s = settings
+                                s.birth = b
+                                s.genre = g
+                                s.fame = .famous
+                                s.era = .all
+                                launch = s
+                                playing = true
+                            } label: {
+                                Text("\(g.emoji) \(g.label)（\(n)曲）")
+                                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                                    .padding(.horizontal, 14).padding(.vertical, 10)
+                                    .background(LinearGradient(colors: [Theme.pink, Color.orange], startPoint: .leading, endPoint: .trailing),
+                                                in: Capsule())
+                                    .foregroundStyle(.white)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    Text("その年の曲が少ないジャンルは出していません。")
+                        .font(.caption2).foregroundStyle(.white.opacity(0.5))
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
     }
 
@@ -167,7 +230,7 @@ struct HomeView: View {
     }
 
     private var startButton: some View {
-        Button { playing = true } label: {
+        Button { launch = settings; launch.birth = nil; playing = true } label: {
             Text("スタート！")
                 .font(.system(size: 24, weight: .black, design: .rounded))
                 .frame(maxWidth: .infinity)
