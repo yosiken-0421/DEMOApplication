@@ -1,0 +1,13 @@
+name: イントロどんぴしゃ ランキングページ確認
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: "確認するURL（スペース区切り）"
+        required: true
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 .github/scripts/introdon_probe.py ${{ inputs.urls }}
