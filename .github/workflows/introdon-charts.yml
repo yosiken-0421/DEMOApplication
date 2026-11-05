@@ -1,0 +1,27 @@
+name: イントロどんぴしゃ 年間ランキングの追加
+
+# オリコン年間（Wikipedia「○年の音楽」）と Billboard JAPAN 年間 HOT 100 から曲を増やします。
+# 終わったら「曲データの照合」と「読みの収集」を続けて動かします。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  charts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: 年間ランキングを取得して追加
+        run: python3 .github/scripts/introdon_charts.py
+      - name: コミット
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/IntroDon/Resources/hits.json
+          if git diff --cached --quiet; then echo "変更なし"; exit 0; fi
+          git commit -m "イントロどんぴしゃ: 年間ランキング（オリコン年間・Billboard JAPAN年間HOT100）から曲を追加"
+          for i in 1 2 3; do git pull --rebase origin main && git push origin HEAD:main && break; sleep 5; done
