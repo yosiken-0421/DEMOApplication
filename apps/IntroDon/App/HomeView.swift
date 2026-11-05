@@ -35,7 +35,10 @@ struct HomeView: View {
                         SectionTitle(text: "ジャンル")
                         FlowLayout {
                             ForEach(Genre.allCases) { g in
-                                Chip(text: "\(g.emoji) \(g.label)", selected: settings.genre == g) { settings.genre = g }
+                                let enough = genreAvailable(g)
+                                Chip(text: "\(g.emoji) \(g.label)", selected: settings.genre == g && enough) { settings.genre = g }
+                                    .disabled(!enough)
+                                    .opacity(enough ? 1 : 0.3)
                             }
                         }
                         SectionTitle(text: "年代").padding(.top, 6)
@@ -56,6 +59,11 @@ struct HomeView: View {
                                     Spacer(minLength: 0)
                                 }
                             }
+                        }
+                        if !genreAvailable(settings.genre) {
+                            Text("この年代は「\(settings.genre.label)」の有名な曲が少ないので、別のジャンルを選んでください。")
+                                .font(.caption.bold()).foregroundStyle(Theme.gold)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         if let r = settings.era.years {
                             Text("\(r.lowerBound)年〜\(r.upperBound)年")
@@ -130,6 +138,12 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $playing) {
             QuizView(settings: launch)
         }
+    }
+
+    /// この年代で、このジャンルの有名な曲が足りるか（iPhoneのミュージックは中身が分からないので常に押せる）
+    private func genreAvailable(_ g: Genre) -> Bool {
+        if settings.source == .library || settings.fame == .minor { return true }
+        return HitList.countForEra(genre: g, era: settings.era) >= settings.questionCount + 4
     }
 
     // MARK: 生まれ年でイントロドン
@@ -241,6 +255,8 @@ struct HomeView: View {
                 .shadow(color: Theme.pink.opacity(0.6), radius: 14, y: 6)
         }
         .buttonStyle(.plain)
+        .disabled(!genreAvailable(settings.genre))
+        .opacity(genreAvailable(settings.genre) ? 1 : 0.4)
     }
 
     private var notes: some View {

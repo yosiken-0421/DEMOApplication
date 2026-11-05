@@ -106,6 +106,27 @@ enum HitList {
         return d
     }()
 
+    /// 歌手がランキングに初めて入った年
+    private static let firstYearByArtist: [String: Int] = {
+        var d: [String: Int] = [:]
+        for h in all where h.y > 0 {
+            let k = TextMatch.primaryArtist(h.artist)
+            guard k.count >= 2 else { continue }
+            d[k] = min(d[k] ?? h.y, h.y)
+        }
+        return d
+    }()
+
+    static func firstChartYear(artist: String) -> Int? {
+        firstYearByArtist[TextMatch.primaryArtist(artist)]
+    }
+
+    /// ふつうのモードで、この年代・ジャンルに出せる有名な曲の数（前半・後半は同じ年代まで広げた数）
+    static func countForEra(genre: Genre, era: Era) -> Int {
+        let r = SongProvider.widened(era.years)
+        return filtered(genre: genre, years: r, playableOnly: true).count
+    }
+
     /// 生まれ年モード用（年代を広げない）
     static func strict(genre: Genre, years: ClosedRange<Int>, playableOnly: Bool = true) -> [HitSong] {
         all.filter { h in (!playableOnly || h.id != nil) && h.genres.contains(genre) && h.fitsStrictly(years) }

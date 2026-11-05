@@ -107,18 +107,37 @@ enum SongProvider {
     static func needed(_ settings: QuizSettings) -> Int { settings.questionCount + 4 }
 
     /// 選んだ年代で曲が足りないときは、前後に5年ずつ広げる
+    /// 曲が足りないときに広げる範囲：前半・後半 → その年代まるごと。年代まるごと・全年代は広げない
+    static func widened(_ r: ClosedRange<Int>?) -> ClosedRange<Int>? {
+        guard let r, r.count <= 5 else { return r }
+        let d = r.lowerBound / 10 * 10
+        return d...(d + 9)
+    }
+
+    /// 選んだ年代の中の曲を先に、広げた分の曲はあとに並べる（並びは保ったまま）
+    static func inBaseFirst(_ list: [Candidate], base: ClosedRange<Int>?) -> [Candidate] {
+        guard let base else { return list }
+        func inside(_ c: Candidate) -> Bool {
+            if let h = c.hit { return h.isIn(base) }
+            return c.year.map { base.contains($0) } ?? false
+        }
+        return list.filter(inside) + list.filter { !inside($0) }
+    }
+
     static func widen<T>(_ base: ClosedRange<Int>?, need: Int, count: (ClosedRange<Int>?) -> (Int, T)) -> (T, ClosedRange<Int>?, String?) {
         var r = base
         var (n, value) = count(r)
         guard var cur = base else { return (value, nil, nil) }
-        while n < need && (cur.lowerBound > 1965 || cur.upperBound < 2030) {
-            cur = (cur.lowerBound - 5)...(cur.upperBound + 5)
+        // 広げるのは「前半・後半」を選んだときに、同じ年代まるごとにするところまで
+        // （別の年代には広げない。例：90年代後半 → 90年代）
+        if n < need, let wide = widened(cur), wide != cur {
+            cur = wide
             r = cur
             (n, value) = count(r)
         }
         if let r, r != base {
             let lo = max(r.lowerBound, 1970), hi = min(r.upperBound, Calendar.current.component(.year, from: Date()))
-            return (value, r, "この年代・ジャンルの曲が少ないため、\(lo)年〜\(hi)年の曲も出題します")
+            return (value, r, "この年代・ジャンルの曲が少ないため、\(lo)年〜\(hi)年（同じ年代）の曲も出題します")
         }
         return (value, r, nil)
     }
@@ -196,7 +215,8 @@ enum SongProvider {
             }
             return (n, (f, m))
         }
-        return QuizPlan(famous: lists.0, minor: lists.1, years: years, note: note)
+        return QuizPlan(famous: inBaseFirst(lists.0, base: settings.era.years),
+                        minor: inBaseFirst(lists.1, base: settings.era.years), years: years, note: note)
     }
 
     // MARK: Apple のカタログ（iTunes Search API）
@@ -234,9 +254,9 @@ enum SongProvider {
             return (h.count, h)
         }
         let ordered = HitList.weightedShuffle(hits, genre: settings.genre)
-        let famous = ordered.map { h in
+        let famous = inBaseFirst(ordered.map { h in
             Candidate(id: "hit-" + h.key, title: h.t, artist: h.artist, year: h.year, hit: h, song: nil)
-        }
+        }, base: settings.era.years)
         var minor: [Candidate] = []
         var minorYears = years
         var minorNote: String?
@@ -285,8 +305,13 @@ enum SongProvider {
         }
         if !anySuccess { throw SongProviderError.network(lastError ?? "不明なエラー") }
 
-        // ヒット曲・ジャンル違い・カバー等を除く
+        // ヒット曲・ジャンル違い・カバー等を除く。
+        // 年代を選んだときは、その10年以上前からヒットのある歌手の曲（昔の曲の再発売の可能性が高い）も除く
+        let lower = years?.lowerBound
         let base = pool.filter { song in
+            if let lower, let first = HitList.firstChartYear(artist: song.artist), first < lower - 10 { return false }
+            return true
+        }.filter { song in
             HitList.find(title: song.title, artist: song.artist) == nil
                 && settings.genre.matches(song.genreName)
                 && !isAltVersion(song.title)
@@ -296,7 +321,7 @@ enum SongProvider {
             var out: [Candidate] = []
             for song in base {
                 if let r {
-                    guard let y = song.year, (r.lowerBound - 2)...(r.upperBound + 2) ~= y else { continue }
+                    guard let y = song.year, r.contains(y) else { continue }
                 }
                 let key = TextMatch.core(song.title) + "|" + TextMatch.primaryArtist(song.artist)
                 guard !seen.contains(key) else { continue }
