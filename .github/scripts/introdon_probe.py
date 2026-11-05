@@ -1,13 +1,11 @@
-import urllib.request, re, sys, html as H
-UA={"User-Agent":"Mozilla/5.0 (compatible; IntroDon-data/1.0)"}
-for url in sys.argv[1:]:
-    try:
-        raw=urllib.request.urlopen(urllib.request.Request(url,headers=UA),timeout=30).read()
-    except Exception as e:
-        print("ERR",url,e); continue
-    for enc in ("utf-8","shift_jis","cp932","euc-jp"):
-        try: html=raw.decode(enc); break
-        except: continue
-    print("=====",url,len(html),enc)
-    i=html.find("青春アミーゴ")
-    print(html[max(0,i-1500):i+2500])
+import urllib.request, urllib.parse, json, sys, re
+UA={"User-Agent":"IntroDonpisha/1.0 (https://github.com/yosiken-0421/DEMOApplication)"}
+for title in sys.argv[1:]:
+    q=urllib.parse.urlencode({"action":"parse","page":title,"prop":"wikitext","format":"json","formatversion":"2"})
+    d=json.load(urllib.request.urlopen(urllib.request.Request("https://ja.wikipedia.org/w/api.php?"+q,headers=UA),timeout=30))
+    w=d["parse"]["wikitext"]
+    print("=====",title,len(w))
+    i=w.find("シングル")
+    for m in re.finditer(r"==+[^=\n]*(年間|ランキング|チャート)[^=\n]*==+", w): print("HEAD",m.start(),m.group(0))
+    j=w.find("年間シングル")
+    print(w[j-300:j+3000])
