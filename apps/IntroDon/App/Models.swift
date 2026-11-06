@@ -275,6 +275,50 @@ struct BirthRange: Hashable, Identifiable {
     var rangeLabel: String { "\(years.lowerBound)年〜\(years.upperBound)年のヒット曲（10歳〜18歳のころ）" }
 }
 
+// MARK: - 順位で選ぶ
+
+enum RankLimit: String, CaseIterable, Identifiable {
+    case top10, top30, all
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .top10: return "TOP10だけ"
+        case .top30: return "TOP30まで"
+        case .all: return "100位まで"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .top10: return "年間ランキング10位以内（米Billboardは1位の曲）だけ。みんな知ってる超有名曲"
+        case .top30: return "年間ランキング30位以内。有名曲を中心に少し幅広く"
+        case .all: return "年間ランキング100位まで＋アニソンの投票企画・ジャンル別ランキングの曲。ちょっと難しい曲も出ます"
+        }
+    }
+
+    /// 順位 r（0 = 順位のない投票企画など）がこの範囲に入るか
+    func allows(_ r: Int) -> Bool {
+        switch self {
+        case .top10: return (1...10).contains(r)
+        case .top30: return (1...30).contains(r)
+        case .all: return true
+        }
+    }
+}
+
+/// 有名な曲の絞り込み（順位・アーティスト）
+struct SongFilter: Hashable {
+    var rank: RankLimit = .all
+    /// 選んだアーティスト（TextMatch.primaryArtist のキー）。空 = すべて
+    var artists: Set<String> = []
+
+    static let none = SongFilter()
+    /// 選択肢（ハズレの曲）用：順位もアーティストも絞らない
+    var forDecoys: SongFilter { SongFilter() }
+}
+
 struct QuizSettings {
     var source: MusicSource = .library
     var genre: Genre = .all
@@ -288,4 +332,12 @@ struct QuizSettings {
     var stopMode: StopMode = .manual
     /// 生まれ年モード（nil = ふつうのモード）
     var birth: BirthRange? = nil
+    /// 順位で選ぶ
+    var rank: RankLimit = .all
+    /// アーティストで選ぶ（空 = すべて）
+    var artists: Set<String> = []
+
+    var filter: SongFilter { SongFilter(rank: rank, artists: artists) }
+    /// アーティストを選んでいるときはジャンルで絞らない
+    var effectiveGenre: Genre { artists.isEmpty ? genre : .all }
 }

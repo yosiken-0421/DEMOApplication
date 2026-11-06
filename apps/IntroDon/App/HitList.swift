@@ -60,6 +60,13 @@ struct HitSong: Decodable, Hashable {
         return true
     }
 
+    /// 順位・アーティストの絞り込みに合うか
+    func passes(_ f: SongFilter) -> Bool {
+        guard f.rank.allows(r) else { return false }
+        if !f.artists.isEmpty && !f.artists.contains(TextMatch.primaryArtist(artist)) { return false }
+        return true
+    }
+
     /// この曲が入るジャンル（Apple のジャンル名と、出典の種類で決める）
     var genres: Set<Genre> {
         var set: Set<Genre> = [.all]
@@ -122,19 +129,50 @@ enum HitList {
     }
 
     /// ふつうのモードで、この年代・ジャンルに出せる有名な曲の数（前半・後半は同じ年代まで広げた数）
-    static func countForEra(genre: Genre, era: Era) -> Int {
+    static func countForEra(genre: Genre, era: Era, filter: SongFilter = .none) -> Int {
         let r = SongProvider.widened(era.years)
-        return filtered(genre: genre, years: r, playableOnly: true).count
+        return filtered(genre: genre, years: r, playableOnly: true, filter: filter).count
     }
+
+    /// アーティスト一覧（ヒット曲の多い順）
+    struct ArtistEntry: Identifiable, Hashable {
+        let key: String
+        let name: String
+        let reading: String?
+        let count: Int
+        let western: Bool
+        var id: String { key }
+    }
+
+    static let artists: [ArtistEntry] = {
+        var groups: [String: [HitSong]] = [:]
+        for h in all where h.id != nil && !h.artist.isEmpty {
+            let k = TextMatch.primaryArtist(h.artist)
+            guard k.count >= 1 else { continue }
+            groups[k, default: []].append(h)
+        }
+        return groups.map { k, hs -> ArtistEntry in
+            var names: [String: Int] = [:]
+            for h in hs { names[TextMatch.primaryArtistDisplay(h.artist), default: 0] += 1 }
+            let name = names.max { a, b in a.value == b.value ? a.key.count > b.key.count : a.value < b.value }!.key
+            let reading = hs.first { $0.ra != nil && TextMatch.primaryArtist($0.a) == k }?.ra
+            return ArtistEntry(key: k, name: name, reading: reading, count: hs.count, western: hs.allSatisfy(\.western))
+        }
+        .sorted { $0.count == $1.count ? $0.name < $1.name : $0.count > $1.count }
+    }()
+
+    static let artistByKey: [String: ArtistEntry] = Dictionary(uniqueKeysWithValues: artists.map { ($0.key, $0) })
 
     /// 生まれ年モード用（年代を広げない）
-    static func strict(genre: Genre, years: ClosedRange<Int>, playableOnly: Bool = true) -> [HitSong] {
-        all.filter { h in (!playableOnly || h.id != nil) && h.genres.contains(genre) && h.fitsStrictly(years) }
+    static func strict(genre: Genre, years: ClosedRange<Int>, playableOnly: Bool = true, filter: SongFilter = .none) -> [HitSong] {
+        all.filter { h in
+            (!playableOnly || h.id != nil) && h.genres.contains(genre) && h.fitsStrictly(years) && h.passes(filter)
+        }
     }
 
-    static func filtered(genre: Genre, years: ClosedRange<Int>?, playableOnly: Bool) -> [HitSong] {
+    static func filtered(genre: Genre, years: ClosedRange<Int>?, playableOnly: Bool, filter: SongFilter = .none) -> [HitSong] {
         all.filter { h in
-            (!playableOnly || h.id != nil) && h.genres.contains(genre) && h.isIn(years)
+            (!playableOnly || h.id != nil) && h.genres.contains(genre) && h.isIn(years) && h.passes(filter)
         }
     }
 

@@ -6,6 +6,7 @@ struct HomeView: View {
     @State private var launch = QuizSettings()
     @State private var birth: BirthRange? = nil
     @State private var logoBounce = false
+    @State private var showArtistPicker = false
 
     var body: some View {
         ZStack {
@@ -32,14 +33,22 @@ struct HomeView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     card {
-                        SectionTitle(text: "ジャンル")
-                        FlowLayout {
-                            ForEach(Genre.allCases) { g in
-                                let enough = genreAvailable(g)
-                                Chip(text: "\(g.emoji) \(g.label)", selected: settings.genre == g && enough) { settings.genre = g }
-                                    .disabled(!enough)
-                                    .opacity(enough ? 1 : 0.3)
+                        SectionTitle(text: "アーティストで選ぶ")
+                        artistRow
+                        SectionTitle(text: "ジャンル").padding(.top, 6)
+                        if settings.artists.isEmpty {
+                            FlowLayout {
+                                ForEach(Genre.allCases) { g in
+                                    let enough = genreAvailable(g)
+                                    Chip(text: "\(g.emoji) \(g.label)", selected: settings.genre == g && enough) { settings.genre = g }
+                                        .disabled(!enough)
+                                        .opacity(enough ? 1 : 0.3)
+                                }
                             }
+                        } else {
+                            Text("アーティストを選んでいるときは、ジャンルでは絞りません。")
+                                .font(.caption).foregroundStyle(.white.opacity(0.6))
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         SectionTitle(text: "年代").padding(.top, 6)
                         Chip(text: "全年代", selected: settings.era == .all) { settings.era = .all }
@@ -79,6 +88,23 @@ struct HomeView: View {
                         Text(settings.fame.detail)
                             .font(.caption).foregroundStyle(.white.opacity(0.6))
                             .frame(maxWidth: .infinity, alignment: .leading)
+                        if settings.fame != .minor {
+                            SectionTitle(text: "順位で選ぶ（有名な曲）").padding(.top, 6)
+                            FlowLayout {
+                                ForEach(RankLimit.allCases) { r in
+                                    Chip(text: r.label, selected: settings.rank == r) { settings.rank = r }
+                                }
+                            }
+                            Text(settings.rank.detail)
+                                .font(.caption).foregroundStyle(.white.opacity(0.6))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        if settings.source != .library && settings.fame != .minor {
+                            let n = HitList.countForEra(genre: settings.effectiveGenre, era: settings.era, filter: settings.filter)
+                            Text("この条件の有名な曲：\(n)曲")
+                                .font(.caption.bold()).foregroundStyle(Theme.cyan)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
                     card {
                         SectionTitle(text: "曲の止め方")
@@ -143,7 +169,52 @@ struct HomeView: View {
     /// この年代で、このジャンルの有名な曲が足りるか（iPhoneのミュージックは中身が分からないので常に押せる）
     private func genreAvailable(_ g: Genre) -> Bool {
         if settings.source == .library || settings.fame == .minor { return true }
-        return HitList.countForEra(genre: g, era: settings.era) >= settings.questionCount + 4
+        // アーティストを選んだときは1曲でもあれば遊べる
+        if !settings.artists.isEmpty {
+            return HitList.countForEra(genre: .all, era: settings.era, filter: settings.filter) >= 1
+        }
+        return HitList.countForEra(genre: g, era: settings.era, filter: settings.filter) >= settings.questionCount + 4
+    }
+
+    // MARK: アーティストで選ぶ
+
+    private var artistRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button { showArtistPicker = true } label: {
+                HStack {
+                    Image(systemName: "person.2.fill")
+                    Text(settings.artists.isEmpty ? "アーティストを選ぶ（すべて）" : "\(settings.artists.count)組を選択中・変更する")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                    Spacer()
+                    Image(systemName: "chevron.right").opacity(0.6)
+                }
+                .padding(12)
+                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+            if !settings.artists.isEmpty {
+                FlowLayout {
+                    ForEach(settings.artists.sorted(), id: \.self) { k in
+                        Button { settings.artists.remove(k) } label: {
+                            HStack(spacing: 4) {
+                                Text(HitList.artistByKey[k]?.name ?? k)
+                                Image(systemName: "xmark.circle.fill").opacity(0.7)
+                            }
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .padding(.horizontal, 10).padding(.vertical, 6)
+                            .background(Theme.gold, in: Capsule())
+                            .foregroundStyle(.black)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                Button("すべて解除") { settings.artists = [] }
+                    .font(.caption.bold()).foregroundStyle(Theme.pink)
+            }
+        }
+        .sheet(isPresented: $showArtistPicker) {
+            ArtistPickerView(selected: $settings.artists)
+        }
     }
 
     // MARK: 生まれ年でイントロドン
@@ -174,7 +245,8 @@ struct HomeView: View {
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(Theme.gold)
                     let need = settings.questionCount + 4
-                    let genres = Genre.allCases.map { ($0, HitList.strict(genre: $0, years: b.years).count) }
+                    let rankOnly = SongFilter(rank: settings.rank)
+                    let genres = Genre.allCases.map { ($0, HitList.strict(genre: $0, years: b.years, filter: rankOnly).count) }
                         .filter { $0.1 >= need }
                     FlowLayout {
                         ForEach(genres, id: \.0) { item in
@@ -185,6 +257,7 @@ struct HomeView: View {
                                 s.genre = g
                                 s.fame = .famous
                                 s.era = .all
+                                s.artists = []
                                 launch = s
                                 playing = true
                             } label: {
@@ -280,5 +353,78 @@ struct HomeView: View {
             .padding(14)
             .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 20))
             .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.10)))
+    }
+}
+
+
+// MARK: - アーティストを選ぶ画面
+
+struct ArtistPickerView: View {
+    @Binding var selected: Set<String>
+    @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
+    @State private var westernOnly: Bool? = false
+
+    private var list: [HitList.ArtistEntry] {
+        let q = TextMatch.norm(query)
+        return HitList.artists.filter { a in
+            if let w = westernOnly, a.western != w { return false }
+            guard !q.isEmpty else { return true }
+            return TextMatch.norm(a.name).contains(q) || TextMatch.norm(a.reading ?? "").contains(q)
+                || TextMatch.norm(Self.hiragana(a.reading ?? "")).contains(TextMatch.norm(Self.hiragana(query)))
+        }
+    }
+
+    /// カタカナをひらがなに（読みで検索しやすくする）
+    static func hiragana(_ s: String) -> String {
+        s.applyingTransform(.hiraganaToKatakana, reverse: true) ?? s
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Picker("", selection: $westernOnly) {
+                        Text("邦楽").tag(Bool?.some(false))
+                        Text("洋楽").tag(Bool?.some(true))
+                        Text("すべて").tag(Bool?.none)
+                    }
+                    .pickerStyle(.segmented)
+                }
+                Section(footer: Text("数字は、アプリに入っているその人のヒット曲の数です（年間ランキング・アニソンランキングなど）。")) {
+                    ForEach(list) { a in
+                        Button {
+                            if selected.contains(a.key) { selected.remove(a.key) } else { selected.insert(a.key) }
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(a.name).font(.body.bold())
+                                    if let r = a.reading { Text(r).font(.caption).foregroundStyle(.secondary) }
+                                }
+                                Spacer()
+                                Text("\(a.count)曲").font(.caption).foregroundStyle(.secondary)
+                                Image(systemName: selected.contains(a.key) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(selected.contains(a.key) ? Color.orange : Color.secondary)
+                                    .font(.title3)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .searchable(text: $query, prompt: "アーティスト名・よみで検索")
+            .navigationTitle("アーティストを選ぶ")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("解除") { selected = [] }.disabled(selected.isEmpty)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("決定（\(selected.count)組）") { dismiss() }.bold()
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
     }
 }

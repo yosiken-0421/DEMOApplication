@@ -42,6 +42,8 @@ struct QuizPlan {
     var years: ClosedRange<Int>? = nil
     /// 年代を広げたときのお知らせ
     var note: String? = nil
+    /// 選択肢（ハズレ）用の曲：同じ年代のヒット曲。アーティストや順位で絞ったときも選択肢が4つそろうように
+    var decoys: [Candidate] = []
 
     var total: Int { famous.count + minor.count }
 }
@@ -91,8 +93,18 @@ enum SongProvider {
             plan = try await catalogPlan(settings: settings)
         }
         let usable = usableCount(plan, fame: settings.fame)
-        if usable < 4 { throw SongProviderError.notEnoughSongs(found: usable) }
-        return plan
+        // アーティストを選んだときは1曲からでも遊べる（選択肢はほかの曲から作る）
+        let minimum = settings.artists.isEmpty ? 4 : 1
+        if usable < minimum { throw SongProviderError.notEnoughSongs(found: usable) }
+        var p = plan
+        let decoyYears = plan.years ?? settings.birth?.years ?? widened(settings.era.years)
+        p.decoys = HitList.weightedShuffle(
+            HitList.filtered(genre: settings.genre == .westernPop ? .westernPop : (settings.artists.isEmpty ? settings.genre : .all),
+                             years: decoyYears, playableOnly: false),
+            genre: settings.genre)
+            .prefix(300)
+            .map { h in Candidate(id: "hit-" + h.key, title: h.t, artist: h.artist, year: h.year, hit: h, song: nil) }
+        return p
     }
 
     private static func usableCount(_ p: QuizPlan, fame: Fame) -> Int {
@@ -171,8 +183,10 @@ enum SongProvider {
                             libraryID: pid, durationSeconds: item.playbackDuration > 0 ? item.playbackDuration : nil)
 
             if let hit = HitList.find(title: title, artist: artist) {
-                let genreOK = hit.genres.contains(settings.genre)
-                    || (settings.genre != .westernPop && settings.genre != .anime && settings.genre.matches(item.genre))
+                guard hit.passes(settings.filter) else { continue }
+                let g = settings.effectiveGenre
+                let genreOK = hit.genres.contains(g)
+                    || (g != .westernPop && g != .anime && g.matches(item.genre))
                 guard genreOK else { continue }
                 cache[pid] = item
                 let u = Double.random(in: 0.000001..<1)
@@ -181,7 +195,9 @@ enum SongProvider {
                                   pow(u, 1 / hit.fameWeight(for: settings.genre))))
             } else {
                 let genreOK: Bool
-                if settings.genre == .westernPop {
+                if !settings.artists.isEmpty {
+                    genreOK = settings.artists.contains(TextMatch.primaryArtist(artist))
+                } else if settings.genre == .westernPop {
                     genreOK = westernArtists.contains(TextMatch.primaryArtist(artist))
                 } else {
                     genreOK = settings.genre.matches(item.genre)
@@ -242,7 +258,8 @@ enum SongProvider {
         let need = needed(settings)
         // 生まれ年モード：その年のヒット曲だけ（年代を広げない・マイナー曲は使わない）
         if let b = settings.birth {
-            let hits = HitList.weightedShuffle(HitList.strict(genre: settings.genre, years: b.years), genre: settings.genre)
+            let hits = HitList.weightedShuffle(HitList.strict(genre: settings.effectiveGenre, years: b.years, filter: settings.filter),
+                                               genre: settings.effectiveGenre)
             let famous = hits.map { h in
                 Candidate(id: "hit-" + h.key, title: h.t, artist: h.artist, year: h.year, hit: h, song: nil)
             }
@@ -250,10 +267,10 @@ enum SongProvider {
         }
         // 有名な曲：Apple の原曲が確認できているヒット曲
         let (hits, years, note) = widen(settings.era.years, need: need) { r -> (Int, [HitSong]) in
-            let h = HitList.filtered(genre: settings.genre, years: r, playableOnly: true)
+            let h = HitList.filtered(genre: settings.effectiveGenre, years: r, playableOnly: true, filter: settings.filter)
             return (h.count, h)
         }
-        let ordered = HitList.weightedShuffle(hits, genre: settings.genre)
+        let ordered = HitList.weightedShuffle(hits, genre: settings.effectiveGenre)
         let famous = inBaseFirst(ordered.map { h in
             Candidate(id: "hit-" + h.key, title: h.t, artist: h.artist, year: h.year, hit: h, song: nil)
         }, base: settings.era.years)
@@ -273,10 +290,15 @@ enum SongProvider {
     private static func minorCandidates(settings: QuizSettings, hits: [HitSong], years: ClosedRange<Int>?)
         async throws -> ([Candidate], ClosedRange<Int>?, String?) {
         var artists: [(name: String, western: Bool)] = []
-        for h in hits where !h.artist.isEmpty {
-            let a = h.artist
-            if !artists.contains(where: { TextMatch.artistMatches($0.name, a) }) { artists.append((a, h.western)) }
-            if artists.count >= 8 { break }
+        if !settings.artists.isEmpty {
+            // アーティストを選んでいるときは、その人たちのランキング外の曲
+            artists = settings.artists.compactMap { HitList.artistByKey[$0] }.prefix(12).map { ($0.name, $0.western) }
+        } else {
+            for h in hits where !h.artist.isEmpty {
+                let a = h.artist
+                if !artists.contains(where: { TextMatch.artistMatches($0.name, a) }) { artists.append((a, h.western)) }
+                if artists.count >= 8 { break }
+            }
         }
         let needPreview = settings.source == .preview
         var pool: [Song] = []
@@ -295,7 +317,7 @@ enum SongProvider {
                 }
             } catch { lastError = error.localizedDescription }
         }
-        for seed in settings.genre.searchSeeds {
+        for seed in (settings.artists.isEmpty ? settings.genre.searchSeeds : []) {
             do {
                 let tracks = try await search(term: seed, attribute: nil, limit: 200,
                                               lang: settings.genre == .westernPop ? "en_us" : "ja_jp")
@@ -313,7 +335,8 @@ enum SongProvider {
             return true
         }.filter { song in
             HitList.find(title: song.title, artist: song.artist) == nil
-                && settings.genre.matches(song.genreName)
+                && settings.effectiveGenre.matches(song.genreName)
+                && (settings.artists.isEmpty || settings.artists.contains(TextMatch.primaryArtist(song.artist)))
                 && !isAltVersion(song.title)
         }
         let (list, r, note) = widen(years, need: needed(settings)) { r -> (Int, [Candidate]) in

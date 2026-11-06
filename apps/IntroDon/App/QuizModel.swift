@@ -181,7 +181,7 @@ final class QuizModel: ObservableObject {
             plan = try await SongProvider.makePlan(settings: settings)
             planNote = plan.note
             queue = Self.makeQueue(plan: plan, fame: settings.fame)
-            stages = Self.makeStages(settings: settings)
+            stages = Self.makeStages(settings: settings, available: queue.count)
             stageIndex = 0; score = 0; history = []; totalAsked = 0
             usedAnswerIDs = []; usedAnswerTitles = []; recentChoiceIDs = []
             nextQuestion = nil; prefetchTask = nil
@@ -215,8 +215,9 @@ final class QuizModel: ObservableObject {
         }
     }
 
-    private static func makeStages(settings: QuizSettings) -> [Stage] {
-        let n = settings.questionCount
+    private static func makeStages(settings: QuizSettings, available: Int) -> [Stage] {
+        // 曲が少ないとき（アーティストを選んだときなど）は、ある曲の数だけ出題
+        let n = max(1, min(settings.questionCount, available))
         let base = settings.introSeconds
         switch settings.rule {
         case .free:
@@ -358,6 +359,8 @@ final class QuizModel: ObservableObject {
         fill(from: otherPool, allowRecent: false)
         fill(from: samePool, allowRecent: true)
         fill(from: otherPool, allowRecent: true)
+        // アーティストや順位で絞って曲が少ないときは、同じ年代のほかのヒット曲から選択肢を作る
+        fill(from: plan.decoys, allowRecent: true)
 
         recentChoiceIDs.append(contentsOf: picked.map(\.id))
         if recentChoiceIDs.count > 30 { recentChoiceIDs.removeFirst(recentChoiceIDs.count - 30) }
