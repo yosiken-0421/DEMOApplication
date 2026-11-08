@@ -213,6 +213,56 @@ jobs:
           ASC_KEY_PATH: ${{ runner.temp }}/keys/AuthKey.p8
         run: python3 .github/scripts/asc_cleanup_dev_certs.py
 
+      - name: 古いプロファイルの確認（App Group が入っていないものは削除して作り直させる）
+        id: profiles
+        if: steps.bundle.outcome == 'success'
+        env:
+          ASC_KEY_PATH: ${{ runner.temp }}/keys/AuthKey.p8
+        run: |
+          cat > "$RUNNER_TEMP/mk_profiles.py" <<'PY'
+          # 使う API（App Store Connect API 公式ドキュメントで確認済み）
+          #   GET    /v1/bundleIds?filter[identifier]=…
+          #   GET    /v1/bundleIds/{id}/profiles   … profileContent（base64）, profileState, profileType, name
+          #   DELETE /v1/profiles/{id}
+          import base64, os, plistlib, subprocess, tempfile, time
+          import jwt, requests
+          now = int(time.time())
+          token = jwt.encode({"iss": os.environ["ISSUER_ID"], "iat": now, "exp": now + 900, "aud": "appstoreconnect-v1"},
+                             open(os.environ["ASC_KEY_PATH"]).read(), algorithm="ES256",
+                             headers={"kid": os.environ["KEY_ID"], "typ": "JWT"})
+          h = {"Authorization": f"Bearer {token}"}
+          base = "https://api.appstoreconnect.apple.com/v1"
+          group = os.environ["APP_GROUP_ID"]
+          for ident in [os.environ["BUNDLE_ID"], os.environ["WIDGET_BUNDLE_ID"]]:
+              r = requests.get(f"{base}/bundleIds", params={"filter[identifier]": ident}, headers=h, timeout=30)
+              ids = [d["id"] for d in r.json().get("data", []) if d["attributes"]["identifier"] == ident] if r.status_code == 200 else []
+              if not ids:
+                  print(f"::warning::Bundle ID が見つかりません: {ident}"); continue
+              r = requests.get(f"{base}/bundleIds/{ids[0]}/profiles", params={"limit": "50"}, headers=h, timeout=30)
+              if r.status_code != 200:
+                  print(f"::warning::プロファイル一覧を取得できませんでした（HTTP {r.status_code}）: {ident}"); continue
+              profiles = r.json().get("data", [])
+              print(f"{ident}: プロファイル {len(profiles)} 件")
+              for p in profiles:
+                  a = p["attributes"]
+                  groups = None
+                  try:
+                      with tempfile.NamedTemporaryFile(suffix=".mobileprovision", delete=False) as f:
+                          f.write(base64.b64decode(a.get("profileContent") or ""))
+                      out = subprocess.run(["security", "cms", "-D", "-i", f.name], capture_output=True, check=True).stdout
+                      groups = plistlib.loads(out).get("Entitlements", {}).get("com.apple.security.application-groups", [])
+                  except Exception as e:
+                      print(f"  （中身を読めませんでした: {e}）")
+                  print(f"  - {a.get('name')} / {a.get('profileType')} / {a.get('profileState')} / App Groups: {groups}")
+                  if os.environ.get("MK_DELETE") == "1" and groups is not None and group not in groups:
+                      d = requests.delete(f"{base}/profiles/{p['id']}", headers=h, timeout=30)
+                      if d.status_code == 204:
+                          print(f"    → App Group が入っていないため削除しました（Archive 時に作り直されます）")
+                      else:
+                          print(f"::warning::プロファイルを削除できませんでした（HTTP {d.status_code}）: {a.get('name')}")
+          PY
+          MK_DELETE=1 "$RUNNER_TEMP/venv/bin/python" "$RUNNER_TEMP/mk_profiles.py"
+
       - name: Release Archive
         id: archive
         if: steps.signing.outcome == 'success'
@@ -245,6 +295,14 @@ jobs:
           codesign -d --entitlements :- "$APP" 2>/dev/null | grep -q "$APP_GROUP_ID" \
             && echo "App Group を確認: $APP_GROUP_ID" \
             || { echo "::error::署名済みアプリに App Group（$APP_GROUP_ID）が入っていません"; exit 1; }
+
+      - name: 失敗時の確認（Archive で作られたプロファイルに App Group が入っているか）
+        if: failure() && steps.archive.outcome == 'failure' && steps.profiles.outcome == 'success'
+        env:
+          ASC_KEY_PATH: ${{ runner.temp }}/keys/AuthKey.p8
+        run: |
+          MK_DELETE=0 "$RUNNER_TEMP/venv/bin/python" "$RUNNER_TEMP/mk_profiles.py"
+          echo "App Groups が [] のままなら、Apple Developer で Bundle ID に App Group が割り当てられていません（Configure → チェック → Save）。"
 
       - name: IPA 書き出し
         id: export
