@@ -174,8 +174,8 @@ jobs:
 
           def ensure_app_groups(bid_resource_id, identifier):
               # App Groups の機能を有効化（POST /v1/bundleIdCapabilities, capabilityType = APP_GROUPS）。
-              # グループ ID（group.…）そのものを作る API は無いため、作成と割り当ては
-              # Archive 時の Xcode 自動署名（-allowProvisioningUpdates）が行う。
+              # グループ ID（group.…）そのものの作成と Bundle ID への割り当ては公開 API に無いため、
+              # PadGuide と同じく Apple Developer サイトで 1 回だけ手作業で行う（README 参照）。
               r = requests.get(f"{base}/bundleIds/{bid_resource_id}/bundleIdCapabilities", headers=h, timeout=30)
               if r.status_code == 200 and any(c.get("attributes", {}).get("capabilityType") == "APP_GROUPS" for c in r.json().get("data", [])):
                   print(f"App Groups は有効です: {identifier}")
@@ -194,7 +194,7 @@ jobs:
           widget_id = ensure_bundle(os.environ["WIDGET_BUNDLE_ID"], "Machikane Widget")
           ensure_app_groups(app_id, os.environ["BUNDLE_ID"])
           ensure_app_groups(widget_id, os.environ["WIDGET_BUNDLE_ID"])
-          print("App Group ID: " + os.environ["APP_GROUP_ID"] + "（Archive 時に Xcode が作成・割り当て）")
+          print("App Group ID: " + os.environ["APP_GROUP_ID"] + "（Apple Developer サイトで作成し、上の 2 つの Bundle ID に割り当ててください）")
 
           bid = os.environ["BUNDLE_ID"]
           r = requests.get(f"{base}/apps", params={"filter[bundleId]": bid, "limit": "5"}, headers=h, timeout=30)
@@ -338,6 +338,12 @@ jobs:
             fi
             if grep -q "maximum number of certificates" "$RUNNER_TEMP/mk-archive.log" 2>/dev/null; then
               echo "**証明書の上限に達しています。** もう一度 Run workflow を押してください（開発用証明書を整理してから作り直します）。"
+            fi
+            if grep -q "application-groups entitlement" "$RUNNER_TEMP/mk-archive.log" 2>/dev/null; then
+              echo ""
+              echo "**App Group がまだ Bundle ID に割り当てられていません。** Apple Developer → Identifiers で App Group \`group.com.yosiken0421.machikane\` を作成し、"
+              echo "\`com.yosiken0421.machikane\` と \`com.yosiken0421.machikane.widget\` の両方の App Groups に割り当ててから、もう一度 Run workflow を押してください。"
+              echo "https://developer.apple.com/account/resources/identifiers/list/applicationGroup"
             fi
             if [ "$S_ARCHIVE" = "failure" ] || [ "$S_UPLOAD" = "failure" ]; then
               echo "Apple 側の設定で止まった可能性があります。上の赤いエラーの内容を確認してください（契約への同意、Bundle ID、App Group、API キーの権限が Admin か など）。"

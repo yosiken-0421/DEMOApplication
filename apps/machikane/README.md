@@ -62,8 +62,17 @@
   → 既定は書き込み専用（登録のみ）。設定でフルアクセスを許可した場合のみ、日付変更時に予定を自動更新・削除します。
   書き込み専用のまま日付が変わった場合は、項目に「カレンダーの予定が古い日付のまま」と表示します。
 - App Store Connect API：`POST /v1/bundleIds`（Bundle ID 登録）、`POST /v1/bundleIdCapabilities`（`APP_GROUPS` 有効化）。
-  App Group ID（`group.…`）自体を作る API は無いため、作成と割り当ては Archive 時の Xcode 自動署名
-  （`-allowProvisioningUpdates`、PadGuide と同じ）が行います。
+  App Group ID（`group.…`）の作成と Bundle ID への割り当てを行う公開 API は無いため、
+  PadGuide と同じく Apple Developer サイトで 1 回だけ手作業で行います（下記「最初に 1 回だけ行う作業」）。
+
+## 最初に 1 回だけ行う作業
+1. App Group を作成：https://developer.apple.com/account/resources/identifiers/list/applicationGroup →「＋」→ App Groups →
+   Identifier に `group.com.yosiken0421.machikane`
+2. 割り当て：https://developer.apple.com/account/resources/identifiers/list で `com.yosiken0421.machikane` と
+   `com.yosiken0421.machikane.widget` をそれぞれ開き、App Groups の「Configure」で上のグループにチェック → Save
+   （Bundle ID 2 つと App Groups 機能の有効化はワークフローが自動で済ませています）
+3. App Store Connect でアプリを作成：https://appstoreconnect.apple.com/apps →「＋」→「新規App」→ バンドル ID `com.yosiken0421.machikane`
+4. GitHub の Actions →「まちかね iOS / TestFlight」→「Run workflow」
 
 ## 未確認のため未実装（TODO）
 
