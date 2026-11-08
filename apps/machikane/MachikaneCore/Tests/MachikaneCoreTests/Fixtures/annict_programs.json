@@ -1,0 +1,36 @@
+{
+  "programs": [
+    {
+      "id": 35387,
+      "started_at": "2016-05-07T20:10:00.000Z",
+      "is_rebroadcast": false,
+      "channel": { "id": 4, "name": "日本テレビ" },
+      "work": {
+        "id": 4681,
+        "title": "ふらいんぐうぃっち",
+        "title_kana": "ふらいんぐうぃっち",
+        "media": "tv",
+        "media_text": "TV",
+        "season_name": "2016-spring",
+        "season_name_text": "2016年春",
+        "released_on": "",
+        "released_on_about": "",
+        "official_site_url": "http://www.flyingwitch.jp/",
+        "episodes_count": 5,
+        "watchers_count": 695
+      },
+      "episode": {
+        "id": 75187,
+        "number": "5",
+        "number_text": "第5話",
+        "sort_number": 50,
+        "title": "使い魔の活用法",
+        "records_count": 0,
+        "record_comments_count": 0
+      }
+    }
+  ],
+  "total_count": 1,
+  "next_page": null,
+  "prev_page": null
+}

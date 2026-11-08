@@ -1,0 +1,90 @@
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:openSearch="http://a9.com/-/spec/opensearchrss/1.0/" xmlns:dcndl="http://ndl.go.jp/dcndl/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" version="2.0">
+  <channel>
+    <title>jpro-book 集英社 2026-12 2026-12 - 国立国会図書館サーチ OpenSearch</title>
+    <link>https://ios-v2-prod-eks-alb.ndlsearch.ndl.go.jp/api/opensearch?dpid=jpro-book&amp;publisher=%E9%9B%86%E8%8B%B1%E7%A4%BE&amp;from=2026-12&amp;until=2026-12&amp;cnt=3</link>
+    <description>Search results for dpid=jpro-book publisher=集英社 from=2026-12 until=2026-12 cnt=3</description>
+    <language>ja</language>
+    <openSearch:totalResults>3</openSearch:totalResults>
+    <openSearch:startIndex>1</openSearch:startIndex>
+    <openSearch:itemsPerPage>3</openSearch:itemsPerPage>
+    <item>
+      <title>森羅記</title>
+      <link>https://ndlsearch.ndl.go.jp/books/R100000038-I4950210</link>
+      <description><![CDATA[<p>４,集英社,2026-12,<p><ul><li>タイトル：森羅記</li><li>タイトル（読み）：シンラキ</li><li>責任表示：北方謙三 著</li><li>各巻タイトル：懸軍の塵</li><li>各巻タイトル（読み）：ケングン　ノ　チリ</li><li>NDC(10)：913.6</li></ul>]]></description>
+      <author>北方／謙三,北方謙三 著</author>
+      <category>図書</category>
+      <category>記録メディア</category>
+      <guid isPermaLink="true">https://ndlsearch.ndl.go.jp/books/R100000038-I4950210</guid>
+      <pubDate>Wed, 7 Oct 2026 09:00:00 +0900</pubDate>
+      <dc:title>森羅記</dc:title>
+      <dcndl:titleTranscription>シンラキ</dcndl:titleTranscription>
+      <dc:creator>北方／謙三</dc:creator>
+      <dcndl:creatorTranscription>キタカタ，ケンゾウ</dcndl:creatorTranscription>
+      <dcndl:volume>４</dcndl:volume>
+      <dcndl:volumeTitle>懸軍の塵</dcndl:volumeTitle>
+      <dcndl:volumeTitleTranscription>ケングン　ノ　チリ</dcndl:volumeTitleTranscription>
+      <dc:publisher>集英社</dc:publisher>
+      <dc:date xsi:type="dcterms:W3CDTF">2026-12</dc:date>
+      <dcterms:issued>2026年12月</dcterms:issued>
+      <dc:subject xsi:type="dcndl:NDC10">913.6</dc:subject>
+      <dc:description>DAISY version:２．０２</dc:description>
+      <dc:description>音声圧縮形式:ＭＰ３</dc:description>
+      <rdfs:seeAlso rdf:resource="https://library.sapie.or.jp/cgi-bin/CN1MN1?S00101=J00DTL04&amp;S00222=4950210"/>
+      <rdfs:seeAlso rdf:resource="https://www.books.or.jp/book-details/9784087700732"/>
+      <dc:description> 2026-12</dc:description>
+    </item>
+    <item>
+      <title>東洋医学で心を守る五臓論の教え</title>
+      <link>https://ndlsearch.ndl.go.jp/books/R100000038-I4954774</link>
+      <description><![CDATA[<p>集英社インターナショナル,2026-12,<p><ul><li>タイトル：東洋医学で心を守る五臓論の教え</li><li>タイトル（読み）：トウヨウ　イガク　デ　ココロ　ヲ　マモル　ゴゾウロン　ノ　オシエ</li><li>責任表示：森下克也 著</li></ul>]]></description>
+      <author>森下／克也,森下克也 著</author>
+      <category>図書</category>
+      <category>紙</category>
+      <guid isPermaLink="true">https://ndlsearch.ndl.go.jp/books/R100000038-I4954774</guid>
+      <pubDate>Sat, 24 Oct 2026 09:00:00 +0900</pubDate>
+      <dc:title>東洋医学で心を守る五臓論の教え</dc:title>
+      <dcndl:titleTranscription>トウヨウ　イガク　デ　ココロ　ヲ　マモル　ゴゾウロン　ノ　オシエ</dcndl:titleTranscription>
+      <dc:creator>森下／克也</dc:creator>
+      <dcndl:creatorTranscription>モリシタ，カツヤ</dcndl:creatorTranscription>
+      <dc:publisher>集英社インターナショナル</dc:publisher>
+      <dc:date xsi:type="dcterms:W3CDTF">2026-12</dc:date>
+      <dcterms:issued>2026年12月</dcterms:issued>
+      <rdfs:seeAlso rdf:resource="https://library.sapie.or.jp/cgi-bin/CN1MN1?S00101=J00DTL04&amp;S00222=4954774"/>
+      <rdfs:seeAlso rdf:resource="https://www.books.or.jp/book-details/9784797681833"/>
+      <dc:description> 2026-12</dc:description>
+    </item>
+    <item>
+      <title>豊島心桜 2nd写真集 『ありのままに。』</title>
+      <link>https://ndlsearch.ndl.go.jp/books/R100000137-I9784087902570</link>
+      <description><![CDATA[<p>集英社,2026-12-01,9784087902570<p><ul><li>タイトル：豊島心桜 2nd写真集 『ありのままに。』</li><li>タイトル（読み）：トヨシマココロ セカンドシャシンシュウ 『アリノママニ。』</li><li>責任表示：豊島 心桜 著・文・その他,YUJI TAKEUCHI (BALLPARK) 写真,田口 まき 写真,上村 透生 写真</li></ul>]]></description>
+      <author>豊島 心桜,YUJI TAKEUCHI (BALLPARK),田口 まき,上村 透生,豊島 心桜 著・文・その他,YUJI TAKEUCHI (BALLPARK) 写真,田口 まき 写真,上村 透生 写真</author>
+      <category>図書</category>
+      <category>紙</category>
+      <guid isPermaLink="true">https://ndlsearch.ndl.go.jp/books/R100000137-I9784087902570</guid>
+      <pubDate>Mon, 26 Oct 2026 00:30:00 +0900</pubDate>
+      <dc:title>豊島心桜 2nd写真集 『ありのままに。』</dc:title>
+      <dcndl:titleTranscription>トヨシマココロ セカンドシャシンシュウ 『アリノママニ。』</dcndl:titleTranscription>
+      <dc:creator>豊島 心桜</dc:creator>
+      <dc:creator>YUJI TAKEUCHI (BALLPARK)</dc:creator>
+      <dc:creator>田口 まき</dc:creator>
+      <dc:creator>上村 透生</dc:creator>
+      <dcndl:creatorTranscription>トヨシマココロ</dcndl:creatorTranscription>
+      <dcndl:creatorTranscription>ユウジタ ケウチ (ボールパーク)</dcndl:creatorTranscription>
+      <dcndl:creatorTranscription>タグチマキ</dcndl:creatorTranscription>
+      <dcndl:creatorTranscription>カミムラトウイ</dcndl:creatorTranscription>
+      <dc:publisher>集英社</dc:publisher>
+      <dc:publisher>集英社</dc:publisher>
+      <dcndl:publicationPlace>JP</dcndl:publicationPlace>
+      <dc:date xsi:type="dcterms:W3CDTF">2026-12-01</dc:date>
+      <dcterms:issued>2026-12-01</dcterms:issued>
+      <dcndl:price>3600</dcndl:price>
+      <dc:extent>160p</dc:extent>
+      <dc:identifier xsi:type="dcndl:ISBN">9784087902570</dc:identifier>
+      <dc:identifier xsi:type="dcndl:ISBN13">9784087902570</dc:identifier>
+      <dc:subject>とよしまこころ</dc:subject>
+      <dc:description>発売</dc:description>
+      <rdfs:seeAlso rdf:resource="https://www.books.or.jp/book-details/9784087902570"/>
+      <dc:description> 2026-12-01</dc:description>
+    </item>
+  </channel>
+</rss>

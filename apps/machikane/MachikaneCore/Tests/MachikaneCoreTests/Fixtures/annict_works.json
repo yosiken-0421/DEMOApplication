@@ -1,0 +1,32 @@
+{
+  "works": [
+    {
+      "id": 4168,
+      "title": "SHIROBAKO",
+      "title_kana": "しろばこ",
+      "media": "tv",
+      "media_text": "TV",
+      "season_name": "2014-autumn",
+      "season_name_text": "2014年秋",
+      "released_on": "2014-10-09",
+      "released_on_about": "",
+      "official_site_url": "http://shirobako-anime.com",
+      "images": {
+        "recommended_url": "http://shirobako-anime.com/images/ogp.jpg",
+        "facebook": { "og_image_url": "http://shirobako-anime.com/images/ogp.jpg" },
+        "twitter": { "image_url": "" }
+      },
+      "episodes_count": 24,
+      "watchers_count": 1254
+    },
+    {
+      "id": 45,
+      "title": "画像なし作品",
+      "media_text": "映画",
+      "images": { "recommended_url": "" }
+    }
+  ],
+  "total_count": 2,
+  "next_page": null,
+  "prev_page": null
+}
