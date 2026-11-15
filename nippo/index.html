@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1f6f5c">
+<title>作業日報メーカー</title>
+<style>
+:root{
+  --bg:#f4f5f2; --card:#fff; --ink:#1d2320; --sub:#5f6b66; --line:#dfe3df;
+  --accent:#1f6f5c; --accent-ink:#fff; --soft:#e7f1ed; --warn:#b4462f; --line-green:#06c755;
+  --r:14px;
+  --ff:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic","Meiryo",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#141816;--card:#1d2321;--ink:#e9eeeb;--sub:#9aa7a1;--line:#2f3834;--accent:#4fb39a;--accent-ink:#0d1714;--soft:#203029;}
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--ff);-webkit-text-size-adjust:100%}
+body{padding-bottom:120px}
+header{padding:20px 16px 8px;max-width:760px;margin:0 auto}
+header h1{margin:0;font-size:22px;letter-spacing:.04em}
+header p{margin:6px 0 0;color:var(--sub);font-size:13px;line-height:1.6}
+main{max-width:760px;margin:0 auto;padding:0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:12px 0}
+.card h2{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+.card h2 .tag{font-size:11px;font-weight:600;color:var(--accent);background:var(--soft);padding:2px 8px;border-radius:99px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid .full{grid-column:1/-1}
+@media (max-width:520px){.grid{grid-template-columns:1fr}}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--sub);font-weight:600}
+label.f .req{color:var(--warn);font-weight:700;margin-left:2px}
+input,textarea{font:inherit;font-size:16px;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
+::placeholder{color:var(--sub);opacity:.55;font-weight:400}
+textarea{min-height:76px;resize:vertical;line-height:1.5}
+input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+.row{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.row .rowhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px;font-weight:700}
+.row .dur{font-size:12px;color:var(--accent);font-weight:700;margin-left:8px}
+.times{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;margin-bottom:10px}
+.times span{color:var(--sub)}
+.btn{border:0;font:inherit;font-weight:700;font-size:15px;border-radius:12px;padding:12px 14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:var(--soft);color:var(--accent)}
+.btn.line{background:var(--line-green);color:#fff}
+.btn.small{font-size:13px;padding:7px 10px;border-radius:9px}
+.btn.del{background:transparent;color:var(--warn);font-size:13px;padding:4px 6px}
+.btn:disabled{opacity:.5}
+.total{display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding:10px 12px;background:var(--soft);border-radius:10px;font-weight:700}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+.bar .in{max-width:760px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.bar .btn{font-size:14px;padding:12px 6px}
+#preview img{width:100%;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:#fff}
+.note{font-size:12px;color:var(--sub);line-height:1.7}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink);color:var(--card);padding:10px 16px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+.hist{list-style:none;margin:0;padding:0}
+.hist li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.hist li:last-child{border-bottom:0}
+.hist .meta{color:var(--sub);font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>作業日報メーカー</h1>
+  <p>「いつ・どこで・何をしたか」を入力して、PDFにしてLINEで送れます。</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>基本情報 <span class="tag">いつ・どこで</span></h2>
+    <div class="grid">
+      <label class="f"><span>日付<span class="req">*</span></span><input type="date" id="date"></label>
+      <label class="f"><span>氏名<span class="req">*</span></span><input id="name" autocomplete="name" placeholder="山田 太郎"></label>
+      <label class="f full"><span>現場名・作業場所<span class="req">*</span></span><input id="site" placeholder="〇〇ビル新築工事 3階"></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>作業内容 <span class="tag">何をしたか</span></h2>
+    <div id="rows"></div>
+    <button type="button" class="btn ghost" id="addRow" style="width:100%">＋ 作業を追加</button>
+    <div class="total"><span>作業時間 合計</span><span id="total">0時間0分</span></div>
+  </section>
+
+  <section class="card" id="previewCard" hidden>
+    <h2>PDFプレビュー</h2>
+    <div id="preview"></div>
+    <p class="note" id="pdfNote"></p>
+  </section>
+
+  <section class="card">
+    <h2>保存した日報</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+      <button type="button" class="btn ghost small" id="saveBtn">この日報を保存</button>
+      <button type="button" class="btn ghost small" id="newBtn">新しい日報</button>
+    </div>
+    <ul class="hist" id="hist"></ul>
+    <p class="note">保存した日報はこの端末のこのブラウザにだけ残ります。</p>
+  </section>
+
+  <section class="card">
+    <h2>LINEでの送り方</h2>
+    <p class="note" style="margin:0">
+      ①「PDF作成」…スマホでは共有画面が開くので、LINEを選んで送れます。共有画面が出ない端末ではPDFがダウンロードされるので、LINEのトークで添付してください。<br>
+      ②「LINEで送る」…日報の内容を文字でLINEに送れます（スマホ版LINEのみ。パソコン版LINEは対象外）。
+    </p>
+  </section>
+</main>
+
+<div class="bar">
+  <div class="in">
+    <button type="button" class="btn primary" id="pdfBtn">PDF作成</button>
+    <a class="btn line" id="lineBtn" href="https://line.me/R/share?text=" target="_blank" rel="noopener">LINEで送る</a>
+    <button type="button" class="btn ghost" id="copyBtn">文字をコピー</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<template id="rowTpl">
+  <div class="row">
+    <div class="rowhead"><span><span class="no"></span><span class="dur"></span></span><button type="button" class="btn del">削除</button></div>
+    <div class="times">
+      <input type="time" class="r-start" aria-label="開始時刻">
+      <span>〜</span>
+      <input type="time" class="r-end" aria-label="終了時刻">
+    </div>
+    <label class="f"><span>作業内容<span class="req">*</span></span><textarea class="r-desc" placeholder="例：天井下地の組立。A通り〜D通りまで完了。"></textarea></label>
+  </div>
+</template>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const FIELDS=["date","name","site"];
+const KEY_DRAFT="nippo.draft.v2", KEY_HIST="nippo.hist.v2";
+let downloadsP=Promise.resolve(null);
+
+/* ---------- storage (best effort) ---------- */
+function sget(k){try{return JSON.parse(localStorage.getItem(k)||"null")}catch(e){return null}}
+function sset(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}
+
+/* ---------- util ---------- */
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("on");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("on"),2600)}
+function today(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function fmtDate(s){if(!s)return"";const [y,m,d]=s.split("-").map(Number);const w="日月火水木金土"[new Date(y,m-1,d).getDay()];return `${y}年${m}月${d}日（${w}）`}
+function mins(a,b){if(!a||!b)return null;const [h1,m1]=a.split(":").map(Number),[h2,m2]=b.split(":").map(Number);let x=(h2*60+m2)-(h1*60+m1);if(x<0)x+=1440;return x}
+function fmtMin(x){return Math.floor(x/60)+"時間"+(x%60)+"分"}
+
+/* ---------- rows ---------- */
+function addRow(data){
+  const node=$("#rowTpl").content.firstElementChild.cloneNode(true);
+  const rows=$("#rows");
+  if(!data){const last=rows.lastElementChild;data={start:last?last.querySelector(".r-end").value:""}}
+  node.querySelector(".r-start").value=data.start||"";
+  node.querySelector(".r-end").value=data.end||"";
+  node.querySelector(".r-desc").value=data.desc||"";
+  node.querySelector(".del").addEventListener("click",()=>{
+    if(rows.children.length<=1){toast("作業は1件以上必要です");return}
+    node.remove();renumber();update();
+  });
+  rows.appendChild(node);renumber();
+}
+function renumber(){[...$("#rows").children].forEach((r,i)=>r.querySelector(".no").textContent="作業 "+(i+1))}
+function readRows(){
+  return [...$("#rows").children].map(r=>({
+    start:r.querySelector(".r-start").value,end:r.querySelector(".r-end").value,
+    desc:r.querySelector(".r-desc").value.trim()
+  }));
+}
+
+/* ---------- state ---------- */
+function collect(){const o={rows:readRows()};FIELDS.forEach(f=>o[f]=$("#"+f).value.trim());return o}
+function apply(o){
+  FIELDS.forEach(f=>$("#"+f).value=o[f]||"");
+  if(!o.date)$("#date").value=today();
+  $("#rows").innerHTML="";
+  (o.rows&&o.rows.length?o.rows:[{}]).forEach(r=>addRow(r));
+  update();
+}
+
+/* ---------- report model ---------- */
+function model(){
+  const o=collect();let total=0;
+  const rows=o.rows.filter(r=>r.desc||r.start||r.end).map(r=>{const m=mins(r.start,r.end);if(m!=null)total+=m;return {...r,m}});
+  return {o,rows,total};
+}
+function validate(md){
+  const miss=[];
+  if(!md.o.date)miss.push("日付");if(!md.o.name)miss.push("氏名");if(!md.o.site)miss.push("現場名・作業場所");
+  if(!md.rows.some(r=>r.desc))miss.push("作業内容");
+  return miss;
+}
+
+/* ---------- text summary (for LINE) ---------- */
+function summaryText(){
+  const md=model(),o=md.o,L=[];
+  L.push("【作業日報】"+fmtDate(o.date));
+  if(o.name)L.push("氏名："+o.name);
+  if(o.site)L.push("場所："+o.site);
+  if(md.rows.length){
+    L.push("","■作業内容");
+    md.rows.forEach(r=>L.push((r.start||"--:--")+"〜"+(r.end||"--:--")+" "+(r.desc||"")));
+    L.push("合計 "+fmtMin(md.total));
+  }
+  return L.join("\n");
+}
+
+/* ---------- PDF rendering on canvas ---------- */
+const FF='"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic","Meiryo",sans-serif';
+const PW=1190,PH=1684,MX=70,MT=80,MB=90; // A4 (595x842pt) at 2x
+function renderPages(md){
+  const pages=[];let ctx,y;
+  function newPage(){const c=document.createElement("canvas");c.width=PW;c.height=PH;ctx=c.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,PW,PH);ctx.textBaseline="top";pages.push(c);y=MT}
+  function font(sz,b){ctx.font=(b?"700 ":"400 ")+sz+"px "+FF}
+  function wrap(text,maxW,sz,b){
+    font(sz,b);const out=[];
+    String(text||"").split("\n").forEach(p=>{
+      let line="";
+      for(const ch of p){const t=line+ch;if(ctx.measureText(t).width>maxW&&line){out.push(line);line=ch}else line=t}
+      out.push(line);
+    });
+    return out;
+  }
+  const room=h=>y+h<=PH-MB;
+  const CW=PW-MX*2;
+  newPage();
+
+  font(44,true);ctx.fillStyle="#1d2320";ctx.textAlign="center";ctx.fillText("作 業 日 報",PW/2,y);ctx.textAlign="left";
+  y+=70;ctx.fillStyle="#1f6f5c";ctx.fillRect(MX,y,CW,4);y+=24;
+
+  // Info table
+  const labW=200,pad=14,isz=23,lh=33;
+  [["日付",fmtDate(md.o.date)],["氏名",md.o.name],["現場名・作業場所",md.o.site]].forEach(([k,v])=>{
+    const lines=wrap(v,CW-labW-pad*2,isz,false);
+    const labLines=wrap(k,labW-pad*2,20,true);
+    const h=Math.max(lines.length*lh,labLines.length*27)+pad*2-4;
+    if(!room(h))newPage();
+    ctx.fillStyle="#e7f1ed";ctx.fillRect(MX,y,labW,h);
+    ctx.strokeStyle="#c9d3ce";ctx.lineWidth=1.5;ctx.strokeRect(MX,y,CW,h);
+    ctx.beginPath();ctx.moveTo(MX+labW,y);ctx.lineTo(MX+labW,y+h);ctx.stroke();
+    font(20,true);ctx.fillStyle="#1f4f43";labLines.forEach((t,i)=>ctx.fillText(t,MX+pad,y+pad+i*27));
+    font(isz,false);ctx.fillStyle="#1d2320";lines.forEach((t,i)=>ctx.fillText(t,MX+labW+pad,y+pad+i*lh));
+    y+=h;
+  });
+  y+=36;
+
+  // Work table
+  const cols=[["時間",210],["作業内容",CW-210]];
+  function header(){
+    const h=46;if(!room(h+60))newPage();
+    ctx.fillStyle="#1f6f5c";ctx.fillRect(MX,y,CW,h);
+    font(20,true);ctx.fillStyle="#fff";let x=MX;
+    cols.forEach(([t,w])=>{ctx.fillText(t,x+12,y+12);x+=w});
+    y+=h;
+  }
+  font(24,true);ctx.fillStyle="#1d2320";ctx.fillText("作業内容（いつ・何を）",MX,y);
+  ctx.fillStyle="#1f6f5c";ctx.fillRect(MX,y+34,60,4);y+=52;
+  header();
+  md.rows.forEach((r,idx)=>{
+    const tsz=22,tlh=32;
+    const timeTxt=[(r.start||"--:--")+"〜"+(r.end||"--:--")].concat(r.m!=null?["("+fmtMin(r.m)+")"]:[]);
+    const desc=wrap(r.desc,cols[1][1]-24,tsz,false);
+    const h=Math.max(timeTxt.length,desc.length)*tlh+24;
+    if(!room(h)){newPage();header()}
+    ctx.fillStyle=idx%2?"#f6f8f7":"#fff";ctx.fillRect(MX,y,CW,h);
+    ctx.strokeStyle="#c9d3ce";ctx.lineWidth=1.5;ctx.strokeRect(MX,y,CW,h);
+    ctx.beginPath();ctx.moveTo(MX+cols[0][1],y);ctx.lineTo(MX+cols[0][1],y+h);ctx.stroke();
+    font(tsz,true);ctx.fillStyle="#1f4f43";ctx.fillText(timeTxt[0],MX+12,y+12);
+    if(timeTxt[1]){font(18,false);ctx.fillStyle="#5f6b66";ctx.fillText(timeTxt[1],MX+12,y+12+tlh)}
+    font(tsz,false);ctx.fillStyle="#1d2320";desc.forEach((t,i)=>ctx.fillText(t,MX+cols[0][1]+12,y+12+i*tlh));
+    y+=h;
+  });
+  if(!room(50))newPage();
+  ctx.fillStyle="#e7f1ed";ctx.fillRect(MX,y,CW,48);ctx.strokeStyle="#c9d3ce";ctx.strokeRect(MX,y,CW,48);
+  font(22,true);ctx.fillStyle="#1f4f43";ctx.fillText("作業時間 合計",MX+12,y+12);
+  ctx.textAlign="right";ctx.fillText(fmtMin(md.total),MX+CW-14,y+12);ctx.textAlign="left";
+
+  const now=new Date();
+  const stamp="作成："+now.getFullYear()+"/"+(now.getMonth()+1)+"/"+now.getDate()+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+  pages.forEach((c,i)=>{
+    const x=c.getContext("2d");x.textBaseline="top";x.font="400 17px "+FF;x.fillStyle="#7a8580";
+    x.fillText(stamp,MX,PH-56);x.textAlign="right";x.fillText((i+1)+" / "+pages.length,PW-MX,PH-56);x.textAlign="left";
+  });
+  return pages;
+}
+
+/* ---------- minimal PDF writer (one JPEG per page) ---------- */
+function b64ToBytes(b64){const s=atob(b64),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u}
+function buildPdf(canvases){
+  const enc=new TextEncoder(),parts=[],offsets=[];let len=0;
+  const push=x=>{const b=typeof x==="string"?enc.encode(x):x;parts.push(b);len+=b.length};
+  const n=canvases.length;
+  push("%PDF-1.4\n");
+  const obj=(id,body)=>{offsets[id]=len;push(id+" 0 obj\n");body();push("\nendobj\n")};
+  obj(1,()=>push("<< /Type /Catalog /Pages 2 0 R >>"));
+  const kids=[];for(let i=0;i<n;i++)kids.push((3+i*3)+" 0 R");
+  obj(2,()=>push("<< /Type /Pages /Kids ["+kids.join(" ")+"] /Count "+n+" >>"));
+  canvases.forEach((c,i)=>{
+    const pid=3+i*3,iid=pid+1,cid=pid+2;
+    const jpg=b64ToBytes(c.toDataURL("image/jpeg",0.9).split(",")[1]);
+    const content="q 595.28 0 0 841.89 0 0 cm /Im0 Do Q";
+    obj(pid,()=>push("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /Im0 "+iid+" 0 R >> >> /Contents "+cid+" 0 R >>"));
+    obj(iid,()=>{push("<< /Type /XObject /Subtype /Image /Width "+c.width+" /Height "+c.height+" /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length "+jpg.length+" >>\nstream\n");push(jpg);push("\nendstream")});
+    obj(cid,()=>push("<< /Length "+content.length+" >>\nstream\n"+content+"\nendstream"));
+  });
+  const total=3+n*3,xref=len;
+  let x="xref\n0 "+total+"\n0000000000 65535 f \n";
+  for(let i=1;i<total;i++)x+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";
+  push(x+"trailer\n<< /Size "+total+" /Root 1 0 R >>\nstartxref\n"+xref+"\n%%EOF");
+  return new Blob(parts,{type:"application/pdf"});
+}
+
+async function makePdf(){
+  const md=model(),miss=validate(md);
+  if(miss.length){toast("未入力："+miss.join("・"));return}
+  const btn=$("#pdfBtn");btn.disabled=true;btn.textContent="作成中…";
+  try{
+    const pages=renderPages(md);
+    const prev=$("#preview");prev.innerHTML="";
+    pages.forEach(c=>{const im=new Image();im.alt="日報プレビュー";im.src=c.toDataURL("image/jpeg",0.8);prev.appendChild(im)});
+    $("#previewCard").hidden=false;
+    const blob=buildPdf(pages);
+    const fname="作業日報_"+(md.o.date||today())+"_"+(md.o.name||"").replace(/[\\/:*?"<>|\s]/g,"")+".pdf";
+    await deliver(blob,fname);
+  }catch(e){toast("PDFを作れませんでした："+(e&&e.message||e))}
+  finally{btn.disabled=false;btn.textContent="PDF作成"}
+}
+
+async function deliver(blob,fname){
+  const note=$("#pdfNote");
+  // 1) Inside the Claude viewer
+  let dl=null;try{dl=await downloadsP}catch(e){dl=null}
+  if(dl){
+    try{await dl.save({filename:fname,data:blob});note.textContent="PDFを保存しました（"+fname+"）。";toast("PDFを保存しました");return}
+    catch(e){
+      if(e&&e.code==="declined"){toast("保存をキャンセルしました");return}
+      if(e&&e.code==="rate_limited"){toast("少し待ってからもう一度押してください");return}
+    }
+  }
+  // 2) Normal browser: share sheet (choose LINE)
+  try{
+    const file=new File([blob],fname,{type:"application/pdf"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file]});
+      note.textContent="共有画面からLINEを選ぶと、そのままPDFを送れます。";return;
+    }
+  }catch(e){if(e&&e.name==="AbortError"){toast("共有をキャンセルしました");return}}
+  // 3) Download
+  try{
+    const url=URL.createObjectURL(blob),a=document.createElement("a");
+    a.href=url;a.download=fname;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    note.textContent="PDFをダウンロードしました（"+fname+"）。LINEのトークで添付して送れます。";
+  }catch(e){note.textContent="PDFを保存できませんでした。プレビュー画像を長押しして保存してください。"}
+}
+
+/* ---------- LINE / copy ---------- */
+function updateLine(){$("#lineBtn").href="https://line.me/R/share?text="+encodeURIComponent(summaryText())}
+async function copyText(){
+  const t=summaryText();
+  try{await navigator.clipboard.writeText(t);toast("日報の文字をコピーしました")}
+  catch(e){
+    const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();
+    let ok=false;try{ok=document.execCommand("copy")}catch(_){}
+    ta.remove();toast(ok?"日報の文字をコピーしました":"コピーできませんでした");
+  }
+}
+
+/* ---------- history ---------- */
+function renderHist(){
+  const h=sget(KEY_HIST)||[],ul=$("#hist");ul.innerHTML="";
+  h.forEach((it,i)=>{
+    const li=document.createElement("li");
+    const left=document.createElement("div");
+    const a=document.createElement("div");a.textContent=fmtDate(it.date)+"　"+(it.site||"");
+    const b=document.createElement("div");b.className="meta";b.textContent=(it.name||"")+"・作業"+((it.rows||[]).length)+"件";
+    left.append(a,b);
+    const right=document.createElement("div");right.style.display="flex";right.style.gap="4px";
+    const lb=document.createElement("button");lb.className="btn ghost small";lb.textContent="開く";
+    lb.onclick=()=>{apply(it);window.scrollTo({top:0,behavior:"smooth"});toast("日報を開きました")};
+    const db=document.createElement("button");db.className="btn del";db.textContent="削除";
+    db.onclick=()=>{const arr=sget(KEY_HIST)||[];arr.splice(i,1);sset(KEY_HIST,arr);renderHist()};
+    right.append(lb,db);li.append(left,right);ul.appendChild(li);
+  });
+}
+function saveHist(){
+  const o=collect();if(!o.date||!o.name){toast("日付と氏名を入れてから保存してください");return}
+  const a=sget(KEY_HIST)||[];
+  const i=a.findIndex(x=>x.date===o.date&&x.name===o.name&&x.site===o.site);
+  if(i>=0)a[i]=o;else a.unshift(o);
+  toast(sset(KEY_HIST,a.slice(0,60))?"保存しました":"この画面では保存できません");renderHist();
+}
+
+/* ---------- update loop ---------- */
+function update(){
+  let total=0;
+  [...$("#rows").children].forEach(r=>{
+    const m=mins(r.querySelector(".r-start").value,r.querySelector(".r-end").value);
+    r.querySelector(".dur").textContent=m!=null?fmtMin(m):"";if(m!=null)total+=m;
+  });
+  $("#total").textContent=fmtMin(total);
+  updateLine();
+  sset(KEY_DRAFT,collect());
+}
+
+/* ---------- init ---------- */
+$("#addRow").addEventListener("click",()=>{addRow();update()});
+$("#pdfBtn").addEventListener("click",makePdf);
+$("#copyBtn").addEventListener("click",copyText);
+$("#saveBtn").addEventListener("click",saveHist);
+$("#newBtn").addEventListener("click",()=>{
+  const prev=collect();
+  apply({name:prev.name,date:today()});
+  $("#previewCard").hidden=true;toast("新しい日報を始めました（氏名は引き継ぎ）");
+});
+$("#lineBtn").addEventListener("click",e=>{
+  const miss=validate(model());
+  if(miss.length){e.preventDefault();toast("未入力："+miss.join("・"));return}
+  updateLine();
+});
+document.addEventListener("input",update);
+document.addEventListener("change",update);
+
+apply(sget(KEY_DRAFT)||{date:today()});
+renderHist();
+
+if(window.claude&&typeof window.claude.use==="function"){downloadsP=window.claude.use("downloads").catch(()=>null)}
+})();
+</script>
+</body>
+</html>
