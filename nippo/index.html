@@ -74,6 +74,13 @@ input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;b
 .hist .meta{color:var(--sub);font-size:12px;margin-top:2px;line-height:1.5}
 .hist .acts{display:flex;gap:6px;margin-top:8px}
 .hist .acts .btn{flex:1}
+.hist .pick{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--sub);font-weight:600;white-space:nowrap;cursor:pointer}
+.hist .pick input{width:22px;height:22px;accent-color:var(--accent);margin:0}
+.hist li.sel{background:var(--soft);margin:0 -16px;padding:12px 16px}
+.bulk{border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0 6px}
+.bulk .ttl{font-size:13px;font-weight:700;margin-bottom:8px}
+.bulk .q{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.bulk .go{width:100%}
 .empty{color:var(--sub);font-size:13px;padding:6px 0}
 
 /* viewer */
@@ -141,6 +148,17 @@ details.vpdf summary{cursor:pointer;color:var(--accent);font-weight:700;font-siz
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
       <button type="button" class="btn ghost small" id="saveBtn">この日報を保存</button>
       <button type="button" class="btn ghost small" id="newBtn">新しい日報</button>
+    </div>
+    <div class="bulk" id="bulk">
+      <div class="ttl">まとめてPDF（チェックした日報を1つのPDFにします）</div>
+      <div class="q">
+        <button type="button" class="chip" data-range="thisMonth">今月を選ぶ</button>
+        <button type="button" class="chip" data-range="lastMonth">先月を選ぶ</button>
+        <button type="button" class="chip" data-range="all">すべて選ぶ</button>
+        <button type="button" class="chip" data-range="none">選択を解除</button>
+      </div>
+      <button type="button" class="btn primary go" id="bulkPdf" disabled>日報を選んでください</button>
+      <p class="note" id="bulkNote" style="margin:6px 0 0"></p>
     </div>
     <ul class="hist" id="hist"></ul>
     <p class="note">PDF作成・LINEで送るを押したときも自動で保存されます。保存した日報と登録した項目は、この端末のこのブラウザにだけ残ります。</p>
@@ -354,7 +372,58 @@ function lineHref(o){return "https://line.me/R/share?text="+encodeURIComponent(s
 /* ---------- PDF rendering on canvas ---------- */
 const FF='"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic","Meiryo",sans-serif';
 const PW=1190,PH=1684,MX=70,MT=80,MB=90; // A4 (595x842pt) at 2x
-function renderPages(md){
+function stampPages(pages){
+  const now=new Date();
+  const stamp="作成："+now.getFullYear()+"/"+(now.getMonth()+1)+"/"+now.getDate()+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+  pages.forEach((c,i)=>{
+    const x=c.getContext("2d");x.textBaseline="top";x.font="400 17px "+FF;x.fillStyle="#7a8580";
+    x.fillText(stamp,MX,PH-56);x.textAlign="right";x.fillText((i+1)+" / "+pages.length,PW-MX,PH-56);x.textAlign="left";
+  });
+  return pages;
+}
+// Cover page listing every report in a bundle
+function renderSummaryPages(list){
+  const pages=[];let ctx,y;
+  const CW=PW-MX*2,cols=[["日付",250],["氏名",190],["現場名・作業場所",CW-250-190-170],["作業時間",170]];
+  function newPage(){const c=document.createElement("canvas");c.width=PW;c.height=PH;ctx=c.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,PW,PH);ctx.textBaseline="top";pages.push(c);y=MT}
+  function font(sz,b){ctx.font=(b?"700 ":"400 ")+sz+"px "+FF}
+  function wrap(text,maxW,sz){font(sz,false);const out=[];let line="";for(const ch of String(text||"").replace(/\n/g," ")){const t=line+ch;if(ctx.measureText(t).width>maxW&&line){out.push(line);line=ch}else line=t}out.push(line);return out}
+  const room=h=>y+h<=PH-MB;
+  function header(){
+    ctx.fillStyle="#1f6f5c";ctx.fillRect(MX,y,CW,46);font(20,true);ctx.fillStyle="#fff";let x=MX;
+    cols.forEach(([t,w])=>{ctx.fillText(t,x+12,y+12);x+=w});y+=46;
+  }
+  newPage();
+  font(40,true);ctx.fillStyle="#1d2320";ctx.textAlign="center";ctx.fillText("作業日報 まとめ",PW/2,y);ctx.textAlign="left";y+=64;
+  ctx.fillStyle="#1f6f5c";ctx.fillRect(MX,y,CW,4);y+=26;
+  const first=list[0].date,last=list[list.length-1].date;
+  font(23,false);ctx.fillStyle="#1d2320";
+  ctx.fillText("期間："+fmtDate(first)+(first!==last?" 〜 "+fmtDate(last):""),MX,y);y+=38;
+  ctx.fillText("件数："+list.length+"件",MX,y);y+=50;
+  header();
+  let grand=0;
+  list.forEach((o,idx)=>{
+    const md=model(o);grand+=md.total;
+    const cells=[[fmtDate(o.date)],wrap(o.name,cols[1][1]-24,21),wrap(o.site,cols[2][1]-24,21),[fmtMin(md.total)]];
+    const h=Math.max(...cells.map(c=>c.length))*30+22;
+    if(!room(h)){newPage();header()}
+    ctx.fillStyle=idx%2?"#f6f8f7":"#fff";ctx.fillRect(MX,y,CW,h);
+    ctx.strokeStyle="#c9d3ce";ctx.lineWidth=1.5;ctx.strokeRect(MX,y,CW,h);
+    let x=MX;
+    cells.forEach((lines,ci)=>{
+      if(ci>0){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+h);ctx.stroke()}
+      font(21,ci===0||ci===3);ctx.fillStyle=ci===0?"#1f4f43":"#1d2320";
+      lines.forEach((t,k)=>ctx.fillText(t,x+12,y+11+k*30));x+=cols[ci][1];
+    });
+    y+=h;
+  });
+  if(!room(50))newPage();
+  ctx.fillStyle="#e7f1ed";ctx.fillRect(MX,y,CW,48);ctx.strokeStyle="#c9d3ce";ctx.strokeRect(MX,y,CW,48);
+  font(22,true);ctx.fillStyle="#1f4f43";ctx.fillText("作業時間 総合計",MX+12,y+12);
+  ctx.textAlign="right";ctx.fillText(fmtMin(grand),MX+CW-14,y+12);ctx.textAlign="left";
+  return pages;
+}
+function renderPages(md,noFooter){
   const pages=[];let ctx,y;
   function newPage(){const c=document.createElement("canvas");c.width=PW;c.height=PH;ctx=c.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,PW,PH);ctx.textBaseline="top";pages.push(c);y=MT}
   function font(sz,b){ctx.font=(b?"700 ":"400 ")+sz+"px "+FF}
@@ -421,13 +490,7 @@ function renderPages(md){
   font(22,true);ctx.fillStyle="#1f4f43";ctx.fillText("作業時間 合計",MX+12,y+12);
   ctx.textAlign="right";ctx.fillText(fmtMin(md.total),MX+CW-14,y+12);ctx.textAlign="left";
 
-  const now=new Date();
-  const stamp="作成："+now.getFullYear()+"/"+(now.getMonth()+1)+"/"+now.getDate()+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
-  pages.forEach((c,i)=>{
-    const x=c.getContext("2d");x.textBaseline="top";x.font="400 17px "+FF;x.fillStyle="#7a8580";
-    x.fillText(stamp,MX,PH-56);x.textAlign="right";x.fillText((i+1)+" / "+pages.length,PW-MX,PH-56);x.textAlign="left";
-  });
-  return pages;
+  return noFooter?pages:stampPages(pages);
 }
 
 /* ---------- minimal PDF writer (one JPEG per page) ---------- */
@@ -522,13 +585,47 @@ function persist(o,silent){
   if(!silent)toast(ok?"保存しました":"この画面では保存できません");
   return ok;
 }
+const selected=new Set();
+function updateBulk(){
+  const ids=new Set(hist().map(x=>x.id));[...selected].forEach(id=>{if(!ids.has(id))selected.delete(id)});
+  const b=$("#bulkPdf"),n=selected.size;
+  b.disabled=n===0;b.textContent=n?("選んだ"+n+"件をまとめてPDF"):"日報を選んでください";
+  $("#bulk").hidden=ids.size===0;
+}
+function ym(d,off){const t=new Date(d.getFullYear(),d.getMonth()+off,1);return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")}
+document.querySelectorAll("#bulk [data-range]").forEach(btn=>btn.addEventListener("click",()=>{
+  const r=btn.dataset.range,a=hist();selected.clear();
+  const now=new Date();
+  a.forEach(x=>{
+    if(r==="all"||(r==="thisMonth"&&(x.date||"").startsWith(ym(now,0)))||(r==="lastMonth"&&(x.date||"").startsWith(ym(now,-1))))selected.add(x.id);
+  });
+  renderHist();
+  if(r!=="none"&&!selected.size)toast(r==="thisMonth"?"今月の日報はありません":r==="lastMonth"?"先月の日報はありません":"日報がありません");
+}));
+$("#bulkPdf").addEventListener("click",async()=>{
+  const list=hist().filter(x=>selected.has(x.id)).sort((x,y)=>(x.date||"").localeCompare(y.date||"")||(x.savedAt||0)-(y.savedAt||0));
+  if(!list.length)return;
+  const btn=$("#bulkPdf"),label=btn.textContent;btn.disabled=true;btn.textContent="作成中…";
+  try{
+    let pages=renderSummaryPages(list);
+    list.forEach(o=>{pages=pages.concat(renderPages(model(o),true))});
+    stampPages(pages);
+    const f=list[0].date,l=list[list.length-1].date;
+    const fname="作業日報まとめ_"+f+(f!==l?"_"+l:"")+".pdf";
+    await deliver(buildPdf(pages),fname,$("#bulkNote"));
+  }catch(e){toast("PDFを作れませんでした："+(e&&e.message||e))}
+  finally{btn.textContent=label;updateBulk()}
+});
 function renderHist(){
   const a=sortHist(hist()),ul=$("#hist");ul.innerHTML="";
+  updateBulk();
   if(!a.length){const li=document.createElement("li");li.className="empty";li.textContent="まだ保存した日報はありません。";ul.appendChild(li);return}
   a.forEach(it=>{
     const md=model(it);
     const li=document.createElement("li");
-    li.innerHTML='<div class="top"><div><div class="d"></div><div class="meta"></div></div></div><div class="acts"></div>';
+    li.innerHTML='<div class="top"><div><div class="d"></div><div class="meta"></div></div><label class="pick"><input type="checkbox">選ぶ</label></div><div class="acts"></div>';
+    const cb=li.querySelector(".pick input");cb.checked=selected.has(it.id);li.classList.toggle("sel",cb.checked);
+    cb.addEventListener("change",()=>{if(cb.checked)selected.add(it.id);else selected.delete(it.id);li.classList.toggle("sel",cb.checked);updateBulk()});
     li.querySelector(".d").textContent=fmtDate(it.date);
     const first=md.rows.find(r=>r.desc);
     li.querySelector(".meta").textContent=[it.site,(it.name||"")+"・作業"+md.rows.length+"件・"+fmtMin(md.total),first?("「"+(first.desc.length>30?first.desc.slice(0,30)+"…":first.desc)+"」"):""].filter(Boolean).join("\n");
