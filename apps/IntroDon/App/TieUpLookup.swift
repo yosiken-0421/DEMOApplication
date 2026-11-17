@@ -9,6 +9,17 @@ struct TieUp: Hashable {
         case cm = "CM"
         case other = "番組"
 
+        /// hits.json の tu の種類コード
+        init(code: String) {
+            switch code {
+            case "anime": self = .anime
+            case "drama": self = .drama
+            case "movie": self = .movie
+            case "cm": self = .cm
+            default: self = .other
+            }
+        }
+
         var emoji: String {
             switch self {
             case .anime: return "📺"
@@ -23,6 +34,11 @@ struct TieUp: Hashable {
     let kind: Kind
     let name: String
 
+    init(kind: Kind, name: String) {
+        self.kind = kind
+        self.name = name
+    }
+
     var display: String { "\(kind.emoji) \(kind.rawValue)『\(name)』" }
 }
 
@@ -34,11 +50,56 @@ actor TieUpLookup {
 
     private var cache: [String: [TieUp]] = [:]
 
-    func tieUps(for song: Song) async -> [TieUp] {
+    /// - animeHint: アニメの曲として出題している（作品の記事からも探す）
+    func tieUps(for song: Song, animeHint: Bool = false) async -> [TieUp] {
         if let c = cache[song.id] { return c }
-        let r = await lookup(title: song.title, artist: song.artist)
-        cache[song.id] = r
-        return r
+        networkFailed = false
+        var result = Self.fromAppleNames(song)
+        if !result.contains(where: { $0.kind == .anime || $0.kind == .movie }) {
+            let wiki = await lookup(title: song.title, artist: song.artist)
+            result = Self.merge(result, wiki)
+        }
+        if animeHint && !result.contains(where: { $0.kind == .anime || $0.kind == .movie }) {
+            let works = await lookupWorks(title: song.title, artist: song.artist)
+            result = Self.merge(works, result)
+        }
+        result = Array(result.prefix(3))
+        // 通信に失敗して見つからなかったときは覚えておかない（次に出たときにもう一度調べる）
+        if !result.isEmpty || !networkFailed { cache[song.id] = result }
+        return result
+    }
+
+    private var networkFailed = false
+
+    static func merge(_ a: [TieUp], _ b: [TieUp]) -> [TieUp] {
+        var out = a
+        for t in b where !out.contains(where: { TextMatch.norm($0.name) == TextMatch.norm(t.name) }) { out.append(t) }
+        return out
+    }
+
+    /// Apple の曲名・アルバム名に書かれている作品名（「TVアニメ『○○』オープニングテーマ」など）
+    static func fromAppleNames(_ song: Song) -> [TieUp] {
+        let patterns: [(String, TieUp.Kind)] = [
+            ("(?:TV|ＴＶ|テレビ)?アニメ(?:ーション)?(?:映画)?\\s*[「『]([^」』]{1,40})[」』]", .anime),
+            ("劇場版\\s*[「『]([^」』]{1,40})[」』]", .movie),
+            ("映画\\s*[「『]([^」』]{1,40})[」』]", .movie),
+            ("ドラマ\\s*[「『]([^」』]{1,40})[」』]", .drama),
+        ]
+        var out: [TieUp] = []
+        for text in [song.title, song.albumName ?? ""] where !text.isEmpty {
+            let ns = text as NSString
+            for (p, kind) in patterns {
+                guard let re = try? NSRegularExpression(pattern: p) else { continue }
+                for m in re.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+                    let name = ns.substring(with: m.range(at: 1)).trimmingCharacters(in: .whitespaces)
+                    guard !name.isEmpty, TextMatch.core(name) != TextMatch.core(song.title) else { continue }
+                    if !out.contains(where: { TextMatch.norm($0.name) == TextMatch.norm(name) }) {
+                        out.append(TieUp(kind: kind, name: name))
+                    }
+                }
+            }
+        }
+        return out
     }
 
     private static let keywords = ["主題歌", "オープニングテーマ", "エンディングテーマ", "オープニング曲", "エンディング曲",
@@ -62,6 +123,53 @@ actor TieUpLookup {
             if !found.isEmpty { return found }
         }
         return []
+    }
+
+    private static let workWords = ["アニメ", "漫画", "ライトノベル", "小説", "映画", "ドラマ", "ゲーム", "特撮", "作品"]
+    private static let notWork = ["アルバム", "シングル", "楽曲", "歌手", "バンド", "ユニット", "グループ", "ディスコグラフィ", "声優", "作曲家", "作詞家"]
+    private static let nearWords = ["オープニング", "エンディング", "主題歌", "挿入歌", "テーマ", "OP", "ED"]
+
+    /// 作品（アニメ・漫画・映画など）の記事から探す：本文の「曲名」の前後に歌手名と「オープニング」などがあるもの
+    private func lookupWorks(title: String, artist: String) async -> [TieUp] {
+        let base = TextMatch.searchTitle(title)
+        let primary = TextMatch.primaryArtist(artist)
+        guard !base.isEmpty, primary.count >= 2 else { return [] }
+        guard let pages = await searchPages(query: "\"\(base)\" \(TextMatch.primaryArtistDisplay(artist)) 主題歌") else { return [] }
+        let core = TextMatch.core(title)
+        let nbase = base.precomposedStringWithCompatibilityMapping
+        var out: [TieUp] = []
+        var checked = 0
+        for p in pages where checked < 5 {
+            let np = TextMatch.norm(p)
+            if p.contains("一覧") || np.contains(primary) || TextMatch.core(Self.pageBase(p)) == core { continue }
+            checked += 1
+            guard let text = await extract(page: p) else { continue }
+            let lead = String((text.components(separatedBy: "。").first ?? "").prefix(300))
+            guard Self.workWords.contains(where: { lead.contains($0) }), !Self.notWork.contains(where: { lead.contains($0) }) else { continue }
+            let nt = text.precomposedStringWithCompatibilityMapping
+            var ok = false
+            var search = nt.startIndex..<nt.endIndex
+            while let r = nt.range(of: "「" + nbase, range: search) {
+                search = r.upperBound..<nt.endIndex
+                guard r.upperBound < nt.endIndex, "」〜~ (（".contains(nt[r.upperBound]) else { continue }
+                let lo = nt.index(r.lowerBound, offsetBy: -250, limitedBy: nt.startIndex) ?? nt.startIndex
+                let hi = nt.index(r.upperBound, offsetBy: 250, limitedBy: nt.endIndex) ?? nt.endIndex
+                let win = String(nt[lo..<hi])
+                if TextMatch.norm(win).contains(primary) && Self.nearWords.contains(where: { win.contains($0) }) { ok = true; break }
+            }
+            guard ok else { continue }
+            let kind: TieUp.Kind = lead.contains("アニメ") ? .anime : lead.contains("映画") ? .movie
+                : lead.contains("ドラマ") ? .drama : .anime
+            let t = TieUp(kind: kind, name: Self.pageBase(p))
+            if !out.contains(t) { out.append(t) }
+            if out.count >= 2 { break }
+        }
+        return out
+    }
+
+    private static func pageBase(_ p: String) -> String {
+        guard p.hasSuffix(")"), let r = p.range(of: " (", options: .backwards) else { return p }
+        return String(p[..<r.lowerBound])
     }
 
     static func parse(_ text: String) -> [TieUp] {
@@ -115,7 +223,7 @@ actor TieUpLookup {
         req.timeoutInterval = 8
         req.setValue("IntroDonpisha/1.0 (https://github.com/yosiken-0421/DEMOApplication)", forHTTPHeaderField: "User-Agent")
         guard let (data, resp) = try? await URLSession.shared.data(for: req),
-              (resp as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+              (resp as? HTTPURLResponse)?.statusCode == 200 else { networkFailed = true; return nil }
         return data
     }
 

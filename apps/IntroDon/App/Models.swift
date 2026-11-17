@@ -231,6 +231,8 @@ struct Song: Identifiable, Hashable {
     let libraryID: UInt64?
     /// 曲の長さ（秒）。歌詞データの照合に使う
     let durationSeconds: Double?
+    /// Apple のアルバム名（「TVアニメ『○○』オープニングテーマ」のように作品名が入っていることがある）
+    var albumName: String? = nil
 
     var answerText: String { "\(artist)の「\(title)」" }
     var spokenAnswer: String { "\(artist)の、\(title)" }

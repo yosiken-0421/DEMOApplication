@@ -309,12 +309,17 @@ final class QuizModel: ObservableObject {
             RecentSongs.add(q.candidate)
             phase = .ready
             let qid = q.id
-            if let an = q.candidate.hit?.animeName {
-                tieUps = [TieUp(kind: .anime, name: an)]
-            } else { Task {
-                let t = await TieUpLookup.shared.tieUps(for: q.song)
-                if current?.id == qid { tieUps = t }
-            } }
+            // 作品名：同梱データ（Wikipedia から集めたもの・アニソンランキングの出典）→ なければその場で調べる
+            let stored = q.candidate.hit?.storedTieUps ?? []
+            tieUps = stored
+            let animeHint = settings.effectiveGenre == .anime || q.candidate.hit?.isAnime == true
+                || Genre.anime.aliases.contains(Genre.normalize(q.song.genreName))
+            if !stored.contains(where: { $0.kind == .anime || $0.kind == .movie }) || stored.isEmpty {
+                Task {
+                    let t = await TieUpLookup.shared.tieUps(for: q.song, animeHint: animeHint)
+                    if current?.id == qid { tieUps = TieUpLookup.merge(stored, t) }
+                }
+            }
             if usesVocalStart { Task { _ = await LyricsTiming.shared.vocalStart(for: q.song) } }
             prefetchNext()
         }

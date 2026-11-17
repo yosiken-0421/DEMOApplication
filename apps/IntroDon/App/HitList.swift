@@ -27,10 +27,25 @@ struct HitSong: Decodable, Hashable {
     let rt: String? // 曲名の読み（Wikipedia の記事の冒頭から）
     let ra: String? // 歌手名の読み（Wikipedia の記事の冒頭から）
     let sg: String? // 出典のジャンル（hiphop / dance）：ジャンル別ランキングから入れた曲
+    let tu: [[String]]? // 作品名（タイアップ）[[種類, 作品名]]：GitHub Actions「作品名の収集」で Wikipedia から
+    let ts: String?     // 作品名の出典（Wikipedia の記事名）
 
     var western: Bool { w == 1 }
     var isAnime: Bool { g == "anime" }
     var animeName: String? { (an?.isEmpty == false) ? an : nil }
+
+    /// 同梱データに入っている作品名（Wikipedia から集めたもの → アニソンランキングの出典に書かれた作品名）
+    var storedTieUps: [TieUp] {
+        var out: [TieUp] = []
+        for x in tu ?? [] where x.count == 2 && !x[1].isEmpty {
+            let t = TieUp(kind: TieUp.Kind(code: x[0]), name: x[1])
+            if !out.contains(where: { TextMatch.norm($0.name) == TextMatch.norm(t.name) }) { out.append(t) }
+        }
+        if let an = animeName, !out.contains(where: { TextMatch.norm($0.name) == TextMatch.norm(an) }) {
+            out.append(TieUp(kind: .anime, name: an))
+        }
+        return out
+    }
     var artist: String { a.isEmpty ? (aa ?? "") : a }
 
     /// 年代分けに使う年：ランキングの年。不明なら Apple の発売年

@@ -180,7 +180,8 @@ enum SongProvider {
             let song = Song(id: "lib-\(pid)", title: title, artist: artist, year: year,
                             genreName: item.genre, trackCount: item.albumTrackCount > 0 ? item.albumTrackCount : nil,
                             storeID: nil, previewURL: nil, storeURL: nil, artworkURL: nil,
-                            libraryID: pid, durationSeconds: item.playbackDuration > 0 ? item.playbackDuration : nil)
+                            libraryID: pid, durationSeconds: item.playbackDuration > 0 ? item.playbackDuration : nil,
+                            albumName: item.albumTitle)
 
             if let hit = HitList.find(title: title, artist: artist) {
                 guard hit.passes(settings.filter) else { continue }
@@ -386,7 +387,8 @@ enum SongProvider {
             storeURL: t.trackViewUrl.flatMap(URL.init(string:)),
             artworkURL: t.artworkUrl100.flatMap { URL(string: $0.replacingOccurrences(of: "100x100", with: "300x300")) },
             libraryID: nil,
-            durationSeconds: t.trackTimeMillis.map { $0 / 1000 })
+            durationSeconds: t.trackTimeMillis.map { $0 / 1000 },
+            albumName: t.collectionName)
     }
 
     static func search(term: String, attribute: String?, limit: Int, lang: String = "ja_jp") async throws -> [Track] {
