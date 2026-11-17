@@ -52,6 +52,8 @@ struct HitSong: Decodable, Hashable {
         return Array(list.prefix(1))
     }
 
+    var artist: String { a.isEmpty ? (aa ?? "") : a }
+
     /// 年代分けに使う年：ランキングの年。不明なら Apple の発売年
     var year: Int? {
         if y > 0 { return y }
