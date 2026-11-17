@@ -1,0 +1,38 @@
+name: イントロどんぴしゃ 作品名の収集
+
+# アニメの曲の作品名（主題歌・オープニングなどのタイアップ）を日本語版 Wikipedia から集めて hits.json に書き込みます。
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "作品名が入っている曲も調べ直す"
+        type: boolean
+        default: false
+      all_songs:
+        description: "アニメ以外の曲も調べる"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: introdon-tieups
+  cancel-in-progress: false
+
+jobs:
+  tieups:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wikipedia から作品名を集める
+        run: python3 .github/scripts/introdon_tieups.py ${{ inputs.force && '--force' || '' }} ${{ inputs.all_songs && '--all' || '' }}
+      - name: コミット
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/IntroDon/Resources/hits.json
+          if git diff --cached --quiet; then echo "変更なし"; exit 0; fi
+          git commit -m "イントロどんぴしゃ: アニメの曲の作品名をWikipediaから収集 [skip ci]"
+          for i in 1 2 3; do git pull --rebase origin main && git push origin HEAD:main && break; sleep 5; done
