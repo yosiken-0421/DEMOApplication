@@ -212,7 +212,7 @@ def from_song_article(h):
                 dbg("skip redirect", p, "->", resolved)
                 continue
         if pa not in norm(text) or not any(w in fs for w in SONG_LEAD):
-            dbg("skip lead", resolved, lead[:80])
+            dbg("skip lead", resolved, fs[:80])
             continue
         found = parse_song_article(text, title, artist)
         dbg("song page", resolved, found)
@@ -312,9 +312,17 @@ def main():
     print(f"対象 {len(targets)} 曲")
     found = 0
     for i, h in enumerate(targets, 1):
-        tu, src = from_song_article(h)
+        try:
+            tu, src = from_song_article(h)
+        except Exception as e:
+            print("  error", e)
+            tu, src = None, None
         if is_anime(h) and not (tu and any(k in ("anime", "movie") for k, _ in tu)):
-            tu2, src2 = from_work_article(h)
+            try:
+                tu2, src2 = from_work_article(h)
+            except Exception as e:
+                print("  error", e)
+                tu2, src2 = None, None
             if tu2:
                 tu = (tu or [])
                 tu = [x for x in tu2 if x not in tu] + tu
