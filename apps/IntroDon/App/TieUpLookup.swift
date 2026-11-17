@@ -103,30 +103,53 @@ actor TieUpLookup {
     }
 
     private static let keywords = ["主題歌", "オープニングテーマ", "エンディングテーマ", "オープニング曲", "エンディング曲",
-                                   "挿入歌", "イメージソング", "テーマソング", "CMソング", "タイアップ", "テーマ曲"]
+                                   "挿入歌", "挿入曲", "劇中歌", "イメージソング", "テーマソング", "CMソング", "タイアップ", "テーマ曲",
+                                   "OPテーマ", "EDテーマ", "主題曲"]
+    private static let songLead = ["楽曲", "シングル", "曲", "EP", "アルバム", "主題歌", "テーマ"]
 
+    /// 曲の記事：「曲名 (歌手名の曲)」「曲名 (曲)」「曲名」を直接開き、だめなら検索
     private func lookup(title: String, artist: String) async -> [TieUp] {
         let base = TextMatch.searchTitle(title)
-        guard let pages = await searchPages(query: "\(base) \(TextMatch.primaryArtistDisplay(artist))") else { return [] }
+        let display = TextMatch.primaryArtistDisplay(artist)
+        let primary = TextMatch.primaryArtist(artist)
+        guard !base.isEmpty, primary.count >= 2 else { return [] }
         let core = TextMatch.core(title)
-        // 記事名が曲名と一致するもの（「曲名 (歌手名の曲)」のような曖昧さ回避つきも可）
-        let candidates = pages.filter { p in
-            let name = p.components(separatedBy: " (").first ?? p
-            return TextMatch.core(name) == core
-        }
-        for page in candidates.prefix(3) {
-            guard let text = await extract(page: page) else { continue }
-            // 記事がその歌手の曲であることを確認
-            let primary = TextMatch.primaryArtist(artist)
-            guard primary.count >= 2, TextMatch.norm(text).contains(primary) else { continue }
-            let found = Self.parse(text)
-            if !found.isEmpty { return found }
+        let direct = ["\(base) (\(display)の曲)", "\(base) (曲)", base]
+        var seen: Set<String> = []
+        for round in 0..<2 {
+            var pages = direct
+            if round == 1 {
+                guard let found = await searchPages(query: "\(base) \(display)") else { break }
+                pages = found.filter { TextMatch.core(Self.pageBase($0)) == core && !direct.contains($0) }.prefix(3).map { $0 }
+            }
+            for page in pages {
+                guard let r = await extractPage(page: page) else { continue }
+                let (text, resolved) = r
+                guard !seen.contains(resolved) else { continue }
+                seen.insert(resolved)
+                let fs = Self.firstSentence(text)
+                let rb = Self.pageBase(resolved)
+                if TextMatch.core(rb) != core && TextMatch.core(rb.components(separatedBy: "/").first ?? rb) != core {
+                    // シングルの記事（曲名とは別の記事名）に飛んだときだけ使う。アルバムは使わない
+                    guard fs.contains("シングル"), !fs.contains("アルバム"),
+                          text.precomposedStringWithCompatibilityMapping.contains("「" + base.precomposedStringWithCompatibilityMapping) else { continue }
+                }
+                guard TextMatch.norm(text).contains(primary), Self.songLead.contains(where: { fs.contains($0) }) else { continue }
+                let found = Self.parse(text, title: title, artist: artist)
+                if !found.isEmpty { return found }
+            }
         }
         return []
     }
 
+    private static func firstSentence(_ text: String) -> String {
+        String((text.components(separatedBy: "。").first ?? "").prefix(300))
+    }
+
     private static let workWords = ["アニメ", "漫画", "ライトノベル", "小説", "映画", "ドラマ", "ゲーム", "特撮", "作品"]
-    private static let notWork = ["アルバム", "シングル", "楽曲", "歌手", "バンド", "ユニット", "グループ", "ディスコグラフィ", "声優", "作曲家", "作詞家"]
+    private static let notWork = ["アルバム", "シングル", "楽曲", "歌手", "バンド", "ユニット", "グループ", "ディスコグラフィ", "声優", "作曲家", "作詞家",
+                                  "音楽", "ビデオ", "チャート", "監督", "演出家", "アニメーター", "脚本家", "漫画家", "作家", "俳優", "タレント",
+                                  "番組", "ラジオ", "生まれ", "会社", "言葉", "総称"]
     private static let nearWords = ["オープニング", "エンディング", "主題歌", "挿入歌", "テーマ", "OP", "ED"]
 
     /// 作品（アニメ・漫画・映画など）の記事から探す：本文の「曲名」の前後に歌手名と「オープニング」などがあるもの
@@ -135,16 +158,16 @@ actor TieUpLookup {
         let primary = TextMatch.primaryArtist(artist)
         guard !base.isEmpty, primary.count >= 2 else { return [] }
         guard let pages = await searchPages(query: "\"\(base)\" \(TextMatch.primaryArtistDisplay(artist)) 主題歌") else { return [] }
-        let core = TextMatch.core(title)
         let nbase = base.precomposedStringWithCompatibilityMapping
         var out: [TieUp] = []
         var checked = 0
         for p in pages where checked < 5 {
             let np = TextMatch.norm(p)
-            if p.contains("一覧") || np.contains(primary) || TextMatch.core(Self.pageBase(p)) == core { continue }
+            if p.contains("一覧") || np.contains(primary) { continue }
             checked += 1
-            guard let text = await extract(page: p) else { continue }
-            let lead = String((text.components(separatedBy: "。").first ?? "").prefix(300))
+            guard let r = await extractPage(page: p) else { continue }
+            let text = r.0
+            let lead = Self.firstSentence(text)
             guard Self.workWords.contains(where: { lead.contains($0) }), !Self.notWork.contains(where: { lead.contains($0) }) else { continue }
             let nt = text.precomposedStringWithCompatibilityMapping
             var ok = false
@@ -172,16 +195,29 @@ actor TieUpLookup {
         return String(p[..<r.lowerBound])
     }
 
-    static func parse(_ text: String) -> [TieUp] {
+    /// 『作品名』のすぐ後ろ（「」や（）を除いて20文字以内）か、すぐ前（20文字以内）に「主題歌」「オープニングテーマ」などがあるものだけ
+    static func parse(_ text: String, title: String = "", artist: String = "") -> [TieUp] {
         var out: [TieUp] = []
+        let ct = TextMatch.core(title), pa = TextMatch.primaryArtist(artist)
+        let strip = try? NSRegularExpression(pattern: "「[^「」]*」|（[^（）]*）|\\([^()]*\\)")
         let sentences = text.components(separatedBy: CharacterSet(charactersIn: "。\n"))
-        for s in sentences where keywords.contains(where: { s.contains($0) }) {
+        outer: for s in sentences where keywords.contains(where: { s.contains($0) }) {
             var rest = Substring(s)
             while let open = rest.firstIndex(of: "『"), let close = rest[open...].firstIndex(of: "』") {
-                let name = String(rest[rest.index(after: open)..<close]).trimmingCharacters(in: .whitespaces)
+                var name = String(rest[rest.index(after: open)..<close]).trimmingCharacters(in: .whitespaces)
                 let before = String(rest[..<open].suffix(30))
+                let afterRaw = String(rest[rest.index(after: close)...].prefix(60))
                 rest = rest[rest.index(after: close)...]
+                if let r = name.range(of: "（以下") ?? name.range(of: "(以下") { name = String(name[..<r.lowerBound]).trimmingCharacters(in: .whitespaces) }
                 guard !name.isEmpty, name.count <= 40 else { continue }
+                if !ct.isEmpty && TextMatch.core(name) == ct { continue }
+                if pa.count >= 2 && TextMatch.norm(name).contains(pa) { continue }
+                var after = afterRaw
+                if let strip { after = strip.stringByReplacingMatches(in: afterRaw, range: NSRange(afterRaw.startIndex..., in: afterRaw), withTemplate: "") }
+                after = String(after.prefix(20))
+                let nearBefore = String(before.suffix(20))
+                guard keywords.contains(where: { after.contains($0) })
+                        || (keywords.contains(where: { nearBefore.contains($0) }) && !nearBefore.contains("『")) else { continue }
                 let kind: TieUp.Kind
                 if before.contains("アニメ") { kind = .anime }
                 else if before.contains("ドラマ") { kind = .drama }
@@ -191,13 +227,12 @@ actor TieUpLookup {
                 else if s.contains("ドラマ") { kind = .drama }
                 else if s.contains("映画") { kind = .movie }
                 else { kind = .other }
-                let t = TieUp(kind: kind, name: name)
-                if !out.contains(t) { out.append(t) }
-                if out.count >= 3 { return out }
+                if !out.contains(where: { TextMatch.norm($0.name) == TextMatch.norm(name) }) { out.append(TieUp(kind: kind, name: name)) }
+                if out.count >= 3 { break outer }
             }
         }
-        // アニメ・ドラマ・映画を先に
-        let order: [TieUp.Kind] = [.anime, .drama, .movie, .cm, .other]
+        // アニメ・映画・ドラマを先に
+        let order: [TieUp.Kind] = [.anime, .movie, .drama, .cm, .other]
         return out.sorted { order.firstIndex(of: $0.kind)! < order.firstIndex(of: $1.kind)! }
     }
 
@@ -210,7 +245,7 @@ actor TieUpLookup {
     }
     private struct ExtractResp: Decodable {
         struct Q: Decodable { let pages: [Page] }
-        struct Page: Decodable { let extract: String? }
+        struct Page: Decodable { let title: String?; let extract: String?; let missing: Bool? }
         let query: Q?
     }
 
@@ -237,13 +272,23 @@ actor TieUpLookup {
         return (try? JSONDecoder().decode(SearchResp.self, from: data))?.query?.search.map(\.title)
     }
 
-    private func extract(page: String) async -> String? {
+    private var extractCache: [String: (String, String)] = [:]
+
+    /// (本文, リダイレクト後の記事名)
+    private func extractPage(page: String) async -> (String, String)? {
+        if let c = extractCache[page] { return c }
         guard let data = await request([
             URLQueryItem(name: "action", value: "query"),
             URLQueryItem(name: "prop", value: "extracts"),
             URLQueryItem(name: "explaintext", value: "1"),
+            URLQueryItem(name: "redirects", value: "1"),
             URLQueryItem(name: "titles", value: page),
         ]) else { return nil }
-        return (try? JSONDecoder().decode(ExtractResp.self, from: data))?.query?.pages.first?.extract
+        guard let p = (try? JSONDecoder().decode(ExtractResp.self, from: data))?.query?.pages.first,
+              p.missing != true, let text = p.extract, !text.isEmpty else { return nil }
+        let r = (text, p.title ?? page)
+        extractCache[page] = r
+        if extractCache.count > 200 { extractCache.removeAll() }
+        return r
     }
 }

@@ -163,7 +163,8 @@ def parse_song_article(text, title="", artist=""):
             if not name or (ct and core(name) == ct) or (len(pa) >= 2 and pa in norm(name)):
                 continue
             before = s[max(0, m.start() - 30):m.start()]
-            after = s[m.end():m.end() + 20]
+            # 「第2期「○○編」の」「（2016年公開）の」などは飛ばして見る
+            after = re.sub(r"「[^「」]*」|（[^（）]*）|\([^()]*\)", "", s[m.end():m.end() + 60])[:20]
             near_before = before[-20:]
             if not (any(k in after for k in KEYWORDS) or (any(k in near_before for k in KEYWORDS) and "『" not in near_before)):
                 continue
@@ -204,11 +205,13 @@ def from_song_article(h):
             continue
         seen.add(resolved)
         # リダイレクトで別の記事（アルバムなど）に飛んだものは使わない
+        fs = first_sentence(text)
         if core(page_base(resolved)) != core(tb) and core(page_base(resolved).split("/")[0]) != core(tb):
-            dbg("skip redirect", p, "->", resolved)
-            continue
-        lead = text[:400]
-        if pa not in norm(lead) or not any(w in first_sentence(text) for w in SONG_LEAD):
+            # シングルの記事（曲名とは別の記事名）に飛んだときだけ使う。アルバムは使わない
+            if not ("シングル" in fs and "アルバム" not in fs and "「" + nfkc(tb) in nfkc(text)):
+                dbg("skip redirect", p, "->", resolved)
+                continue
+        if pa not in norm(text) or not any(w in fs for w in SONG_LEAD):
             dbg("skip lead", resolved, lead[:80])
             continue
         found = parse_song_article(text, title, artist)
@@ -250,7 +253,7 @@ def from_work_article(h):
     for p in pages[:10]:
         if "一覧" in p or "作品" in p and pa in norm(p):
             continue
-        if pa in norm(p) or core(page_base(p)) == core(title):
+        if pa in norm(p):
             continue
         text = extract(p)
         dbg("page", p, "len", len(text or ""))
