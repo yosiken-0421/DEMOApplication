@@ -8,6 +8,10 @@ on:
         description: "作品名が入っている曲も調べ直す"
         type: boolean
         default: false
+      debug:
+        description: "調査用：曲名を;区切りで（書き込みはしない）"
+        type: string
+        default: ""
       all_songs:
         description: "アニメ以外の曲も調べる"
         type: boolean
@@ -27,7 +31,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Wikipedia から作品名を集める
-        run: python3 .github/scripts/introdon_tieups.py ${{ inputs.force && '--force' || '' }} ${{ inputs.all_songs && '--all' || '' }}
+        env:
+          DEBUG_NAMES: ${{ inputs.debug }}
+        run: |
+          if [ -n "$DEBUG_NAMES" ]; then python3 .github/scripts/introdon_tieups.py --debug "$DEBUG_NAMES"; exit 0; fi
+          python3 .github/scripts/introdon_tieups.py ${{ inputs.force && '--force' || '' }} ${{ inputs.all_songs && '--all' || '' }}
       - name: コミット
         run: |
           git config user.name "github-actions[bot]"

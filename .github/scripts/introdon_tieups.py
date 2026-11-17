@@ -170,6 +170,7 @@ def from_song_article(h):
     if not pa:
         return None, None
     pages = search(f"{cut(title, TITLE_SEPS)} {primary_display(artist)}")
+    dbg("song search:", pages)
     cands = [p for p in pages if core(page_base(p)) == core(title)]
     for p in cands[:3]:
         text = extract(p)
@@ -189,6 +190,14 @@ def first_sentence(text):
     return re.split(r"。", text, 1)[0][:300]
 
 
+DEBUG = False
+
+
+def dbg(*a):
+    if DEBUG:
+        print("   ", *a, flush=True)
+
+
 def from_work_article(h):
     title, artist = h["t"], artist_of(h)
     tb = cut(title, TITLE_SEPS)
@@ -199,15 +208,18 @@ def from_work_article(h):
     pages += [p for p in search(f'"{tb}" {primary_display(artist)} アニメ') if p not in pages]
     results = []
     src = None
+    dbg("work search:", pages)
     for p in pages[:10]:
         if "一覧" in p or "作品" in p and pa in norm(p):
             continue
         if pa in norm(p) or core(page_base(p)) == core(title):
             continue
         text = extract(p)
+        dbg("page", p, "len", len(text or ""))
         if not text:
             continue
         lead = first_sentence(text)
+        dbg("  lead:", lead[:120])
         if not any(w in lead for w in WORK_WORDS) or any(w in lead for w in NOT_WORK):
             continue
         nt = nfkc(text)
@@ -240,9 +252,21 @@ def from_work_article(h):
 
 
 def main():
+    global DEBUG
     force = "--force" in sys.argv
     every = "--all" in sys.argv
     hits = json.load(open(HITS, encoding="utf-8"))
+    if "--debug" in sys.argv:
+        DEBUG = True
+        names = sys.argv[sys.argv.index("--debug") + 1].split(";")
+        for h in hits:
+            if h["t"] in names:
+                print("==", h["t"], artist_of(h))
+                print(" song:", from_song_article(h))
+                print(" work:", from_work_article(h))
+                t = extract(h["t"])
+                print(" direct extract of title:", (t or "")[:200])
+        return
     targets = [h for h in hits if (every or is_anime(h)) and (force or "tu" not in h)]
     print(f"対象 {len(targets)} 曲")
     found = 0
