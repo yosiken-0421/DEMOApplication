@@ -150,32 +150,56 @@ def clean_name(name):
     return name
 
 
+def sentences(text):
+    """「。」で文に分ける（『君の名は。』のようにかっこの中の「。」では分けない）"""
+    out, buf, depth = [], [], 0
+    for c in text:
+        if c in "『「（(":
+            depth += 1
+        elif c in "』」）)":
+            depth = max(0, depth - 1)
+        if c == "\n" or (c == "。" and depth == 0):
+            out.append("".join(buf))
+            buf, depth = [], 0
+        else:
+            buf.append(c)
+    out.append("".join(buf))
+    return out
+
+
+DIRECT_WORDS = ["アニメ", "映画", "劇場版", "ドラマ"]
+
+
 def parse_song_article(text, title="", artist=""):
     """アプリの TieUpLookup.parse と同じ判定：
-    『作品名』のすぐ後ろ（20文字以内）か、すぐ前（20文字以内）に「主題歌」「オープニングテーマ」などがあるものだけ"""
-    out = []
-    ct, pa = core(title), primary(artist)
-    for s in re.split(r"[。\n]", text):
+    『作品名』（または「アニメ「作品名」」「映画「作品名」」）のすぐ後ろ（20文字以内）か、
+    すぐ前（20文字以内）に「主題歌」「オープニングテーマ」などがあるものだけ。
+    すぐ前に「アニメ」「映画」などと書かれている作品名を先にする"""
+    found = []
+    pa = primary(artist)
+    for s in sentences(text):
         if not any(k in s for k in KEYWORDS):
             continue
-        for m in re.finditer(r"『([^『』]{1,40})』", s):
-            name = clean_name(m.group(1))
-            if not name or (ct and core(name) == ct) or (len(pa) >= 2 and pa in norm(name)):
+        for m in re.finditer(r"『([^『』]{1,40})』|(アニメ|映画|ドラマ|劇場版)\s*「([^「」]{1,40})」", s):
+            name = clean_name(m.group(1) or m.group(3))
+            start = m.start() if m.group(1) else m.start(3) - 1
+            if not name or (len(pa) >= 2 and pa in norm(name)):
                 continue
-            before = s[max(0, m.start() - 30):m.start()]
+            before = s[max(0, start - 30):start]
             # 「第2期「○○編」の」「（2016年公開）の」などは飛ばして見る
             after = re.sub(r"「[^「」]*」|（[^（）]*）|\([^()]*\)", "", s[m.end():m.end() + 60])[:20]
             near_before = before[-20:]
             if not (any(k in after for k in KEYWORDS) or (any(k in near_before for k in KEYWORDS) and "『" not in near_before)):
                 continue
-            t = [kind_from(before, s), name]
-            if not any(norm(x[1]) == norm(name) for x in out):
-                out.append(t)
-            if len(out) >= 3:
+            score = 0 if any(w in before[-12:] for w in DIRECT_WORDS) else 1
+            if not any(norm(x[1]) == norm(name) for _, x in found):
+                found.append((score, [kind_from(before, s), name]))
+            if len(found) >= 5:
                 break
-        if len(out) >= 3:
+        if len(found) >= 5:
             break
-    return sorted(out, key=lambda x: ORDER.index(x[0]))
+    found.sort(key=lambda x: x[0])
+    return [x for _, x in found][:3]
 
 
 def page_base(p):
@@ -328,14 +352,14 @@ def main():
                 tu = [x for x in tu2 if x not in tu] + tu
                 src = src2 if not src else src + " / " + src2
         if tu:
-            tu = sorted(tu, key=lambda x: ORDER.index(x[0]))
             uniq = []
             for x in tu:
                 if not any(norm(u[1]) == norm(x[1]) for u in uniq):
                     uniq.append(x)
             tu = uniq
             if is_anime(h) and any(k in ("anime", "movie") for k, _ in tu):
-                tu = [x for x in tu if x[0] in ("anime", "movie")][:2]
+                # いちばん確かな1つだけ（記事の中で別の曲のタイアップを拾わないため）
+                tu = [x for x in tu if x[0] in ("anime", "movie")][:1]
         if tu:
             h["tu"] = tu[:3]
             h["ts"] = src

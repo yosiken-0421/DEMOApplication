@@ -63,6 +63,8 @@ actor TieUpLookup {
             let works = await lookupWorks(title: song.title, artist: song.artist)
             result = Self.merge(works, result)
         }
+        // アニメの曲は、いちばん確かなアニメ・映画の作品名を1つだけ（記事の中の別の曲のタイアップを拾わないため）
+        if animeHint, let first = result.first(where: { $0.kind == .anime || $0.kind == .movie }) { result = [first] }
         result = Array(result.prefix(3))
         // 通信に失敗して見つからなかったときは覚えておかない（次に出たときにもう一度調べる）
         if !result.isEmpty || !networkFailed { cache[song.id] = result }
@@ -195,25 +197,47 @@ actor TieUpLookup {
         return String(p[..<r.lowerBound])
     }
 
-    /// 『作品名』のすぐ後ろ（「」や（）を除いて20文字以内）か、すぐ前（20文字以内）に「主題歌」「オープニングテーマ」などがあるものだけ
+    /// 「。」で文に分ける（『君の名は。』のようにかっこの中の「。」では分けない）
+    static func sentences(_ text: String) -> [String] {
+        var out: [String] = []
+        var buf = ""
+        var depth = 0
+        for c in text {
+            if "『「（(".contains(c) { depth += 1 } else if "』」）)".contains(c) { depth = max(0, depth - 1) }
+            if c == "\n" || (c == "。" && depth == 0) {
+                out.append(buf); buf = ""; depth = 0
+            } else {
+                buf.append(c)
+            }
+        }
+        out.append(buf)
+        return out
+    }
+
+    private static let directWords = ["アニメ", "映画", "劇場版", "ドラマ"]
+    private static let nameRegex = try? NSRegularExpression(pattern: "『([^『』]{1,40})』|(アニメ|映画|ドラマ|劇場版)\\s*「([^「」]{1,40})」")
+    private static let stripRegex = try? NSRegularExpression(pattern: "「[^「」]*」|（[^（）]*）|\\([^()]*\\)")
+
+    /// 『作品名』（または「アニメ「作品名」」「映画「作品名」」）のすぐ後ろ（「」や（）を除いて20文字以内）か、
+    /// すぐ前（20文字以内）に「主題歌」「オープニングテーマ」などがあるものだけ。
+    /// すぐ前に「アニメ」「映画」などと書かれている作品名を先にする（GitHub Actions の introdon_tieups.py と同じ判定）
     static func parse(_ text: String, title: String = "", artist: String = "") -> [TieUp] {
-        var out: [TieUp] = []
-        let ct = TextMatch.core(title), pa = TextMatch.primaryArtist(artist)
-        let strip = try? NSRegularExpression(pattern: "「[^「」]*」|（[^（）]*）|\\([^()]*\\)")
-        let sentences = text.components(separatedBy: CharacterSet(charactersIn: "。\n"))
-        outer: for s in sentences where keywords.contains(where: { s.contains($0) }) {
-            var rest = Substring(s)
-            while let open = rest.firstIndex(of: "『"), let close = rest[open...].firstIndex(of: "』") {
-                var name = String(rest[rest.index(after: open)..<close]).trimmingCharacters(in: .whitespaces)
-                let before = String(rest[..<open].suffix(30))
-                let afterRaw = String(rest[rest.index(after: close)...].prefix(60))
-                rest = rest[rest.index(after: close)...]
+        guard let nameRegex else { return [] }
+        var found: [(Int, TieUp)] = []
+        let pa = TextMatch.primaryArtist(artist)
+        outer: for s in sentences(text) where keywords.contains(where: { s.contains($0) }) {
+            let ns = s as NSString
+            for m in nameRegex.matches(in: s, range: NSRange(location: 0, length: ns.length)) {
+                let isBook = m.range(at: 1).location != NSNotFound
+                var name = ns.substring(with: isBook ? m.range(at: 1) : m.range(at: 3)).trimmingCharacters(in: .whitespaces)
                 if let r = name.range(of: "（以下") ?? name.range(of: "(以下") { name = String(name[..<r.lowerBound]).trimmingCharacters(in: .whitespaces) }
-                guard !name.isEmpty, name.count <= 40 else { continue }
-                if !ct.isEmpty && TextMatch.core(name) == ct { continue }
+                guard !name.isEmpty else { continue }
                 if pa.count >= 2 && TextMatch.norm(name).contains(pa) { continue }
-                var after = afterRaw
-                if let strip { after = strip.stringByReplacingMatches(in: afterRaw, range: NSRange(afterRaw.startIndex..., in: afterRaw), withTemplate: "") }
+                let start = isBook ? m.range.location : m.range(at: 3).location - 1
+                let before = ns.substring(with: NSRange(location: max(0, start - 30), length: start - max(0, start - 30)))
+                let end = m.range.location + m.range.length
+                var after = ns.substring(with: NSRange(location: end, length: min(60, ns.length - end)))
+                if let stripRegex { after = stripRegex.stringByReplacingMatches(in: after, range: NSRange(location: 0, length: (after as NSString).length), withTemplate: "") }
                 after = String(after.prefix(20))
                 let nearBefore = String(before.suffix(20))
                 guard keywords.contains(where: { after.contains($0) })
@@ -227,13 +251,16 @@ actor TieUpLookup {
                 else if s.contains("ドラマ") { kind = .drama }
                 else if s.contains("映画") { kind = .movie }
                 else { kind = .other }
-                if !out.contains(where: { TextMatch.norm($0.name) == TextMatch.norm(name) }) { out.append(TieUp(kind: kind, name: name)) }
-                if out.count >= 3 { break outer }
+                let score = directWords.contains(where: { String(before.suffix(12)).contains($0) }) ? 0 : 1
+                if !found.contains(where: { TextMatch.norm($0.1.name) == TextMatch.norm(name) }) {
+                    found.append((score, TieUp(kind: kind, name: name)))
+                }
+                if found.count >= 5 { break outer }
             }
         }
-        // アニメ・映画・ドラマを先に
-        let order: [TieUp.Kind] = [.anime, .movie, .drama, .cm, .other]
-        return out.sorted { order.firstIndex(of: $0.kind)! < order.firstIndex(of: $1.kind)! }
+        // 並べ替えは安定させる（同じ確かさなら記事に出てきた順）
+        let sorted = found.enumerated().sorted { ($0.element.0, $0.offset) < ($1.element.0, $1.offset) }.map(\.element.1)
+        return Array(sorted.prefix(3))
     }
 
     // MARK: Wikipedia API
