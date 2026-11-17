@@ -100,21 +100,27 @@ def search(q, limit=8):
 _extract_cache = {}
 
 
-def extract(page):
+def extract_page(page):
+    """(本文, リダイレクト後の記事名)"""
     if page in _extract_cache:
         return _extract_cache[page]
     d = api({"action": "query", "prop": "extracts", "explaintext": 1, "redirects": 1, "titles": page})
-    text = None
+    res = (None, page)
     if d:
         pages = d.get("query", {}).get("pages", [])
-        if pages:
-            text = pages[0].get("extract")
-    _extract_cache[page] = text
-    return text
+        if pages and not pages[0].get("missing"):
+            res = (pages[0].get("extract"), pages[0].get("title", page))
+    _extract_cache[page] = res
+    return res
+
+
+def extract(page):
+    return extract_page(page)[0]
 
 
 KEYWORDS = ["主題歌", "オープニングテーマ", "エンディングテーマ", "オープニング曲", "エンディング曲",
-            "挿入歌", "イメージソング", "テーマソング", "CMソング", "タイアップ", "テーマ曲"]
+            "挿入歌", "挿入曲", "劇中歌", "イメージソング", "テーマソング", "CMソング", "タイアップ", "テーマ曲",
+            "OPテーマ", "EDテーマ", "主題曲"]
 NEAR_WORDS = ["オープニング", "エンディング", "主題歌", "挿入歌", "テーマ", "OP", "ED"]
 
 
@@ -136,58 +142,90 @@ def kind_from(before, sentence):
     return "other"
 
 
-def parse_song_article(text):
-    """アプリの TieUpLookup.parse と同じ判定"""
+ORDER = ["anime", "movie", "drama", "cm", "other"]
+
+
+def clean_name(name):
+    name = re.split(r"[（(]以下", name)[0].strip()
+    return name
+
+
+def parse_song_article(text, title="", artist=""):
+    """アプリの TieUpLookup.parse と同じ判定：
+    『作品名』のすぐ後ろ（20文字以内）か、すぐ前（20文字以内）に「主題歌」「オープニングテーマ」などがあるものだけ"""
     out = []
+    ct, pa = core(title), primary(artist)
     for s in re.split(r"[。\n]", text):
         if not any(k in s for k in KEYWORDS):
             continue
         for m in re.finditer(r"『([^『』]{1,40})』", s):
-            name = m.group(1).strip()
-            if not name:
+            name = clean_name(m.group(1))
+            if not name or (ct and core(name) == ct) or (len(pa) >= 2 and pa in norm(name)):
                 continue
             before = s[max(0, m.start() - 30):m.start()]
+            after = s[m.end():m.end() + 20]
+            near_before = before[-20:]
+            if not (any(k in after for k in KEYWORDS) or (any(k in near_before for k in KEYWORDS) and "『" not in near_before)):
+                continue
             t = [kind_from(before, s), name]
-            if t not in out:
+            if not any(norm(x[1]) == norm(name) for x in out):
                 out.append(t)
             if len(out) >= 3:
                 break
         if len(out) >= 3:
             break
-    order = ["anime", "movie", "drama", "cm", "other"]
-    return sorted(out, key=lambda x: order.index(x[0]))
+    return sorted(out, key=lambda x: ORDER.index(x[0]))
 
 
 def page_base(p):
     return re.sub(r"\s*\([^()]*\)$", "", p).strip()
 
 
+SONG_LEAD = ["楽曲", "シングル", "曲", "EP", "アルバム", "主題歌", "テーマ"]
+
+
 def from_song_article(h):
     title, artist = h["t"], artist_of(h)
+    tb = cut(title, TITLE_SEPS)
     pa = primary(artist)
     if len(pa) < 2:
         pa = norm(artist)
-    if not pa:
+    if not pa or not tb:
         return None, None
-    pages = search(f"{cut(title, TITLE_SEPS)} {primary_display(artist)}")
+    ad = primary_display(artist)
+    cands = [f"{tb} ({ad}の曲)", f"{tb} (曲)", tb]
+    pages = search(f"{tb} {ad}")
     dbg("song search:", pages)
-    cands = [p for p in pages if core(page_base(p)) == core(title)]
-    for p in cands[:3]:
-        text = extract(p)
-        if not text or pa not in norm(text):
+    cands += [p for p in pages if core(page_base(p)) == core(title) and p not in cands]
+    seen = set()
+    for p in cands[:6]:
+        text, resolved = extract_page(p)
+        if not text or resolved in seen:
             continue
-        found = parse_song_article(text)
+        seen.add(resolved)
+        # リダイレクトで別の記事（アルバムなど）に飛んだものは使わない
+        if core(page_base(resolved)) != core(tb) and core(page_base(resolved).split("/")[0]) != core(tb):
+            dbg("skip redirect", p, "->", resolved)
+            continue
+        lead = text[:400]
+        if pa not in norm(lead) or not any(w in first_sentence(text) for w in SONG_LEAD):
+            dbg("skip lead", resolved, lead[:80])
+            continue
+        found = parse_song_article(text, title, artist)
+        dbg("song page", resolved, found)
         if found:
-            return found, p
+            return found, resolved
     return None, None
 
 
 WORK_WORDS = ["アニメ", "漫画", "ライトノベル", "小説", "映画", "ドラマ", "ゲーム", "特撮", "作品"]
-NOT_WORK = ["アルバム", "シングル", "楽曲", "歌手", "バンド", "ユニット", "グループ", "ディスコグラフィ", "声優", "作曲家", "作詞家"]
+NOT_WORK = ["アルバム", "シングル", "楽曲", "歌手", "バンド", "ユニット", "グループ", "ディスコグラフィ", "声優", "作曲家", "作詞家",
+            "音楽", "ビデオ", "チャート", "監督", "演出家", "アニメーター", "脚本家", "漫画家", "作家", "俳優", "タレント",
+            "番組", "ラジオ", "生まれ", "会社", "言葉", "総称"]
 
 
 def first_sentence(text):
-    return re.split(r"。", text, 1)[0][:300]
+    return re.split(r"。", text, maxsplit=1)[0][:300]
 
 
 DEBUG = False
@@ -278,6 +316,15 @@ def main():
                 tu = (tu or [])
                 tu = [x for x in tu2 if x not in tu] + tu
                 src = src2 if not src else src + " / " + src2
+        if tu:
+            tu = sorted(tu, key=lambda x: ORDER.index(x[0]))
+            uniq = []
+            for x in tu:
+                if not any(norm(u[1]) == norm(x[1]) for u in uniq):
+                    uniq.append(x)
+            tu = uniq
+            if is_anime(h) and any(k in ("anime", "movie") for k, _ in tu):
+                tu = [x for x in tu if x[0] in ("anime", "movie")][:2]
         if tu:
             h["tu"] = tu[:3]
             h["ts"] = src
