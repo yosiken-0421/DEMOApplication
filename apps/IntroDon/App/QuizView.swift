@@ -247,7 +247,7 @@ struct QuizView: View {
                     ForEach(model.tieUps, id: \.self) { t in
                         Text(t.display).font(.system(size: 15, weight: .bold, design: .rounded))
                     }
-                    Text(q.candidate.hit?.ts != nil || q.candidate.hit?.animeName == nil ? "作品名：Wikipedia・Apple の曲情報より" : "作品名：アニソンランキングの出典より")
+                    Text(q.candidate.hit?.animeName != nil ? "作品名：アニソンランキングの出典より" : "作品名：Wikipedia・Apple の曲情報より")
                         .font(.caption2).opacity(0.5)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

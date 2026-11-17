@@ -64,7 +64,13 @@ actor TieUpLookup {
             result = Self.merge(works, result)
         }
         // アニメの曲は、いちばん確かなアニメ・映画の作品名を1つだけ（記事の中の別の曲のタイアップを拾わないため）
-        if animeHint, let first = result.first(where: { $0.kind == .anime || $0.kind == .movie }) { result = [first] }
+        if animeHint {
+            if let first = result.first(where: { $0.kind == .anime || $0.kind == .movie }) { result = [first] }
+            else if let t = result.first(where: { $0.kind == .other }) {
+                let movie = ["劇場版", "MOVIE", "Movie", "映画"].contains(where: { t.name.contains($0) })
+                result = [TieUp(kind: movie ? .movie : .anime, name: t.name)]
+            }
+        }
         result = Array(result.prefix(3))
         // 通信に失敗して見つからなかったときは覚えておかない（次に出たときにもう一度調べる）
         if !result.isEmpty || !networkFailed { cache[song.id] = result }

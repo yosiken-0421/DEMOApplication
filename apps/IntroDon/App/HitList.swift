@@ -34,19 +34,23 @@ struct HitSong: Decodable, Hashable {
     var isAnime: Bool { g == "anime" }
     var animeName: String? { (an?.isEmpty == false) ? an : nil }
 
-    /// 同梱データに入っている作品名（Wikipedia から集めたもの → アニソンランキングの出典に書かれた作品名）
+    /// 同梱データに入っている作品名
+    /// アニソンランキングの出典に書かれた作品名（an）があればそれ、なければ Wikipedia から集めたもの（tu）
     var storedTieUps: [TieUp] {
-        var out: [TieUp] = []
-        for x in tu ?? [] where x.count == 2 && !x[1].isEmpty {
-            let t = TieUp(kind: TieUp.Kind(code: x[0]), name: x[1])
-            if !out.contains(where: { TextMatch.norm($0.name) == TextMatch.norm(t.name) }) { out.append(t) }
+        if let an = animeName { return [TieUp(kind: .anime, name: an)] }
+        let list = (tu ?? []).compactMap { x -> TieUp? in
+            guard x.count == 2, !x[1].isEmpty else { return nil }
+            return TieUp(kind: TieUp.Kind(code: x[0]), name: x[1])
         }
-        if let an = animeName, !out.contains(where: { TextMatch.norm($0.name) == TextMatch.norm(an) }) {
-            out.append(TieUp(kind: .anime, name: an))
+        guard isAnime || Genre.anime.aliases.contains(Genre.normalize(ag)) else { return list }
+        // アニメの曲：アニメ・映画の作品名を1つ。種類が書かれていない作品名はアニメ（劇場版はアニメ映画）として出す
+        if let t = list.first(where: { $0.kind == .anime || $0.kind == .movie }) { return [t] }
+        if let t = list.first(where: { $0.kind == .other }) {
+            let movie = ["劇場版", "MOVIE", "Movie", "映画"].contains(where: { t.name.contains($0) })
+            return [TieUp(kind: movie ? .movie : .anime, name: t.name)]
         }
-        return out
+        return Array(list.prefix(1))
     }
-    var artist: String { a.isEmpty ? (aa ?? "") : a }
 
     /// 年代分けに使う年：ランキングの年。不明なら Apple の発売年
     var year: Int? {
