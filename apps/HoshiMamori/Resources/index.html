@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>ほしまもりの塔</title>
+<style>
+:root{
+  --bg:#120d2e; --bg2:#1d1650; --card:#251d5c; --card2:#2f2672; --line:#463b93;
+  --text:#f4f1ff; --sub:#b9b1e6; --gold:#ffd166; --cyan:#7de3ff; --red:#ff7a8a; --blue:#6ec8ff; --green:#7dffb2;
+  --st:env(safe-area-inset-top,0px); --sb:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;overflow:hidden;touch-action:manipulation}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.screen{position:fixed;inset:0;display:none;flex-direction:column}
+.screen.on{display:flex}
+#meta{background:radial-gradient(120% 70% at 50% 0%,#2b2170 0%,var(--bg) 70%)}
+.topbar{padding:calc(var(--st) + 10px) 14px 8px;display:flex;align-items:center;gap:8px}
+.topbar h1{font-size:17px;margin:0;flex:1;letter-spacing:.05em}
+.pill{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:4px 10px;font-size:13px;font-weight:700;white-space:nowrap}
+.pill.gold{color:var(--gold)} .pill.cyan{color:var(--cyan)}
+.page{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 14px 16px;display:none}
+.page.on{display:block}
+nav{display:flex;background:rgba(10,7,30,.92);border-top:1px solid var(--line);padding-bottom:var(--sb)}
+nav button{flex:1;padding:8px 0 7px;font-size:11px;color:var(--sub);display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
+nav button b{font-size:20px;line-height:1}
+nav button.on{color:var(--gold)}
+nav button .dot{position:absolute;top:5px;right:calc(50% - 18px);width:9px;height:9px;border-radius:50%;background:var(--red);display:none}
+nav button .dot.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin:10px 0}
+.card h3{margin:0 0 6px;font-size:14px;color:var(--sub);font-weight:700}
+.row{display:flex;align-items:center;gap:10px}
+.grow{flex:1;min-width:0}
+.small{font-size:12px;color:var(--sub)}
+.big{font-size:22px;font-weight:800}
+.btn{background:linear-gradient(180deg,#ffd978,#f0a93a);color:#3a2200;font-weight:800;border-radius:12px;padding:10px 14px;box-shadow:0 3px 0 #a86a10}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 #a86a10}
+.btn.blue{background:linear-gradient(180deg,#9be9ff,#4fb6e8);color:#06273a;box-shadow:0 3px 0 #2a7aa3}
+.btn.gray{background:#3b336f;color:#cfc8f5;box-shadow:0 3px 0 #251f4f}
+.btn[disabled]{filter:grayscale(1) brightness(.6);pointer-events:none}
+.btn.wide{width:100%;font-size:20px;padding:14px}
+#hero{height:190px;position:relative;display:flex;align-items:center;justify-content:center}
+#heroCv{width:190px;height:190px}
+.tiersel{display:flex;align-items:center;justify-content:center;gap:16px;margin:4px 0 10px}
+.tiersel button{width:40px;height:40px;border-radius:50%;background:var(--card2);font-size:18px;font-weight:800}
+.tiersel button[disabled]{opacity:.3}
+.bar{height:8px;background:rgba(255,255,255,.1);border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),#b18cff);width:0}
+.tabs{display:flex;gap:6px;margin:6px 0}
+.tabs button{flex:1;padding:8px 0;border-radius:10px;background:var(--card);font-weight:700;font-size:14px;color:var(--sub);border:1px solid var(--line)}
+.tabs button.on{color:#1a1240;background:var(--gold);border-color:var(--gold)}
+.list .item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:8px 0}
+.item .nm{font-weight:800;font-size:15px}
+.item .val{font-size:12px;color:var(--sub);margin-top:2px}
+.item .val em{color:var(--green);font-style:normal}
+.cost{min-width:92px;text-align:center;font-size:14px}
+#treeWrap{position:relative;margin:0 -8px}
+#tree{width:100%;height:auto;display:block}
+#tree .nd{cursor:pointer}
+@keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
+#tree .avail{animation:pulse 1.4s infinite}
+.legend{display:flex;justify-content:space-around;font-size:12px;font-weight:800;margin-top:-4px}
+.slot{background:var(--card2);border-radius:12px;padding:10px;margin:8px 0}
+.login{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:6px}
+.login div{background:var(--card2);border-radius:8px;padding:6px 0;text-align:center;font-size:11px;color:var(--sub)}
+.login div b{display:block;font-size:12px;color:var(--text)}
+.login div.done{opacity:.4}
+.login div.today{outline:2px solid var(--gold);color:var(--gold)}
+.toggle{width:52px;height:30px;border-radius:99px;background:#3b336f;position:relative;flex:none}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.15s}
+.toggle.on{background:var(--green)}
+.toggle.on::after{left:25px}
+/* battle */
+#battle{background:#0b0820}
+#hud{padding:calc(var(--st) + 6px) 10px 6px;display:flex;flex-direction:column;gap:5px;background:linear-gradient(180deg,rgba(11,8,32,1),rgba(11,8,32,.6))}
+#hud .row{gap:6px}
+#hpBar{flex:1;height:16px;border-radius:9px;background:#3a1730;overflow:hidden;position:relative}
+#hpBar i{position:absolute;inset:0;width:100%;background:linear-gradient(90deg,#ff5f7a,#ff9a8a)}
+#hpBar span{position:absolute;inset:0;text-align:center;font-size:11px;font-weight:800;line-height:16px;text-shadow:0 1px 2px #000}
+#waveBar{height:4px;background:rgba(255,255,255,.1);border-radius:4px;overflow:hidden}
+#waveBar i{display:block;height:100%;background:var(--cyan);width:0}
+.hb{background:var(--card2);border-radius:9px;padding:5px 9px;font-weight:800;font-size:13px}
+#field{flex:1;position:relative;min-height:200px}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block}
+#panel{background:#150f3a;border-top:1px solid var(--line);padding:6px 8px calc(var(--sb) + 6px)}
+#panel .tabs button{padding:6px 0;font-size:13px}
+#upg{display:grid;grid-template-columns:1fr 1fr;gap:6px;height:178px;overflow-y:auto;align-content:start}
+.ub{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:6px 8px;text-align:left;display:flex;flex-direction:column;gap:1px;min-height:52px}
+.ub .t{font-size:12px;color:var(--sub);font-weight:700}
+.ub .v{font-size:14px;font-weight:800}
+.ub .c{font-size:12px;color:var(--gold);font-weight:800}
+.ub.no{opacity:.45}
+.ub.max .c{color:var(--green)}
+.ub:active{transform:scale(.97)}
+.subrow{display:flex;gap:6px;margin-top:6px;align-items:center}
+.subrow .hb{flex:none}
+/* modal */
+#modal{position:fixed;inset:0;background:rgba(5,3,20,.72);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+#modal.on{display:flex}
+#modalBox{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;width:100%;max-width:360px;text-align:center}
+#modalBox h2{margin:0 0 8px;font-size:20px}
+#modalBox .res{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0;text-align:left}
+#modalBox .res div{background:var(--card2);border-radius:10px;padding:8px}
+#modalBox .btns{display:flex;gap:8px;margin-top:12px}
+#modalBox .btns .btn{flex:1}
+#toast{position:fixed;left:50%;top:calc(var(--st) + 60px);transform:translateX(-50%);background:rgba(20,14,60,.95);border:1px solid var(--gold);color:var(--gold);padding:8px 14px;border-radius:12px;font-weight:800;font-size:14px;z-index:60;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- ===== ホームなど（出撃前の画面） ===== -->
+<section id="meta" class="screen on">
+  <div class="topbar">
+    <h1 id="title">ほしまもりの塔</h1>
+    <span class="pill gold" id="rShard">✦ 0</span>
+    <span class="pill cyan" id="rSp">★ 0</span>
+  </div>
+
+  <div class="page on" id="pg-home">
+    <div id="hero"><canvas id="heroCv" width="380" height="380"></canvas></div>
+    <div class="tiersel">
+      <button id="tierPrev">◀</button>
+      <div style="text-align:center"><div class="big" id="tierName">ティア 1</div><div class="small" id="tierInfo"></div></div>
+      <button id="tierNext">▶</button>
+    </div>
+    <button class="btn wide" id="goBtn">出撃する</button>
+    <div class="card">
+      <h3>✦ 星の採掘場（放置中もたまる）</h3>
+      <div class="row"><div class="grow"><div class="big" id="mineAmt">0</div><div class="small" id="mineInfo"></div></div>
+      <button class="btn blue" id="mineBtn">受け取る</button></div>
+      <div class="bar" style="margin-top:8px"><i id="mineBar"></i></div>
+    </div>
+    <div class="card" id="homeLab"></div>
+    <div class="card"><h3>🌙 今週の星回り</h3><div class="nm" style="font-weight:800" id="wkName"></div><div class="small" id="wkDesc"></div></div>
+  </div>
+
+  <div class="page" id="pg-ws">
+    <div class="small" style="margin:6px 2px">工房の強化はずっと残り、毎回の出撃の「はじめの強さ」になります。</div>
+    <div class="tabs" id="wsTabs"><button class="on">攻撃</button><button>守り</button><button>恵み</button></div>
+    <div class="list" id="wsList"></div>
+  </div>
+
+  <div class="page" id="pg-tree">
+    <div class="row" style="margin:6px 0"><div class="grow small">星ポイント（★）はウェーブ10・20・30…を初めて突破したときにもらえます。</div><button class="btn gray" id="respec" style="font-size:13px;padding:7px 10px">振り直す</button></div>
+    <div id="treeWrap"><svg id="tree" viewBox="0 0 360 600"></svg></div>
+    <div class="legend"><span style="color:var(--red)">● 攻撃の星座</span><span style="color:var(--blue)">● 守りの星座</span><span style="color:var(--gold)">● 恵みの星座</span></div>
+  </div>
+
+  <div class="page" id="pg-lab">
+    <div class="small" style="margin:6px 2px">研究は時間がたつと完了します（アプリを閉じていても進みます）。</div>
+    <div id="labSlots"></div>
+    <div class="list" id="labList"></div>
+  </div>
+
+  <div class="page" id="pg-msn">
+    <div class="card"><h3>🎁 ログインボーナス</h3><div class="login" id="loginCal"></div>
+      <button class="btn wide" id="loginBtn" style="margin-top:10px;font-size:16px;padding:10px">受け取る</button></div>
+    <div class="card"><h3>📋 今日の任務（毎日0時に入れ替わり）</h3><div id="msnList" class="list"></div>
+      <button class="btn blue wide" id="msnAll" style="margin-top:8px;font-size:15px;padding:10px">3つ全部クリアで ★1</button></div>
+    <div class="card"><h3>📊 記録</h3><div id="stats" class="small" style="line-height:1.8"></div></div>
+    <div class="card"><h3>⚙ 設定</h3>
+      <div class="row" style="margin:6px 0"><div class="grow">効果音</div><button class="toggle" id="tgSound"></button></div>
+      <div class="row" style="margin:6px 0"><div class="grow">振動</div><button class="toggle" id="tgHaptic"></button></div>
+    </div>
+  </div>
+
+  <nav id="nav">
+    <button data-p="home" class="on"><b>🏰</b>ホーム<i class="dot"></i></button>
+    <button data-p="ws"><b>🔨</b>工房<i class="dot"></i></button>
+    <button data-p="tree"><b>✨</b>星座<i class="dot"></i></button>
+    <button data-p="lab"><b>🔭</b>研究所<i class="dot"></i></button>
+    <button data-p="msn"><b>📋</b>任務<i class="dot"></i></button>
+  </nav>
+</section>
+
+<!-- ===== 戦闘画面 ===== -->
+<section id="battle" class="screen">
+  <div id="hud">
+    <div class="row">
+      <span class="hb" id="hWave">ウェーブ 1</span>
+      <div id="hpBar"><i id="hpFill"></i><span id="hpTxt"></span></div>
+      <button class="hb" id="pauseBtn">Ⅱ</button>
+    </div>
+    <div id="waveBar"><i id="waveFill"></i></div>
+    <div class="row">
+      <span class="hb" style="color:var(--cyan)" id="hEnergy">⚡ 0</span>
+      <span class="hb" style="color:var(--gold)" id="hShard">✦ 0</span>
+      <span class="grow"></span>
+      <span class="hb" id="hUlt" style="display:none"></span>
+      <button class="hb" id="speedBtn">×1</button>
+    </div>
+  </div>
+  <div id="field"><canvas id="cv"></canvas></div>
+  <div id="panel">
+    <div class="tabs" id="runTabs"><button class="on">攻撃</button><button>守り</button><button>恵み</button></div>
+    <div id="upg"></div>
+    <div class="subrow">
+      <button class="hb" id="multBtn">×1 ずつ</button>
+      <button class="hb" id="autoBtn" style="display:none">自動強化: OFF</button>
+      <span class="grow"></span>
+      <button class="hb" id="retreatBtn" style="color:var(--red)">撤退</button>
+    </div>
+  </div>
+</section>
+
+<div id="modal"><div id="modalBox"></div></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* =========================================================
+   ほしまもりの塔 — 塔1本のタワーディフェンス × 星座スキルツリー
+   ・戦闘中の強化（エナジー）は出撃ごとにリセット
+   ・工房（かけら）、星座（★）、研究所（かけら＋時間）はずっと残る
+   ========================================================= */
+const KEY = 'hoshimamori_v1';
+const WORLD = 400, TOWER_R = 18, SPAWN_R = 250, WAVE_LEN = 20;
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+
+// ---------- 数字の表示（1.2万、3.4億 …） ----------
+function fmt(n) {
+  n = Math.floor(n);
+  if (!isFinite(n)) return '∞';
+  if (n < 10000) return String(n);
+  const units = ['', '万', '億', '兆', '京', '垓'];
+  let k = Math.min(units.length - 1, Math.floor(Math.log10(n) / 4));
+  const v = n / Math.pow(10, 4 * k);
+  return (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2)).replace(/\.?0+$/, '') + units[k];
+}
+function fmtTime(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60;
+  return h ? `${h}時間${m}分` : m ? `${m}分${String(ss).padStart(2, '0')}秒` : `${ss}秒`;
+}
+
+// ---------- 強化項目（工房と戦闘中で共通） ----------
+const TABS = ['攻撃', '守り', '恵み'];
+const ITEMS = [
+  { k: 'dmg', name: '攻撃力', tab: 0, base: 10, ws: 4, run: 2, wc: 6, rc: 6, f: 'int' },
+  { k: 'rate', name: '攻撃速度', tab: 0, base: 1, ws: 0.03, run: 0.06, cap: 6, wc: 8, rc: 8, f: 'rate' },
+  { k: 'range', name: '射程', tab: 0, base: 110, ws: 2, run: 4, cap: 240, wc: 6, rc: 6, f: 'int' },
+  { k: 'crit', name: '会心率', tab: 0, base: 0.02, ws: 0.005, run: 0.01, cap: 0.6, wc: 10, rc: 10, f: 'pct' },
+  { k: 'critm', name: '会心ダメージ', tab: 0, base: 1.5, ws: 0.03, run: 0.08, wc: 10, rc: 10, f: 'mul' },
+  { k: 'hp', name: '最大HP', tab: 1, base: 100, ws: 15, run: 10, wc: 6, rc: 6, f: 'int' },
+  { k: 'regen', name: 'HP回復', tab: 1, base: 0.6, ws: 0.25, run: 0.25, wc: 6, rc: 6, f: 'regen' },
+  { k: 'def', name: '防御', tab: 1, base: 0, ws: 0.004, run: 0.008, cap: 0.75, wc: 8, rc: 8, f: 'pct' },
+  { k: 'thorn', name: 'トゲ反射', tab: 1, base: 0, ws: 0.004, run: 0.012, cap: 1, wc: 10, rc: 10, f: 'pct', need: 'd3' },
+  { k: 'cash', name: 'エナジー獲得', tab: 2, base: 1, ws: 0.04, run: 0.08, wc: 10, rc: 10, f: 'mul' },
+  { k: 'wavecash', name: 'ウェーブ報酬', tab: 2, base: 5, ws: 2, run: 3, wc: 8, rc: 8, f: 'int' },
+  { k: 'shard', name: 'かけら獲得', tab: 2, base: 1, ws: 0.03, run: 0.02, wc: 12, rc: 20, f: 'mul' },
+];
+const IT = Object.fromEntries(ITEMS.map(i => [i.k, i]));
+function fmtStat(it, v) {
+  switch (it.f) {
+    case 'rate': return v.toFixed(2) + '/秒';
+    case 'regen': return v.toFixed(1) + '/秒';
+    case 'pct': return (v * 100).toFixed(1) + '%';
+    case 'mul': return '×' + v.toFixed(2);
+    default: return fmt(v);
+  }
+}
+
+// ---------- 星座（スキルツリー） ----------
+const NODES = [
+  { id: 'root', name: 'はじまりの星', br: '', x: 180, y: 290, cost: 0, req: null, desc: '塔に宿った最初の星。ここから3つの星座が広がる。' },
+  { id: 'a1', name: '鋭い光', br: 'a', x: 180, y: 228, cost: 1, req: 'root', desc: '攻撃力 +15%' },
+  { id: 'a2', name: '連なる光', br: 'a', x: 180, y: 168, cost: 1, req: 'a1', desc: '攻撃速度 +15%' },
+  { id: 'a3', name: '双子星', br: 'a', x: 128, y: 120, cost: 2, req: 'a2', desc: '一度に2体をねらって撃つ' },
+  { id: 'a5', name: '会心の目覚め', br: 'a', x: 238, y: 126, cost: 2, req: 'a2', desc: '会心率 +10%・会心ダメージ +0.5' },
+  { id: 'a4', name: '貫く光', br: 'a', x: 104, y: 60, cost: 2, req: 'a3', desc: '弾が敵を1体つらぬいて、後ろの敵にも当たる' },
+  { id: 'a6', name: '稲妻の星', br: 'a', x: 176, y: 36, cost: 3, req: 'a4', desc: '命中時20%で、近くの敵3体に稲妻が走る（攻撃力の50%）' },
+  { id: 'a7', name: '流星群', br: 'a', x: 262, y: 52, cost: 3, req: 'a6', ult: true, desc: '【必殺】15秒ごとに流星が6つ降り注ぐ（攻撃力の6倍・範囲）' },
+  { id: 'd1', name: '固い殻', br: 'd', x: 122, y: 330, cost: 1, req: 'root', desc: '最大HP +20%' },
+  { id: 'd2', name: '癒しの光', br: 'd', x: 80, y: 380, cost: 1, req: 'd1', desc: 'HP回復 +50%' },
+  { id: 'd3', name: 'トゲの輪', br: 'd', x: 36, y: 432, cost: 2, req: 'd2', desc: '「トゲ反射」を解放：触れた敵に、その敵の最大HPの一部のダメージ' },
+  { id: 'd4', name: '押し返す波', br: 'd', x: 122, y: 432, cost: 2, req: 'd2', desc: '弾が当たった敵を少し押し返す' },
+  { id: 'd7', name: '不屈', br: 'd', x: 40, y: 502, cost: 3, req: 'd3', desc: 'HPが0になっても、1回だけHP30%で復活する' },
+  { id: 'd5', name: '凍える光輪', br: 'd', x: 130, y: 502, cost: 2, req: 'd4', desc: '射程内の敵の移動速度 -25%' },
+  { id: 'd6', name: '星の障壁', br: 'd', x: 86, y: 552, cost: 3, req: 'd5', ult: true, desc: '【必殺】30秒ごとに4秒間、ダメージを受けない' },
+  { id: 'g1', name: '拾い星', br: 'g', x: 238, y: 330, cost: 1, req: 'root', desc: '戦闘中のエナジー +15%' },
+  { id: 'g2', name: 'たくわえ', br: 'g', x: 280, y: 380, cost: 1, req: 'g1', desc: '出撃時のエナジー +100' },
+  { id: 'g3', name: '利子', br: 'g', x: 324, y: 432, cost: 2, req: 'g2', desc: 'ウェーブ終了ごとに、持っているエナジーの5%をもらえる' },
+  { id: 'g4', name: 'かけら磁石', br: 'g', x: 238, y: 432, cost: 2, req: 'g2', desc: 'かけら獲得 +20%' },
+  { id: 'g5', name: '自動強化', br: 'g', x: 320, y: 502, cost: 2, req: 'g3', desc: '戦闘中、いちばん安い強化を自動で買うボタンが使える' },
+  { id: 'g6', name: '早送り', br: 'g', x: 230, y: 502, cost: 2, req: 'g4', desc: '戦闘の3倍速が使える' },
+  { id: 'g7', name: '星の書庫', br: 'g', x: 274, y: 552, cost: 3, req: 'g6', ult: true, desc: '【大いなる恵み】研究所の研究枠 +1' },
+];
+const ND = Object.fromEntries(NODES.map(n => [n.id, n]));
+const BR_COLOR = { a: '#ff7a8a', d: '#6ec8ff', g: '#ffd166', '': '#ffffff' };
+
+// ---------- 研究所 ----------
+const LAB = [
+  { k: 'shard', name: 'かけら研究', desc: 'かけら獲得 +6%', max: 30, cost: 50, time: 5 },
+  { k: 'dmg', name: '星光の研磨', desc: '攻撃力 +5%', max: 50, cost: 70, time: 8 },
+  { k: 'hp', name: '塔の補強', desc: '最大HP +5%', max: 50, cost: 70, time: 8 },
+  { k: 'cash', name: 'エナジー研究', desc: '戦闘中のエナジー +5%', max: 30, cost: 60, time: 8 },
+  { k: 'disc', name: '工房の効率化', desc: '工房の強化費 -2%', max: 20, cost: 80, time: 10 },
+  { k: 'mine', name: '採掘場の拡張', desc: '放置中のかけら +15%・ためられる時間 +1時間', max: 16, cost: 100, time: 15 },
+  { k: 'start', name: '先制出撃', desc: '出撃時のウェーブ +1（飛ばしたウェーブの報酬はなし）', max: 10, cost: 150, time: 20 },
+];
+const LB = Object.fromEntries(LAB.map(l => [l.k, l]));
+const SLOT_PRICE = 1500;
+
+// ---------- 週替わりルール ----------
+const WEEKLY = [
+  { name: 'かけら日和', desc: 'かけら獲得 +50%', shard: 1.5 },
+  { name: '疾風の週', desc: '速い敵が2倍出てくる・かけら獲得 +30%', fast: 2, shard: 1.3 },
+  { name: '巨星の週', desc: 'ボスのHP +50%・ボス撃破のかけら ×3', bossHp: 1.5, bossShard: 3 },
+  { name: '研究週間', desc: '研究にかかる時間 -30%', lab: 0.7 },
+  { name: '豊穣の週', desc: '戦闘中のエナジー +30%', cash: 1.3 },
+];
+function localDay(t) { t = t || Date.now(); return Math.floor((t - new Date(t).getTimezoneOffset() * 60000) / 86400000); }
+function dayKey(d) { return new Date(d * 86400000).toISOString().slice(0, 10); }
+function weekly() { return WEEKLY[Math.floor((localDay() + 3) / 7) % WEEKLY.length]; }
+
+// ---------- 任務 ----------
+const MISSIONS = [
+  { t: 'kills', txt: n => `敵を${n}体倒す`, n: () => 150 },
+  { t: 'wave', txt: n => `1回の出撃でウェーブ${n}に到達する`, n: () => Math.max(5, Math.floor(bestAny() * 0.7)) },
+  { t: 'buys', txt: n => `戦闘中に強化を${n}回する`, n: () => 30 },
+  { t: 'boss', txt: n => `ボスを${n}体倒す`, n: () => 2 },
+  { t: 'ws', txt: n => `工房で${n}回強化する`, n: () => 5 },
+  { t: 'lab', txt: n => `研究を${n}回始める`, n: () => 1 },
+  { t: 'runs', txt: n => `${n}回出撃する`, n: () => 3 },
+];
+const LOGIN = [30, 50, 80, 120, 160, 220, 300];
+
+// ---------- セーブデータ ----------
+function defaults() {
+  return {
+    v: 1, shards: 0, sp: 0, nodes: { root: true }, ws: {}, tier: 1, tierMax: 1, best: {}, ms: {},
+    lab: { lv: {}, slots: [], extra: 0 }, mineAt: Date.now(), autoBuy: false,
+    daily: { day: -1, missions: [], allClaimed: false, loginDay: 0, loginClaimed: false },
+    stats: { runs: 0, kills: 0, bosses: 0 }, sound: true, haptic: true,
+  };
+}
+let S = defaults();
+(function load() {
+  let raw = null;
+  try { raw = (typeof window.__HM_SAVE__ === 'string' && window.__HM_SAVE__) || localStorage.getItem(KEY); } catch (e) { }
+  if (raw) {
+    try {
+      const o = JSON.parse(raw), d = defaults();
+      S = Object.assign(d, o);
+      S.lab = Object.assign(d.lab, o.lab || {});
+      S.daily = Object.assign(d.daily, o.daily || {});
+      S.stats = Object.assign(d.stats, o.stats || {});
+      S.nodes.root = true;
+    } catch (e) { S = defaults(); }
+  }
+})();
+let saveT = 0;
+function save() {
+  const s = JSON.stringify(S);
+  try { localStorage.setItem(KEY, s); } catch (e) { }
+  try { window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'save', data: s })); } catch (e) { }
+}
+function haptic(kind) {
+  if (!S.haptic) return;
+  try { window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'haptic', kind: kind || 'light' })); } catch (e) { }
+}
+
+// ---------- 効果音（Web Audio の小さな音） ----------
+let AC = null, lastSnd = {};
+function snd(kind) {
+  if (!S.sound) return;
+  const now = performance.now();
+  if (lastSnd[kind] && now - lastSnd[kind] < (kind === 'kill' ? 90 : 40)) return;
+  lastSnd[kind] = now;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    const o = AC.createOscillator(), g = AC.createGain(), t = AC.currentTime;
+    const P = { kill: [880, 1320, .05, .04], buy: [660, 990, .06, .07], wave: [520, 1040, .08, .18], boss: [220, 880, .12, .4], hurt: [180, 120, .05, .08], ult: [300, 1500, .09, .35], bad: [200, 160, .06, .12] }[kind] || [440, 440, .05, .05];
+    o.type = kind === 'hurt' || kind === 'bad' ? 'square' : 'triangle';
+    o.frequency.setValueAtTime(P[0], t); o.frequency.exponentialRampToValueAtTime(P[1], t + P[3]);
+    g.gain.setValueAtTime(P[2], t); g.gain.exponentialRampToValueAtTime(0.0001, t + P[3] + 0.05);
+    o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + P[3] + 0.06);
+  } catch (e) { }
+}
+
+// ---------- 能力値の計算 ----------
+function itemVal(it, wsLv, runLv) {
+  let v = it.base + (it.ws || 0) * wsLv + (it.run || 0) * runLv;
+  return it.cap != null ? Math.min(it.cap, v) : v;
+}
+function itemMaxed(it, wsLv, runLv) { return it.cap != null && itemVal(it, wsLv, runLv) >= it.cap - 1e-9; }
+function stats(runLv) {
+  const o = {}, n = S.nodes, L = S.lab.lv, W = weekly();
+  for (const it of ITEMS) o[it.k] = itemVal(it, S.ws[it.k] || 0, (runLv && runLv[it.k]) || 0);
+  o.dmg *= (n.a1 ? 1.15 : 1) * (1 + 0.05 * (L.dmg || 0));
+  o.rate = Math.min(8, o.rate * (n.a2 ? 1.15 : 1));
+  if (n.a5) { o.crit = Math.min(0.8, o.crit + 0.1); o.critm += 0.5; }
+  o.hp *= (n.d1 ? 1.2 : 1) * (1 + 0.05 * (L.hp || 0));
+  if (n.d2) o.regen *= 1.5;
+  if (!n.d3) o.thorn = 0;
+  o.cash *= (n.g1 ? 1.15 : 1) * (1 + 0.05 * (L.cash || 0)) * (W.cash || 1);
+  o.shard *= (n.g4 ? 1.2 : 1) * (1 + 0.06 * (L.shard || 0)) * (W.shard || 1);
+  return o;
+}
+const tierHp = t => Math.pow(2.6, t - 1), tierDmg = t => Math.pow(1.9, t - 1), tierShard = t => Math.pow(1.7, t - 1);
+const UNLOCK_WAVE = 30;
+function bestAny() { let b = 0; for (const k in S.best) b = Math.max(b, S.best[k]); return b; }
+function wsCost(it) { return Math.ceil(it.wc * Math.pow(1.12, S.ws[it.k] || 0) * (1 - 0.02 * (S.lab.lv.disc || 0))); }
+function runCost(it, lv) { return Math.ceil(it.rc * Math.pow(1.13, lv)); }
+function spSpent() { let s = 0; for (const id in S.nodes) if (S.nodes[id] && ND[id]) s += ND[id].cost; return s; }
+function spFree() { return S.sp - spSpent(); }
+function slotCount() { return 1 + (S.nodes.g7 ? 1 : 0) + (S.lab.extra || 0); }
+function labTime(l, lv) { return l.time * 60000 * Math.pow(1.35, lv) * (weekly().lab || 1); }
+function labCost(l, lv) { return Math.ceil(l.cost * Math.pow(1.5, lv)); }
+
+// ---------- 放置採掘 ----------
+function mineRate() { // 1時間あたり
+  const b = bestAny();
+  let bt = 1; for (const k in S.best) if (S.best[k] > 0) bt = Math.max(bt, +k);
+  return (6 + b * 1.5) * tierShard(bt) * (1 + 0.15 * (S.lab.lv.mine || 0));
+}
+function mineCapH() { return 4 + (S.lab.lv.mine || 0); }
+function minePending() {
+  const h = Math.min(mineCapH(), (Date.now() - S.mineAt) / 3600000);
+  return { amt: Math.floor(mineRate() * h), frac: h / mineCapH() };
+}
+
+// ---------- 毎日の処理 ----------
+function hashRand(seed) { let x = seed * 2654435761 % 4294967296; return () => { x = (x * 1664525 + 1013904223) % 4294967296; return x / 4294967296; }; }
+function checkDaily() {
+  const d = localDay();
+  if (S.daily.day === d) return false;
+  const r = hashRand(d + 17), pool = MISSIONS.slice(), ms = [];
+  while (ms.length < 3) { const m = pool.splice(Math.floor(r() * pool.length), 1)[0]; ms.push({ t: m.t, n: m.n(), p: 0, c: false }); }
+  S.daily.day = d; S.daily.missions = ms; S.daily.allClaimed = false; S.daily.loginClaimed = false;
+  save();
+  return true;
+}
+function track(t, v) {
+  let ch = false;
+  for (const m of S.daily.missions) {
+    if (m.t !== t || m.c) continue;
+    const before = m.p;
+    m.p = t === 'wave' ? Math.max(m.p, v) : m.p + v;
+    if (m.p !== before) ch = true;
+  }
+  return ch;
+}
+function msnReward() { return Math.floor(40 * (1 + bestAny() / 15)); }
+function loginReward(i) { return Math.floor(LOGIN[i] * (1 + bestAny() / 20)); }
+
+// ---------- 研究の完了チェック ----------
+function checkLab() {
+  let done = [];
+  S.lab.slots = (S.lab.slots || []).filter(s => {
+    if (s && Date.now() >= s.end) { S.lab.lv[s.k] = (S.lab.lv[s.k] || 0) + 1; done.push(LB[s.k].name); return false; }
+    return !!s;
+  });
+  if (done.length) { save(); toast('研究完了：' + done.join('・')); }
+  return done.length > 0;
+}
+
+// =========================================================
+//  画像（ChatGPT で作った絵を Resources に置くと自動で使う）
+// =========================================================
+const IMG = {};
+[['tower', 'img_tower.png'], ['basic', 'img_enemy1.png'], ['fast', 'img_enemy2.png'], ['tank', 'img_enemy3.png'], ['ranged', 'img_enemy4.png'], ['boss', 'img_boss.png'], ['bg', 'img_bg.png']]
+  .forEach(([k, src]) => { const im = new Image(); im.onload = () => { IMG[k] = im; }; im.src = src; });
+
+// =========================================================
+//  戦闘
+// =========================================================
+const cv = $('#cv'), cx = cv.getContext('2d');
+let R = null, view = { w: 0, h: 0, s: 1, dpr: 1 }, stars = [];
+for (let i = 0; i < 140; i++) stars.push({ x: (Math.random() - .5) * 700, y: (Math.random() - .5) * 900, r: Math.random() * 1.4 + .3, p: Math.random() * 6 });
+
+function resize() {
+  const f = $('#field'), r = f.getBoundingClientRect();
+  view.dpr = Math.min(3, window.devicePixelRatio || 1);
+  view.w = r.width; view.h = r.height;
+  cv.width = Math.round(r.width * view.dpr); cv.height = Math.round(r.height * view.dpr);
+  view.s = Math.min(r.width, r.height) / (WORLD * 0.98);
+}
+window.addEventListener('resize', () => { if (R) resize(); });
+
+function newRun() {
+  const startW = 1 + (S.lab.lv.start || 0);
+  R = {
+    tier: S.tier, wave: startW, firstWave: startW, t: 0, waveT: 0, spawnLeft: 0, spawnT: 0, spawnGap: 1,
+    enemies: [], shots: [], bolts: [], fx: [], runLv: {}, energy: 20 + (S.nodes.g2 ? 100 : 0),
+    shards: 0, kills: 0, bosses: 0, buys: 0, cleared: 0, newMs: [], fireT: 0, revived: false,
+    shieldOn: 0, shieldCd: 30, meteorCd: 15, autoT: 0, over: false, paused: false, speed: 1, mult: 1, tab: 0,
+  };
+  R.st = stats(R.runLv); R.hp = R.st.hp;
+  startWave();
+}
+function recalc() { const hpRatio = R.hp / R.st.hp; R.st = stats(R.runLv); R.hp = Math.min(R.st.hp, Math.max(R.hp, hpRatio * R.st.hp)); }
+
+function startWave() {
+  const w = R.wave;
+  R.waveT = 0;
+  R.spawnLeft = Math.min(70, Math.floor(5 + w * 0.9));
+  R.spawnGap = 15 / R.spawnLeft; R.spawnT = 0.3;
+  if (w % 10 === 0) spawn('boss');
+  track('wave', w);
+}
+function enemyStats(kind) {
+  const w = R.wave, W = weekly();
+  let hp = 5 * Math.pow(1.12, w - 1) * tierHp(R.tier), dmg = 3 * Math.pow(1.075, w - 1) * tierDmg(R.tier), spd = 30, r = 8;
+  switch (kind) {
+    case 'fast': hp *= 0.6; spd = 58; r = 7; break;
+    case 'tank': hp *= 3.2; spd = 18; r = 11; dmg *= 1.5; break;
+    case 'ranged': hp *= 1.3; spd = 26; r = 8; break;
+    case 'boss': hp *= 22 * (W.bossHp || 1); spd = 13; r = 20; dmg *= 4; break;
+  }
+  return { hp, dmg, spd, r };
+}
+function spawn(kind) {
+  const a = Math.random() * Math.PI * 2, s = enemyStats(kind);
+  R.enemies.push({ kind, x: Math.cos(a) * SPAWN_R, y: Math.sin(a) * SPAWN_R, hp: s.hp, max: s.hp, dmg: s.dmg, spd: s.spd, r: s.r, atkT: 0.5, shootT: 1.5, hit: 0, dead: false, rot: Math.random() * 6 });
+}
+function pickKind() {
+  const w = R.wave, W = weekly();
+  const pool = [['basic', 1]];
+  if (w >= 4) pool.push(['fast', 0.35 * (W.fast || 1)]);
+  if (w >= 8) pool.push(['tank', 0.25]);
+  if (w >= 12) pool.push(['ranged', 0.2]);
+  let tot = pool.reduce((a, p) => a + p[1], 0), r = Math.random() * tot;
+  for (const p of pool) { if ((r -= p[1]) <= 0) return p[0]; }
+  return 'basic';
+}
+
+function damageEnemy(e, amt, fromShot) {
+  if (e.dead) return;
+  e.hp -= amt; e.hit = 0.08;
+  if (e.hp <= 0) killEnemy(e);
+}
+function killEnemy(e) {
+  e.dead = true;
+  const w = R.wave, mul = { basic: 1, fast: 0.8, tank: 2, ranged: 1.5, boss: 15 }[e.kind];
+  R.energy += (0.5 + 0.1 * w) * mul * R.st.cash;
+  const sm = R.st.shard * tierShard(R.tier);
+  R.shards += (0.08 + 0.012 * w) * sm;
+  R.kills++;
+  burst(e.x, e.y, e.kind === 'boss' ? 26 : 8, enemyColor(e.kind));
+  if (e.kind === 'boss') {
+    R.bosses++; R.shards += (3 + 0.4 * w) * sm * (weekly().bossShard || 1);
+    snd('boss'); haptic('success'); floatText(e.x, e.y, 'ボス撃破！', '#ffd166');
+  } else snd('kill');
+}
+function hitTower(d, e) {
+  if (R.shieldOn > 0) return;
+  R.hp -= d * (1 - R.st.def);
+  R.hurtT = 0.15; snd('hurt');
+  if (e && !e.dead && R.st.thorn > 0) damageEnemy(e, e.max * R.st.thorn);
+  if (R.hp <= 0) {
+    if (S.nodes.d7 && !R.revived) {
+      R.revived = true; R.hp = R.st.hp * 0.3; floatText(0, -40, '不屈！復活', '#7dffb2'); snd('ult'); haptic('success');
+      for (const en of R.enemies) { const dx = en.x, dy = en.y, d2 = Math.hypot(dx, dy) || 1; en.x += dx / d2 * 40; en.y += dy / d2 * 40; }
+    } else endRun(false);
+  }
+}
+function burst(x, y, n, c) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, v = 30 + Math.random() * 90; R.fx.push({ k: 'p', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, life: .45 + Math.random() * .3, c }); } }
+function floatText(x, y, s, c) { R.fx.push({ k: 'txt', x, y, s, c, t: 0, life: 1.4 }); }
+
+function fire() {
+  const st = R.st, rng = st.range;
+  const inR = [];
+  for (const e of R.enemies) { if (e.dead) continue; const d = Math.hypot(e.x, e.y); if (d <= rng + e.r) inR.push([d, e]); }
+  if (!inR.length) return false;
+  inR.sort((a, b) => a[0] - b[0]);
+  const n = S.nodes.a3 ? Math.min(2, inR.length) : 1;
+  for (let i = 0; i < n; i++) {
+    const e = inR[i][1];
+    let dmg = st.dmg, crit = false;
+    if (Math.random() < st.crit) { dmg *= st.critm; crit = true; }
+    const a = Math.atan2(e.y, e.x);
+    R.shots.push({ x: Math.cos(a) * TOWER_R, y: Math.sin(a) * TOWER_R, vx: Math.cos(a) * 420, vy: Math.sin(a) * 420, tg: e, dmg, crit, pierce: S.nodes.a4 ? 1 : 0, hitE: null, life: 1.2 });
+  }
+  return true;
+}
+
+function update(dt) {
+  if (!R || R.over || R.paused) return;
+  const st = R.st;
+  R.t += dt; R.waveT += dt;
+  // 出現
+  if (R.spawnLeft > 0) {
+    R.spawnT -= dt;
+    while (R.spawnT <= 0 && R.spawnLeft > 0) { spawn(pickKind()); R.spawnLeft--; R.spawnT += R.spawnGap; }
+  }
+  // ウェーブ終了
+  if (R.waveT >= WAVE_LEN) {
+    const w = R.wave;
+    R.cleared = w;
+    let gain = st.wavecash * (1 + 0.1 * w);
+    if (S.nodes.g3) gain += Math.min(R.energy * 0.05, 50 + w * 20);
+    R.energy += gain;
+    R.shards += (0.5 + 0.08 * w) * st.shard * tierShard(R.tier);
+    if (w % 10 === 0) {
+      const key = R.tier + ':' + w;
+      if (!S.ms[key]) { S.ms[key] = true; S.sp += 1; R.newMs.push(w); floatText(0, -60, '★ 星ポイント +1', '#7de3ff'); snd('ult'); haptic('success'); save(); }
+    }
+    R.wave++; snd('wave');
+    startWave();
+  }
+  // HP 回復
+  R.hp = Math.min(st.hp, R.hp + st.regen * dt);
+  if (R.hurtT > 0) R.hurtT -= dt;
+  // 必殺
+  if (S.nodes.d6) {
+    if (R.shieldOn > 0) R.shieldOn -= dt;
+    else if ((R.shieldCd -= dt) <= 0) { R.shieldOn = 4; R.shieldCd = 30; snd('ult'); }
+  }
+  if (S.nodes.a7 && (R.meteorCd -= dt) <= 0) {
+    const live = R.enemies.filter(e => !e.dead);
+    if (live.length) {
+      R.meteorCd = 15; snd('ult');
+      for (let i = 0; i < 6; i++) { const e = live[Math.floor(Math.random() * live.length)]; R.fx.push({ k: 'met', x: e.x + (Math.random() - .5) * 20, y: e.y + (Math.random() - .5) * 20, d: i * 0.15, t: 0, done: false }); }
+    } else R.meteorCd = 1;
+  }
+  // 攻撃
+  R.fireT -= dt;
+  if (R.fireT <= 0) { if (fire()) R.fireT = 1 / st.rate; else R.fireT = 0.05; }
+  // 敵の移動と攻撃
+  const slowR = S.nodes.d5 ? st.range : -1;
+  for (const e of R.enemies) {
+    if (e.dead) continue;
+    if (e.hit > 0) e.hit -= dt;
+    e.rot += dt * (e.kind === 'fast' ? 4 : 1);
+    const d = Math.hypot(e.x, e.y) || 1;
+    const stop = e.kind === 'ranged' ? 135 : TOWER_R + e.r;
+    if (d > stop) {
+      let sp = e.spd * (d <= slowR ? 0.75 : 1);
+      const mv = Math.min(sp * dt, d - stop);
+      e.x -= e.x / d * mv; e.y -= e.y / d * mv;
+    } else if (e.kind === 'ranged') {
+      if ((e.shootT -= dt) <= 0) { e.shootT = 2.5; R.bolts.push({ x: e.x, y: e.y, vx: -e.x / d * 160, vy: -e.y / d * 160, dmg: e.dmg * 0.8, src: e }); }
+    } else {
+      if ((e.atkT -= dt) <= 0) { e.atkT = 1; hitTower(e.dmg, e); if (R.over) return; }
+    }
+  }
+  // 敵の弾
+  for (const b of R.bolts) {
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    if (Math.hypot(b.x, b.y) < TOWER_R) { b.dead = true; hitTower(b.dmg, b.src); if (R.over) return; }
+  }
+  R.bolts = R.bolts.filter(b => !b.dead);
+  // 塔の弾
+  for (const s of R.shots) {
+    s.life -= dt;
+    if (s.tg && !s.tg.dead && !s.hitE) {
+      const dx = s.tg.x - s.x, dy = s.tg.y - s.y, dd = Math.hypot(dx, dy) || 1;
+      s.vx = dx / dd * 420; s.vy = dy / dd * 420;
+    }
+    s.x += s.vx * dt; s.y += s.vy * dt;
+    for (const e of R.enemies) {
+      if (e.dead || e === s.hitE) continue;
+      if (Math.hypot(e.x - s.x, e.y - s.y) <= e.r + 4) {
+        damageEnemy(e, s.dmg);
+        if (S.nodes.d4 && !e.dead) { const d = Math.hypot(e.x, e.y) || 1, kb = e.kind === 'boss' ? 1.5 : 7; e.x += e.x / d * kb; e.y += e.y / d * kb; }
+        if (S.nodes.a6 && Math.random() < 0.2) chain(e, s.dmg * 0.5);
+        if (s.pierce > 0) { s.pierce--; s.hitE = e; s.tg = null; }
+        else { s.dead = true; }
+        break;
+      }
+    }
+    if (s.life <= 0 || Math.abs(s.x) > 300 || Math.abs(s.y) > 300) s.dead = true;
+  }
+  R.shots = R.shots.filter(s => !s.dead);
+  // 演出
+  for (const f of R.fx) {
+    if (f.k === 'met') {
+      if (f.d > 0) { f.d -= dt; continue; }
+      f.t += dt;
+      if (!f.done && f.t >= 0.35) {
+        f.done = true;
+        for (const e of R.enemies) if (!e.dead && Math.hypot(e.x - f.x, e.y - f.y) <= 45 + e.r) damageEnemy(e, st.dmg * 6);
+        burst(f.x, f.y, 10, '#ffd166');
+      }
+      if (f.t > 0.7) f.gone = true;
+    } else {
+      f.t += dt; if (f.t >= f.life) f.gone = true;
+      if (f.k === 'p') { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.92; f.vy *= 0.92; }
+      if (f.k === 'txt') f.y -= 20 * dt;
+    }
+  }
+  R.fx = R.fx.filter(f => !f.gone);
+  R.enemies = R.enemies.filter(e => !e.dead);
+  // 自動強化
+  if (S.nodes.g5 && S.autoBuy && (R.autoT -= dt) <= 0) {
+    R.autoT = 0.5;
+    let best = null, bc = Infinity;
+    for (const it of ITEMS) {
+      if (it.need && !S.nodes[it.need]) continue;
+      const lv = R.runLv[it.k] || 0;
+      if (itemMaxed(it, S.ws[it.k] || 0, lv)) continue;
+      const c = runCost(it, lv);
+      if (c < bc) { bc = c; best = it; }
+    }
+    if (best && R.energy >= bc) buyRun(best, 1, true);
+  }
+}
+function chain(from, dmg) {
+  const near = R.enemies.filter(e => !e.dead && e !== from).map(e => [Math.hypot(e.x - from.x, e.y - from.y), e]).filter(p => p[0] < 80).sort((a, b) => a[0] - b[0]).slice(0, 3);
+  for (const [, e] of near) { R.fx.push({ k: 'ln', x: from.x, y: from.y, x2: e.x, y2: e.y, t: 0, life: 0.15 }); damageEnemy(e, dmg); }
+}
+function buyRun(it, times, silent) {
+  let bought = 0;
+  for (let i = 0; i < times; i++) {
+    const lv = R.runLv[it.k] || 0;
+    if (itemMaxed(it, S.ws[it.k] || 0, lv)) break;
+    const c = runCost(it, lv);
+    if (R.energy < c) break;
+    R.energy -= c; R.runLv[it.k] = lv + 1; bought++;
+  }
+  if (bought) { R.buys += bought; recalc(); if (!silent) { snd('buy'); haptic('light'); } drawPanel(true); }
+  else if (!silent) snd('bad');
+}
+
+// ---------- 描画 ----------
+function enemyColor(k) { return { basic: '#b483ff', fast: '#ff7ac8', tank: '#5a7bff', ranged: '#5effb0', boss: '#ff5f6d' }[k]; }
+function drawStarShape(c, r1, r2, n) {
+  c.beginPath();
+  for (let i = 0; i < n * 2; i++) { const r = i % 2 ? r2 : r1, a = i * Math.PI / n - Math.PI / 2; c[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r); }
+  c.closePath();
+}
+function drawTower(c, t, size) {
+  if (IMG.tower) { const s = size * 2.6; c.drawImage(IMG.tower, -s / 2, -s / 2, s, s); return; }
+  const g = c.createRadialGradient(0, 0, 0, 0, 0, size * 2.2);
+  g.addColorStop(0, 'rgba(255,240,180,.55)'); g.addColorStop(1, 'rgba(255,240,180,0)');
+  c.fillStyle = g; c.beginPath(); c.arc(0, 0, size * 2.2, 0, 7); c.fill();
+  c.save(); c.rotate(Math.sin(t * 0.8) * 0.15);
+  drawStarShape(c, size * 1.25, size * 0.55, 8);
+  const g2 = c.createLinearGradient(0, -size, 0, size); g2.addColorStop(0, '#fff6c8'); g2.addColorStop(1, '#ffb84d');
+  c.fillStyle = g2; c.fill(); c.lineWidth = 2; c.strokeStyle = '#fff'; c.stroke();
+  c.restore();
+  c.fillStyle = '#7de3ff'; c.beginPath(); c.arc(0, 0, size * 0.32, 0, 7); c.fill();
+}
+function drawEnemy(c, e) {
+  c.save(); c.translate(e.x, e.y);
+  const im = IMG[e.kind];
+  if (im) { const s = e.r * 2.6; c.rotate(Math.atan2(-e.y, -e.x) + Math.PI / 2); c.drawImage(im, -s / 2, -s / 2, s, s); }
+  else {
+    c.fillStyle = e.hit > 0 ? '#fff' : enemyColor(e.kind);
+    c.strokeStyle = 'rgba(0,0,0,.4)'; c.lineWidth = 1.5;
+    const r = e.r;
+    if (e.kind === 'fast') { c.rotate(Math.atan2(-e.y, -e.x)); c.beginPath(); c.moveTo(r * 1.3, 0); c.lineTo(-r, -r * 0.9); c.lineTo(-r * 0.5, 0); c.lineTo(-r, r * 0.9); c.closePath(); c.fill(); c.stroke(); }
+    else if (e.kind === 'tank') { c.rotate(e.rot * 0.3); c.beginPath(); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; c[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r); } c.closePath(); c.fill(); c.stroke(); }
+    else if (e.kind === 'ranged') { c.rotate(e.rot * 0.5); c.beginPath(); c.moveTo(0, -r * 1.2); c.lineTo(r, 0); c.lineTo(0, r * 1.2); c.lineTo(-r, 0); c.closePath(); c.fill(); c.stroke(); }
+    else if (e.kind === 'boss') { c.rotate(e.rot * 0.4); drawStarShape(c, r * 1.2, r * 0.75, 10); c.fill(); c.stroke(); }
+    else { c.beginPath(); c.arc(0, 0, r, 0, 7); c.fill(); c.stroke(); }
+    if (e.kind !== 'fast') { c.rotate(0); c.fillStyle = '#fff'; c.beginPath(); c.arc(0, 0, r * 0.35, 0, 7); c.fill(); c.fillStyle = '#1a1240'; c.beginPath(); c.arc(0, 0, r * 0.17, 0, 7); c.fill(); }
+  }
+  c.restore();
+  if ((e.kind === 'boss' || e.kind === 'tank') && e.hp < e.max) {
+    const w = e.r * 2.2;
+    c.fillStyle = 'rgba(0,0,0,.5)'; c.fillRect(e.x - w / 2, e.y - e.r - 8, w, 4);
+    c.fillStyle = '#ff5f7a'; c.fillRect(e.x - w / 2, e.y - e.r - 8, w * Math.max(0, e.hp / e.max), 4);
+  }
+}
+function drawBg(c, t, w, h) {
+  if (IMG.bg) {
+    const im = IMG.bg, sc = Math.max(w / im.width, h / im.height);
+    c.drawImage(im, (w - im.width * sc) / 2, (h - im.height * sc) / 2, im.width * sc, im.height * sc);
+  } else {
+    const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.7);
+    g.addColorStop(0, '#22195c'); g.addColorStop(1, '#090619');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+  }
+}
+function render() {
+  if (!R) return;
+  const c = cx, d = view.dpr, s = view.s;
+  c.setTransform(d, 0, 0, d, 0, 0);
+  drawBg(c, R.t, view.w, view.h);
+  c.translate(view.w / 2, view.h / 2); c.scale(s, s);
+  if (!IMG.bg) for (const p of stars) { c.globalAlpha = 0.35 + 0.35 * Math.sin(R.t * 1.5 + p.p); c.fillStyle = '#fff'; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill(); }
+  c.globalAlpha = 1;
+  // 射程
+  c.strokeStyle = S.nodes.d5 ? 'rgba(125,227,255,.45)' : 'rgba(255,255,255,.18)'; c.lineWidth = 1.5 / s * 1.2;
+  c.setLineDash([6, 6]); c.beginPath(); c.arc(0, 0, R.st.range, 0, 7); c.stroke(); c.setLineDash([]);
+  if (S.nodes.d5) { c.fillStyle = 'rgba(125,227,255,.05)'; c.fill(); }
+  for (const e of R.enemies) drawEnemy(c, e);
+  for (const b of R.bolts) { c.fillStyle = '#5effb0'; c.beginPath(); c.arc(b.x, b.y, 3.5, 0, 7); c.fill(); }
+  for (const sh of R.shots) { c.fillStyle = sh.crit ? '#ffd166' : '#fff6c8'; c.beginPath(); c.arc(sh.x, sh.y, sh.crit ? 4.5 : 3, 0, 7); c.fill(); }
+  for (const f of R.fx) {
+    if (f.k === 'p') { c.globalAlpha = 1 - f.t / f.life; c.fillStyle = f.c; c.fillRect(f.x - 2, f.y - 2, 4, 4); }
+    else if (f.k === 'ln') { c.globalAlpha = 1 - f.t / f.life; c.strokeStyle = '#bfe9ff'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(f.x, f.y); c.lineTo(f.x2, f.y2); c.stroke(); }
+    else if (f.k === 'txt') { c.globalAlpha = 1 - f.t / f.life; c.fillStyle = f.c; c.font = 'bold 16px sans-serif'; c.textAlign = 'center'; c.fillText(f.s, f.x, f.y); }
+    else if (f.k === 'met' && f.d <= 0) {
+      if (f.t < 0.35) { const k = 1 - f.t / 0.35; c.globalAlpha = 1; c.strokeStyle = '#ffd166'; c.lineWidth = 4; c.beginPath(); c.moveTo(f.x + 120 * k, f.y - 200 * k); c.lineTo(f.x + 120 * k + 18, f.y - 200 * k - 30); c.stroke(); }
+      else { c.globalAlpha = 1 - (f.t - 0.35) / 0.35; c.fillStyle = 'rgba(255,209,102,.5)'; c.beginPath(); c.arc(f.x, f.y, 45, 0, 7); c.fill(); }
+    }
+    c.globalAlpha = 1;
+  }
+  c.save(); if (R.hurtT > 0) c.translate((Math.random() - .5) * 3, (Math.random() - .5) * 3); drawTower(c, R.t, TOWER_R); c.restore();
+  if (R.shieldOn > 0) { c.strokeStyle = 'rgba(125,227,255,.9)'; c.lineWidth = 3; c.fillStyle = 'rgba(125,227,255,.15)'; c.beginPath(); c.arc(0, 0, TOWER_R * 2.1, 0, 7); c.fill(); c.stroke(); }
+}
+
+// ---------- 戦闘UI ----------
+let hudCache = {};
+function setText(id, v) { if (hudCache[id] !== v) { hudCache[id] = v; document.getElementById(id).textContent = v; } }
+function drawHud() {
+  setText('hWave', 'ウェーブ ' + R.wave);
+  setText('hpTxt', fmt(Math.max(0, R.hp)) + ' / ' + fmt(R.st.hp));
+  $('#hpFill').style.width = Math.max(0, R.hp / R.st.hp * 100) + '%';
+  $('#waveFill').style.width = (R.waveT / WAVE_LEN * 100) + '%';
+  setText('hEnergy', '⚡ ' + fmt(R.energy));
+  setText('hShard', '✦ ' + fmt(R.shards));
+  let u = '';
+  if (S.nodes.a7) u += '☄' + Math.ceil(Math.max(0, R.meteorCd)) + ' ';
+  if (S.nodes.d6) u += R.shieldOn > 0 ? '🛡ON' : '🛡' + Math.ceil(Math.max(0, R.shieldCd));
+  const hu = $('#hUlt'); hu.style.display = u ? '' : 'none'; setText('hUlt', u.trim());
+}
+let panelSig = '';
+function drawPanel(force) {
+  const items = ITEMS.filter(it => it.tab === R.tab && (!it.need || S.nodes[it.need]));
+  const sig = R.tab + '|' + R.mult + '|' + items.map(it => (R.runLv[it.k] || 0) + ':' + (R.energy >= runCost(it, R.runLv[it.k] || 0) ? 1 : 0)).join(',');
+  if (!force && sig === panelSig) return;
+  panelSig = sig;
+  const box = $('#upg');
+  box.innerHTML = '';
+  for (const it of items) {
+    const lv = R.runLv[it.k] || 0, wl = S.ws[it.k] || 0, mx = itemMaxed(it, wl, lv), c = runCost(it, lv);
+    const b = document.createElement('button');
+    b.className = 'ub' + (mx ? ' max' : R.energy < c ? ' no' : '');
+    b.innerHTML = `<span class="t">${it.name}</span><span class="v">${fmtStat(it, R.st[it.k])}</span><span class="c">${mx ? 'MAX' : '⚡ ' + fmt(c)}</span>`;
+    b.onclick = () => buyRun(it, R.mult);
+    box.appendChild(b);
+  }
+}
+$$('#runTabs button').forEach((b, i) => b.onclick = () => { R.tab = i; $$('#runTabs button').forEach((x, j) => x.classList.toggle('on', i === j)); drawPanel(true); });
+$('#multBtn').onclick = () => { R.mult = R.mult === 1 ? 10 : 1; $('#multBtn').textContent = R.mult === 1 ? '×1 ずつ' : '×10 まとめて'; drawPanel(true); };
+$('#autoBtn').onclick = () => { S.autoBuy = !S.autoBuy; $('#autoBtn').textContent = '自動強化: ' + (S.autoBuy ? 'ON' : 'OFF'); save(); };
+$('#speedBtn').onclick = () => {
+  const maxS = S.nodes.g6 ? 3 : 2;
+  R.speed = R.speed >= maxS ? 1 : R.speed + 1;
+  $('#speedBtn').textContent = '×' + R.speed;
+};
+$('#pauseBtn').onclick = () => { if (!R || R.over) return; R.paused = true; pauseModal(); };
+$('#retreatBtn').onclick = () => {
+  if (!R || R.over) return;
+  R.paused = true;
+  modal(`<h2>撤退しますか？</h2><div class="small">ここまでの かけら ✦${fmt(R.shards)} と星ポイントはもらえます。</div>`,
+    [['続ける', 'gray', () => { R.paused = false; }], ['撤退する', '', () => { R.paused = false; endRun(true); }]]);
+};
+function pauseModal() {
+  modal(`<h2>一時停止中</h2><div class="small">ウェーブ ${R.wave}・撃破 ${R.kills}</div>`, [['撤退', 'gray', () => { R.paused = false; endRun(true); }], ['再開', '', () => { R.paused = false; }]]);
+}
+
+function startBattle() {
+  checkDaily();
+  newRun();
+  hudCache = {}; panelSig = '';
+  $('#meta').classList.remove('on'); $('#battle').classList.add('on');
+  $$('#runTabs button').forEach((x, j) => x.classList.toggle('on', j === 0));
+  $('#multBtn').textContent = '×1 ずつ';
+  $('#speedBtn').textContent = '×1';
+  $('#autoBtn').style.display = S.nodes.g5 ? '' : 'none';
+  $('#autoBtn').textContent = '自動強化: ' + (S.autoBuy ? 'ON' : 'OFF');
+  requestAnimationFrame(() => { resize(); drawPanel(true); });
+  S.stats.runs++; track('runs', 1); save();
+  snd('wave');
+}
+function endRun(retreat) {
+  if (R.over) return;
+  R.over = true;
+  const got = Math.floor(R.shards);
+  S.shards += got;
+  const tk = String(R.tier);
+  const prevBest = S.best[tk] || 0;
+  if (R.wave > prevBest) S.best[tk] = R.wave;
+  S.stats.kills += R.kills; S.stats.bosses += R.bosses;
+  track('kills', R.kills); track('buys', R.buys); track('boss', R.bosses); track('wave', R.wave);
+  let unlocked = false;
+  if (R.cleared >= UNLOCK_WAVE && S.tierMax === R.tier && S.tierMax < 12) { S.tierMax++; unlocked = true; }
+  save();
+  snd(retreat ? 'wave' : 'bad'); haptic('success');
+  const sp = R.newMs.length;
+  modal(`<h2>${retreat ? '撤退しました' : '塔が倒れた…'}</h2>
+    <div class="small">ティア ${R.tier}</div>
+    <div class="res">
+      <div><div class="small">到達ウェーブ</div><div class="big">${R.wave}</div></div>
+      <div><div class="small">撃破数</div><div class="big">${R.kills}</div></div>
+      <div><div class="small">獲得かけら</div><div class="big" style="color:var(--gold)">✦${fmt(got)}</div></div>
+      <div><div class="small">星ポイント</div><div class="big" style="color:var(--cyan)">★${sp}</div></div>
+    </div>
+    ${R.wave > prevBest ? '<div style="color:var(--green);font-weight:800">🎉 自己ベスト更新！</div>' : ''}
+    ${unlocked ? `<div style="color:var(--gold);font-weight:800">🔓 ティア ${S.tierMax} が解放されました！</div>` : ''}
+    ${sp ? '<div class="small">星座の画面で★を使えます</div>' : ''}`,
+    [['ホームへ', 'gray', () => goMeta()], ['もう一度', '', () => startBattle()]]);
+}
+function goMeta() {
+  R = null;
+  $('#battle').classList.remove('on'); $('#meta').classList.add('on');
+  showPage('home');
+}
+
+// ---------- ループ ----------
+let lastT = performance.now(), uiT = 0;
+function loop(now) {
+  let dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+  if (R && !R.over && !R.paused) {
+    let total = dt * R.speed;
+    while (total > 0 && R && !R.over) { const step = Math.min(1 / 60, total); update(step); total -= step; }
+  }
+  if (R) {
+    render(); drawHud();
+    if ((uiT += dt) > 0.2) { uiT = 0; drawPanel(false); }
+  } else if ($('#pg-home').classList.contains('on')) drawHero(now / 1000);
+  metaTick(dt);
+  requestAnimationFrame(loop);
+}
+
+// =========================================================
+//  出撃前の画面
+// =========================================================
+let page = 'home', wsTab = 0, metaT = 0;
+function showPage(p) {
+  page = p;
+  $$('.page').forEach(e => e.classList.toggle('on', e.id === 'pg-' + p));
+  $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.p === p));
+  renderMeta();
+}
+$$('#nav button').forEach(b => b.onclick = () => showPage(b.dataset.p));
+$$('#wsTabs button').forEach((b, i) => b.onclick = () => { wsTab = i; $$('#wsTabs button').forEach((x, j) => x.classList.toggle('on', i === j)); renderWs(); });
+
+function renderTop() {
+  $('#rShard').textContent = '✦ ' + fmt(S.shards);
+  const f = spFree();
+  $('#rSp').textContent = '★ ' + f;
+}
+function renderMeta() {
+  checkDaily(); checkLab();
+  renderTop(); renderDots();
+  if (page === 'home') renderHome();
+  if (page === 'ws') renderWs();
+  if (page === 'tree') renderTree();
+  if (page === 'lab') renderLab();
+  if (page === 'msn') renderMsn();
+}
+function renderDots() {
+  const dots = $$('#nav .dot');
+  dots[1].classList.toggle('on', ITEMS.some(it => (!it.need || S.nodes[it.need]) && !itemMaxed(it, S.ws[it.k] || 0, 0) && S.shards >= wsCost(it)));
+  dots[2].classList.toggle('on', NODES.some(n => !S.nodes[n.id] && S.nodes[n.req] && spFree() >= n.cost));
+  dots[3].classList.toggle('on', (S.lab.slots || []).length < slotCount());
+  const ms = S.daily.missions;
+  dots[4].classList.toggle('on', !S.daily.loginClaimed || ms.some(m => !m.c && m.p >= m.n) || (!S.daily.allClaimed && ms.length && ms.every(m => m.c)));
+}
+function renderHome() {
+  if (S.tier > S.tierMax) S.tier = S.tierMax;
+  $('#tierName').textContent = 'ティア ' + S.tier;
+  const b = S.best[S.tier] || 0;
+  $('#tierInfo').textContent = `最高ウェーブ ${b}` + (S.tier === S.tierMax ? `　次のティア：ウェーブ${UNLOCK_WAVE}突破` : '') + `　かけら×${tierShard(S.tier).toFixed(1)}`;
+  $('#tierPrev').disabled = S.tier <= 1; $('#tierNext').disabled = S.tier >= S.tierMax;
+  const W = weekly(); $('#wkName').textContent = W.name; $('#wkDesc').textContent = W.desc;
+  renderMine();
+  const slots = S.lab.slots || [], n = slotCount();
+  let h = '<h3>🔭 研究所</h3>';
+  if (!slots.length) h += '<div class="small">研究所が空いています。タップして研究を始めましょう。</div>';
+  for (const s of slots) h += `<div class="row small" style="margin:3px 0"><div class="grow">${LB[s.k].name} Lv${(S.lab.lv[s.k] || 0) + 1}</div><div>残り ${fmtTime(s.end - Date.now())}</div></div>`;
+  if (slots.length && slots.length < n) h += `<div class="small" style="color:var(--gold)">空き枠があります（${slots.length}/${n}）</div>`;
+  $('#homeLab').innerHTML = h;
+  $('#homeLab').onclick = () => showPage('lab');
+}
+function renderMine() {
+  const m = minePending();
+  $('#mineAmt').textContent = '✦ ' + fmt(m.amt);
+  $('#mineInfo').textContent = `1時間に約 ${fmt(mineRate())}・最大 ${mineCapH()}時間ぶん` + (m.frac >= 1 ? '（満タン！）' : '');
+  $('#mineBar').style.width = Math.min(100, m.frac * 100) + '%';
+  $('#mineBtn').disabled = m.amt < 1;
+}
+$('#mineBtn').onclick = () => {
+  const m = minePending(); if (m.amt < 1) return;
+  S.shards += m.amt; S.mineAt = Date.now(); save(); snd('buy'); haptic('success'); toast('かけら ✦' + fmt(m.amt) + ' を受け取りました'); renderMeta();
+};
+$('#tierPrev').onclick = () => { if (S.tier > 1) { S.tier--; save(); renderHome(); } };
+$('#tierNext').onclick = () => { if (S.tier < S.tierMax) { S.tier++; save(); renderHome(); } };
+$('#goBtn').onclick = () => startBattle();
+
+function renderWs() {
+  const box = $('#wsList'); box.innerHTML = '';
+  const base = stats(null);
+  for (const it of ITEMS.filter(i => i.tab === wsTab)) {
+    const locked = it.need && !S.nodes[it.need];
+    const lv = S.ws[it.k] || 0, mx = itemMaxed(it, lv, 0), c = wsCost(it);
+    S.ws[it.k] = lv + 1; const nx = stats(null)[it.k]; S.ws[it.k] = lv;
+    const d = document.createElement('div'); d.className = 'item';
+    d.innerHTML = `<div class="grow"><div class="nm">${it.name} <span class="small">Lv${lv}</span></div>
+      <div class="val">${locked ? '星座「' + ND[it.need].name + '」で解放' : fmtStat(it, base[it.k]) + (mx ? '（最大）' : ' → <em>' + fmtStat(it, nx) + '</em>')}</div></div>`;
+    const b = document.createElement('button'); b.className = 'btn cost';
+    b.textContent = locked ? '🔒' : mx ? 'MAX' : '✦ ' + fmt(c);
+    b.disabled = locked || mx || S.shards < c;
+    b.onclick = () => {
+      if (S.shards < c) return;
+      S.shards -= c; S.ws[it.k] = lv + 1; track('ws', 1); save(); snd('buy'); haptic('light'); renderTop(); renderDots(); renderWs();
+    };
+    d.appendChild(b); box.appendChild(d);
+  }
+}
+
+function renderTree() {
+  const svg = $('#tree');
+  let h = '<defs><filter id="gl" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="4"/></filter></defs>';
+  for (const n of NODES) if (n.req) {
+    const p = ND[n.req], on = S.nodes[n.id];
+    h += `<line x1="${p.x}" y1="${p.y}" x2="${n.x}" y2="${n.y}" stroke="${on ? BR_COLOR[n.br] : 'rgba(255,255,255,.18)'}" stroke-width="${on ? 3 : 2}" ${on ? '' : 'stroke-dasharray="4 4"'}/>`;
+  }
+  const free = spFree();
+  for (const n of NODES) {
+    const own = !!S.nodes[n.id], avail = !own && S.nodes[n.req], col = BR_COLOR[n.br], r = n.ult ? 21 : n.id === 'root' ? 22 : 16;
+    h += `<g class="nd${avail && free >= n.cost ? ' avail' : ''}" data-id="${n.id}">`;
+    if (own) h += `<circle cx="${n.x}" cy="${n.y}" r="${r + 4}" fill="${col}" opacity=".5" filter="url(#gl)"/>`;
+    h += `<circle cx="${n.x}" cy="${n.y}" r="${r}" fill="${own ? col : '#1d1650'}" stroke="${avail || own ? col : '#4a4180'}" stroke-width="${avail ? 3 : 2}"/>`;
+    h += `<text x="${n.x}" y="${n.y + 5}" text-anchor="middle" font-size="${n.ult ? 16 : 13}" font-weight="800" fill="${own ? '#1a1240' : avail ? col : '#6b62a6'}">${n.id === 'root' ? '✦' : n.ult ? '★' : n.cost}</text>`;
+    h += `<text x="${n.x}" y="${n.y + r + 13}" text-anchor="middle" font-size="10" font-weight="700" fill="${own ? '#fff' : '#9a92cf'}">${n.name}</text>`;
+    h += '</g>';
+  }
+  svg.innerHTML = h;
+  svg.querySelectorAll('.nd').forEach(g => g.onclick = () => nodeModal(g.dataset.id));
+}
+function nodeModal(id) {
+  const n = ND[id], own = !!S.nodes[id], avail = !own && S.nodes[n.req], free = spFree();
+  const btns = [['閉じる', 'gray', null]];
+  if (avail) btns.push([`★${n.cost} で習得`, free >= n.cost ? '' : 'dis', () => {
+    if (spFree() < n.cost) return;
+    S.nodes[id] = true; save(); snd('ult'); haptic('success'); toast('「' + n.name + '」を習得しました'); renderMeta();
+  }]);
+  modal(`<h2 style="color:${BR_COLOR[n.br]}">${n.name}</h2><div style="margin:8px 0 4px">${n.desc}</div>
+    <div class="small">${own ? '習得済み' : avail ? `必要 ★${n.cost}（所持 ★${free}）` : '前の星「' + ND[n.req].name + '」を先に習得してください'}</div>`, btns);
+}
+$('#respec').onclick = () => {
+  modal('<h2>星座を振り直す</h2><div class="small">習得した星をすべて外して、★を全部もどします（無料）。</div>',
+    [['やめる', 'gray', null], ['振り直す', '', () => { S.nodes = { root: true }; if (!S.nodes.g7) { /* 枠が減ったら研究中の超過分は残す */ } save(); toast('★を全部もどしました'); renderMeta(); }]]);
+};
+
+function renderLab() {
+  const slots = S.lab.slots || [], n = slotCount();
+  let h = '';
+  for (let i = 0; i < n; i++) {
+    const s = slots[i];
+    if (s) {
+      const l = LB[s.k], tot = s.end - s.start, left = s.end - Date.now();
+      h += `<div class="slot"><div class="row"><div class="grow" style="font-weight:800">${l.name} → Lv${(S.lab.lv[s.k] || 0) + 1}</div><div class="small">残り ${fmtTime(left)}</div></div>
+        <div class="bar" style="margin-top:6px"><i style="width:${Math.min(100, (1 - left / tot) * 100)}%"></i></div></div>`;
+    } else h += `<div class="slot small">研究枠 ${i + 1}：空き</div>`;
+  }
+  if (!S.lab.extra) h += `<div class="row" style="margin:6px 0"><div class="grow small">研究枠を1つ増やす（1回だけ）</div><button class="btn blue" id="buySlot" ${S.shards < SLOT_PRICE ? 'disabled' : ''}>✦ ${fmt(SLOT_PRICE)}</button></div>`;
+  $('#labSlots').innerHTML = h;
+  const bs = $('#buySlot');
+  if (bs) bs.onclick = () => { if (S.shards < SLOT_PRICE) return; S.shards -= SLOT_PRICE; S.lab.extra = 1; save(); snd('ult'); renderMeta(); };
+  const box = $('#labList'); box.innerHTML = '';
+  const busy = new Set(slots.map(s => s.k)), freeSlot = slots.length < n;
+  for (const l of LAB) {
+    const lv = S.lab.lv[l.k] || 0, mx = lv >= l.max, c = labCost(l, lv), tm = labTime(l, lv);
+    const d = document.createElement('div'); d.className = 'item';
+    d.innerHTML = `<div class="grow"><div class="nm">${l.name} <span class="small">Lv${lv}/${l.max}</span></div>
+      <div class="val">${l.desc}${mx ? '' : `<br>⏱ ${fmtTime(tm)}`}</div></div>`;
+    const b = document.createElement('button'); b.className = 'btn cost';
+    b.textContent = mx ? 'MAX' : busy.has(l.k) ? '研究中' : '✦ ' + fmt(c);
+    b.disabled = mx || busy.has(l.k) || !freeSlot || S.shards < c;
+    b.onclick = () => {
+      if (S.shards < c || (S.lab.slots || []).length >= slotCount()) return;
+      S.shards -= c; const now = Date.now();
+      S.lab.slots.push({ k: l.k, start: now, end: now + tm });
+      track('lab', 1); save(); snd('buy'); haptic('light'); renderMeta();
+    };
+    d.appendChild(b); box.appendChild(d);
+  }
+}
+
+function renderMsn() {
+  const D = S.daily;
+  let h = '';
+  for (let i = 0; i < 7; i++) {
+    const done = i < D.loginDay || (i === D.loginDay && D.loginClaimed && false);
+    const today = i === D.loginDay % 7 && !D.loginClaimed;
+    h += `<div class="${today ? 'today' : ''} ${i < D.loginDay % 7 ? 'done' : ''}">${i + 1}日目<b>${i === 6 ? '★1+' : ''}✦${fmt(loginReward(i))}</b></div>`;
+  }
+  $('#loginCal').innerHTML = h;
+  const lb = $('#loginBtn'); lb.disabled = D.loginClaimed; lb.textContent = D.loginClaimed ? '今日は受け取り済み' : '受け取る';
+  const box = $('#msnList'); box.innerHTML = '';
+  for (const m of D.missions) {
+    const def = MISSIONS.find(x => x.t === m.t), done = m.p >= m.n;
+    const d = document.createElement('div'); d.className = 'item';
+    d.innerHTML = `<div class="grow"><div class="nm" style="font-size:14px">${def.txt(m.n)}</div>
+      <div class="bar" style="margin-top:6px"><i style="width:${Math.min(100, m.p / m.n * 100)}%"></i></div>
+      <div class="small" style="margin-top:3px">${Math.min(m.p, m.n)} / ${m.n}</div></div>`;
+    const b = document.createElement('button'); b.className = 'btn cost';
+    b.textContent = m.c ? '受取済' : '✦ ' + fmt(msnReward());
+    b.disabled = m.c || !done;
+    b.onclick = () => { if (m.c || m.p < m.n) return; m.c = true; S.shards += msnReward(); save(); snd('buy'); haptic('success'); renderMeta(); };
+    d.appendChild(b); box.appendChild(d);
+  }
+  const all = $('#msnAll'), ok = D.missions.length && D.missions.every(m => m.c);
+  all.disabled = !ok || D.allClaimed; all.textContent = D.allClaimed ? '今日の★は受け取り済み' : '3つ全部クリアで ★1';
+  let st = `出撃回数 ${S.stats.runs}回<br>倒した敵 ${fmt(S.stats.kills)}体・ボス ${S.stats.bosses}体<br>`;
+  for (let t = 1; t <= S.tierMax; t++) st += `ティア${t} 最高ウェーブ ${S.best[t] || 0}<br>`;
+  st += `習得した星 ${Object.keys(S.nodes).length - 1} / ${NODES.length - 1}`;
+  $('#stats').innerHTML = st;
+  $('#tgSound').classList.toggle('on', S.sound); $('#tgHaptic').classList.toggle('on', S.haptic);
+}
+$('#loginBtn').onclick = () => {
+  const D = S.daily; if (D.loginClaimed) return;
+  const i = D.loginDay % 7, amt = loginReward(i);
+  S.shards += amt; if (i === 6) S.sp += 1;
+  D.loginClaimed = true; D.loginDay = (D.loginDay + 1) % 7; save(); snd('buy'); haptic('success');
+  toast('ログインボーナス ✦' + fmt(amt) + (i === 6 ? ' と ★1' : '')); renderMeta();
+};
+$('#msnAll').onclick = () => { const D = S.daily; if (D.allClaimed || !D.missions.every(m => m.c)) return; D.allClaimed = true; S.sp += 1; save(); snd('ult'); haptic('success'); toast('★1 を受け取りました'); renderMeta(); };
+$('#tgSound').onclick = () => { S.sound = !S.sound; save(); renderMsn(); };
+$('#tgHaptic').onclick = () => { S.haptic = !S.haptic; save(); renderMsn(); };
+
+function metaTick(dt) {
+  if (R) return;
+  if ((metaT += dt) < 1) return;
+  metaT = 0;
+  if (checkLab() || checkDaily()) { renderMeta(); return; }
+  if (page === 'home') { renderMine(); renderHome(); }
+  if (page === 'lab') renderLab();
+  renderDots();
+}
+
+// ---------- ホームの塔 ----------
+const hcv = $('#heroCv'), hcx = hcv.getContext('2d');
+function drawHero(t) {
+  hcx.setTransform(1, 0, 0, 1, 0, 0); hcx.clearRect(0, 0, 380, 380);
+  hcx.translate(190, 200);
+  for (let i = 0; i < 3; i++) { hcx.strokeStyle = `rgba(125,227,255,${0.25 - i * 0.07})`; hcx.lineWidth = 2; hcx.beginPath(); hcx.arc(0, 0, 90 + i * 22 + Math.sin(t + i) * 4, 0, 7); hcx.stroke(); }
+  hcx.translate(0, Math.sin(t * 1.5) * 6);
+  drawTower(hcx, t, 46);
+}
+
+// ---------- 共通のモーダルとトースト ----------
+function modal(html, btns) {
+  const box = $('#modalBox');
+  box.innerHTML = html + '<div class="btns"></div>';
+  const row = box.querySelector('.btns');
+  for (const [label, cls, fn] of btns) {
+    const b = document.createElement('button'); b.className = 'btn ' + (cls === 'dis' ? '' : cls); b.textContent = label;
+    if (cls === 'dis') b.disabled = true;
+    b.onclick = () => { $('#modal').classList.remove('on'); fn && fn(); };
+    row.appendChild(b);
+  }
+  $('#modal').classList.add('on');
+}
+let toastT = null;
+function toast(s) { const t = $('#toast'); t.textContent = s; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2200); }
+
+// ---------- アプリが裏に回ったとき ----------
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    save();
+    if (R && !R.over && !R.paused) { R.paused = true; pauseModal(); }
+  } else if (!R) renderMeta();
+});
+
+// ---------- 起動 ----------
+checkDaily(); checkLab();
+showPage('home');
+if (!S.daily.loginClaimed) setTimeout(() => showPage('msn'), 0);
+if (!S.stats.runs) modal(`<h2>ほしまもりの塔へようこそ</h2><div style="text-align:left;line-height:1.7;font-size:14px">
+  ・塔は自動で攻撃します。<b>エナジー⚡</b>で戦闘中に強化しよう<br>
+  ・倒れると<b>かけら✦</b>が残ります。<b>工房</b>でずっと強くなれます<br>
+  ・ウェーブ10・20・30…を初めて突破すると<b>星ポイント★</b>。<b>星座</b>で新しい力を覚えよう<br>
+  ・<b>研究所</b>と<b>採掘場</b>は、アプリを閉じていても進みます</div>`, [['はじめる', '', null]]);
+requestAnimationFrame(loop);
+
+// テスト用（ブラウザでの確認に使う）
+window.__HM = { get S() { return S; }, set S(v) { S = v; }, get R() { return R; }, newRun, update, stats, startBattle, endRun, ITEMS, buyRun, runCost, itemMaxed, wsCost, save };
+</script>
+</body>
+</html>
