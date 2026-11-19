@@ -463,7 +463,7 @@ function checkLab() {
 //  画像（ChatGPT で作った絵を Resources に置くと自動で使う）
 // =========================================================
 const IMG = {};
-[['tower', 'img_tower.png'], ['basic', 'img_enemy1.png'], ['fast', 'img_enemy2.png'], ['tank', 'img_enemy3.png'], ['ranged', 'img_enemy4.png'], ['boss', 'img_boss.png'], ['bg', 'img_bg.png']]
+[['tower', 'img_tower.png'], ['basic', 'img_enemy1.png'], ['fast', 'img_enemy2.png'], ['tank', 'img_enemy3.png'], ['ranged', 'img_enemy4.png'], ['boss', 'img_boss.png'], ['bg', 'img_bg.jpg']]
   .forEach(([k, src]) => { const im = new Image(); im.onload = () => { IMG[k] = im; }; im.src = src; });
 
 // =========================================================
@@ -725,7 +725,7 @@ function drawStarShape(c, r1, r2, n) {
   c.closePath();
 }
 function drawTower(c, t, size) {
-  if (IMG.tower) { const s = size * 2.6; c.drawImage(IMG.tower, -s / 2, -s / 2, s, s); return; }
+  if (IMG.tower) { const s = size * 3.2; c.drawImage(IMG.tower, -s / 2, -s * 0.58, s, s); return; }
   const g = c.createRadialGradient(0, 0, 0, 0, 0, size * 2.2);
   g.addColorStop(0, 'rgba(255,240,180,.55)'); g.addColorStop(1, 'rgba(255,240,180,0)');
   c.fillStyle = g; c.beginPath(); c.arc(0, 0, size * 2.2, 0, 7); c.fill();
@@ -739,7 +739,14 @@ function drawTower(c, t, size) {
 function drawEnemy(c, e) {
   c.save(); c.translate(e.x, e.y);
   const im = IMG[e.kind];
-  if (im) { const s = e.r * 2.6; c.rotate(Math.atan2(-e.y, -e.x) + Math.PI / 2); c.drawImage(im, -s / 2, -s / 2, s, s); }
+  if (im) {
+    const s = e.r * (e.kind === 'boss' ? 3.8 : 3.6);
+    if (e.kind === 'fast') c.rotate(Math.atan2(-e.y, -e.x) + Math.PI / 2); // 速い敵だけ進む向きに傾ける
+    else c.rotate(Math.sin(e.rot * 2) * 0.08); // ほかは少しゆらゆら
+    if (e.hit > 0) c.globalAlpha = 0.55;
+    c.drawImage(im, -s / 2, -s / 2, s, s);
+    c.globalAlpha = 1;
+  }
   else {
     c.fillStyle = e.hit > 0 ? '#fff' : enemyColor(e.kind);
     c.strokeStyle = 'rgba(0,0,0,.4)'; c.lineWidth = 1.5;
@@ -762,6 +769,7 @@ function drawBg(c, t, w, h) {
   if (IMG.bg) {
     const im = IMG.bg, sc = Math.max(w / im.width, h / im.height);
     c.drawImage(im, (w - im.width * sc) / 2, (h - im.height * sc) / 2, im.width * sc, im.height * sc);
+    c.fillStyle = 'rgba(8,5,28,.42)'; c.fillRect(0, 0, w, h); // キャラが見やすいように少し暗く
   } else {
     const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.7);
     g.addColorStop(0, '#22195c'); g.addColorStop(1, '#090619');
@@ -777,7 +785,7 @@ function render() {
   if (!IMG.bg) for (const p of stars) { c.globalAlpha = 0.35 + 0.35 * Math.sin(R.t * 1.5 + p.p); c.fillStyle = '#fff'; c.beginPath(); c.arc(p.x, p.y, p.r, 0, 7); c.fill(); }
   c.globalAlpha = 1;
   // 射程
-  c.strokeStyle = S.nodes.d5 ? 'rgba(125,227,255,.45)' : 'rgba(255,255,255,.18)'; c.lineWidth = 1.5 / s * 1.2;
+  c.strokeStyle = S.nodes.d5 ? 'rgba(125,227,255,.6)' : 'rgba(255,255,255,.4)'; c.lineWidth = 1.5 / s * 1.2;
   c.setLineDash([6, 6]); c.beginPath(); c.arc(0, 0, R.st.range, 0, 7); c.stroke(); c.setLineDash([]);
   if (S.nodes.d5) { c.fillStyle = 'rgba(125,227,255,.05)'; c.fill(); }
   for (const e of R.enemies) drawEnemy(c, e);
@@ -1128,7 +1136,7 @@ function drawHero(t) {
   hcx.translate(190, 200);
   for (let i = 0; i < 3; i++) { hcx.strokeStyle = `rgba(125,227,255,${0.25 - i * 0.07})`; hcx.lineWidth = 2; hcx.beginPath(); hcx.arc(0, 0, 90 + i * 22 + Math.sin(t + i) * 4, 0, 7); hcx.stroke(); }
   hcx.translate(0, Math.sin(t * 1.5) * 6);
-  drawTower(hcx, t, 46);
+  drawTower(hcx, t, IMG.tower ? 68 : 46);
 }
 
 // ---------- 共通のモーダルとトースト ----------

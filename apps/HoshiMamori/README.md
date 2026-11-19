@@ -28,7 +28,7 @@
 | `img_enemy3.png` | 硬い敵 | 256×256・背景透過 |
 | `img_enemy4.png` | 遠くから撃つ敵 | 256×256・背景透過 |
 | `img_boss.png` | ボス | 512×512・背景透過 |
-| `img_bg.png` | 戦闘の背景（縦長） | 1024×1536 |
+|  `img_bg.jpg` | 戦闘の背景（縦長） | 1024×1536 |
 
 アプリのアイコンは `App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png`（1024×1024、透過なし）。
 
