@@ -263,18 +263,72 @@ enum StopMode: String, CaseIterable, Identifiable {
 // MARK: - 生まれ年でイントロドン
 
 /// 「この生まれ年の人なら知っている曲」。小学5年生（10歳）〜高校卒業（18歳）の年のヒット曲だけを使う
+/// 年代モードで出題する年の範囲（年齢ボタン × いつごろ で決まる）
 struct BirthRange: Hashable, Identifiable {
+    let label: String
+    let years: ClosedRange<Int>
+    let stage: LifeStage
+
+    var id: String { label + "\(years)" }
+    var rangeLabel: String { "\(years.lowerBound)年〜\(years.upperBound)年のヒット曲（\(stage.label)）" }
+}
+
+/// いつごろのヒット曲か
+enum LifeStage: String, CaseIterable, Identifiable {
+    case kid, teen, young
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .kid: return "小学生のころ"
+        case .teen: return "中高生のころ"
+        case .young: return "18〜22歳のころ"
+        }
+    }
+    /// その年の年齢
+    var ages: ClosedRange<Int> {
+        switch self {
+        case .kid: return 6...12
+        case .teen: return 13...18
+        case .young: return 18...22
+        }
+    }
+}
+
+/// 今の年齢のボタン（2歳ごと）
+struct AgeGroup: Hashable, Identifiable {
     let from: Int
     let to: Int
 
     var id: Int { from }
-    static let all: [BirthRange] = stride(from: 1990, through: 2004, by: 2).map { BirthRange(from: $0, to: $0 + 1) }
+    var label: String { "\(from)・\(to)歳" }
 
-    /// 曲を選ぶ年（ランキングの年）
-    var years: ClosedRange<Int> { (from + 10)...(to + 18) }
-    var label: String { "\(from)・\(to)年生まれ" }
-    var shortLabel: String { "\(from)〜\(to % 100)" }
-    var rangeLabel: String { "\(years.lowerBound)年〜\(years.upperBound)年のヒット曲（10歳〜18歳のころ）" }
+    /// 年代ごとのボタン（20代・30代が中心）
+    static let decades: [(title: String, groups: [AgeGroup])] = [
+        ("10代後半", [AgeGroup(from: 16, to: 17), AgeGroup(from: 18, to: 19)]),
+        ("20代", stride(from: 20, through: 28, by: 2).map { AgeGroup(from: $0, to: $0 + 1) }),
+        ("30代", stride(from: 30, through: 38, by: 2).map { AgeGroup(from: $0, to: $0 + 1) }),
+        ("40代", stride(from: 40, through: 48, by: 2).map { AgeGroup(from: $0, to: $0 + 1) }),
+    ]
+
+    static var currentYear: Int { Calendar(identifier: .gregorian).component(.year, from: Date()) }
+
+    /// 生まれ年（誕生日の前後で1年ずれるので、to 歳の人の早いほう〜from 歳の人の遅いほう）
+    func birthYears(now: Int = AgeGroup.currentYear) -> ClosedRange<Int> { (now - to - 1)...(now - from) }
+
+    var birthLabel: String {
+        let b = birthYears()
+        return "\(b.lowerBound)〜\(b.upperBound % 100)年生まれ"
+    }
+
+    /// その時期のヒット曲の年（ランキングがある年まで）。曲の年が1年もなければ nil
+    func range(for stage: LifeStage, latest: Int) -> BirthRange? {
+        let b = birthYears()
+        let lo = b.lowerBound + stage.ages.lowerBound
+        let hi = min(b.upperBound + stage.ages.upperBound, latest)
+        guard lo <= hi else { return nil }
+        return BirthRange(label: "\(label)（\(stage.label)）", years: lo...hi, stage: stage)
+    }
 }
 
 // MARK: - 順位で選ぶ

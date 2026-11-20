@@ -127,6 +127,9 @@ enum HitList {
         return list
     }()
 
+    /// 年間ランキングがあるいちばん新しい年
+    static let latestYear: Int = all.map(\.y).max() ?? 2025
+
     /// 曲名（サブタイトル抜き）→ ヒット曲
     static let byTitle: [String: [HitSong]] = {
         var d: [String: [HitSong]] = [:]

@@ -4,7 +4,8 @@ struct HomeView: View {
     @State private var settings = QuizSettings()
     @State private var playing = false
     @State private var launch = QuizSettings()
-    @State private var birth: BirthRange? = nil
+    @State private var age: AgeGroup? = nil
+    @State private var stage: LifeStage = .teen
     @State private var logoBounce = false
     @State private var showArtistPicker = false
 
@@ -217,62 +218,86 @@ struct HomeView: View {
         }
     }
 
-    // MARK: 生まれ年でイントロドン
+    // MARK: 今の年齢でイントロドン
 
     private var birthCard: some View {
         card {
-            SectionTitle(text: "🎂 生まれ年でイントロドン")
-            Text("生まれ年を選ぶと、10歳〜18歳のころのヒット曲だけで出題します。ジャンルを押すとすぐ始まります。")
+            SectionTitle(text: "🎂 今の年齢でイントロドン")
+            Text("今の年齢を選ぶと、その人たちが子どものころ・学生のころに流行った曲（その年の年間ランキングに入った曲）だけで出題します。ジャンルを押すとすぐ始まります。")
                 .font(.caption).foregroundStyle(.white.opacity(0.7))
                 .frame(maxWidth: .infinity, alignment: .leading)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
-                ForEach(BirthRange.all) { b in
-                    Button { withAnimation(.spring(response: 0.3)) { birth = (birth == b) ? nil : b } } label: {
-                        VStack(spacing: 0) {
-                            Text("\(b.from)").font(.system(size: 15, weight: .heavy, design: .rounded))
-                            Text("・\(b.to)年").font(.system(size: 11, weight: .bold, design: .rounded)).opacity(0.8)
-                        }
-                        .frame(maxWidth: .infinity).padding(.vertical, 8)
-                        .background(birth == b ? Theme.gold : Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
-                        .foregroundStyle(birth == b ? Color.black : Color.white)
-                    }
-                    .buttonStyle(.plain)
+            FlowLayout {
+                ForEach(LifeStage.allCases) { st in
+                    Chip(text: st.label, selected: stage == st) { withAnimation(.spring(response: 0.3)) { stage = st } }
                 }
             }
-            if let b = birth {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("\(b.label)：\(b.rangeLabel)")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundStyle(Theme.gold)
-                    let need = settings.questionCount + 4
-                    let rankOnly = SongFilter(rank: settings.rank)
-                    let genres = Genre.allCases.map { ($0, HitList.strict(genre: $0, years: b.years, filter: rankOnly).count) }
-                        .filter { $0.1 >= need }
-                    FlowLayout {
-                        ForEach(genres, id: \.0) { item in
-                            let g = item.0, n = item.1
-                            Button {
-                                var s = settings
-                                s.birth = b
-                                s.genre = g
-                                s.fame = .famous
-                                s.era = .all
-                                s.artists = []
-                                launch = s
-                                playing = true
-                            } label: {
-                                Text("\(g.emoji) \(g.label)（\(n)曲）")
-                                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                                    .padding(.horizontal, 14).padding(.vertical, 10)
-                                    .background(LinearGradient(colors: [Theme.pink, Color.orange], startPoint: .leading, endPoint: .trailing),
-                                                in: Capsule())
-                                    .foregroundStyle(.white)
+            ForEach(AgeGroup.decades, id: \.title) { dec in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(dec.title)
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.75))
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 5), spacing: 6) {
+                        ForEach(dec.groups) { g in
+                            let ok = g.range(for: stage, latest: HitList.latestYear) != nil
+                            Button { withAnimation(.spring(response: 0.3)) { age = (age == g) ? nil : g } } label: {
+                                VStack(spacing: 0) {
+                                    Text("\(g.from)・\(g.to)").font(.system(size: 15, weight: .heavy, design: .rounded))
+                                    Text("歳").font(.system(size: 11, weight: .bold, design: .rounded)).opacity(0.8)
+                                }
+                                .frame(maxWidth: .infinity).padding(.vertical, 7)
+                                .background(age == g ? Theme.gold : Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
+                                .foregroundStyle(age == g ? Color.black : Color.white)
+                                .opacity(ok ? 1 : 0.3)
                             }
                             .buttonStyle(.plain)
+                            .disabled(!ok)
                         }
                     }
-                    Text("その年の曲が少ないジャンルは出していません。")
-                        .font(.caption2).foregroundStyle(.white.opacity(0.5))
+                }
+            }
+            if let g = age {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let b = g.range(for: stage, latest: HitList.latestYear) {
+                        Text("\(g.label)（\(g.birthLabel)）：\(b.rangeLabel)")
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .foregroundStyle(Theme.gold)
+                        let need = settings.questionCount + 4
+                        let rankOnly = SongFilter(rank: settings.rank)
+                        let genres = Genre.allCases.map { ($0, HitList.strict(genre: $0, years: b.years, filter: rankOnly).count) }
+                            .filter { $0.1 >= need }
+                        if genres.isEmpty {
+                            Text("この時期は曲が足りません。ほかの「いつごろ」を選んでください。")
+                                .font(.caption).foregroundStyle(.white.opacity(0.7))
+                        }
+                        FlowLayout {
+                            ForEach(genres, id: \.0) { item in
+                                let gen = item.0, n = item.1
+                                Button {
+                                    var s = settings
+                                    s.birth = b
+                                    s.genre = gen
+                                    s.fame = .famous
+                                    s.era = .all
+                                    s.artists = []
+                                    launch = s
+                                    playing = true
+                                } label: {
+                                    Text("\(gen.emoji) \(gen.label)（\(n)曲）")
+                                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                                        .padding(.horizontal, 14).padding(.vertical, 10)
+                                        .background(LinearGradient(colors: [Theme.pink, Color.orange], startPoint: .leading, endPoint: .trailing),
+                                                    in: Capsule())
+                                        .foregroundStyle(.white)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        Text("その時期の年間ランキングに入った曲だけを使います（昔の曲の再ヒットは除外）。曲が少ないジャンルは出していません。")
+                            .font(.caption2).foregroundStyle(.white.opacity(0.5))
+                    } else {
+                        Text("\(g.label)の\(stage.label)のランキングはまだありません。ほかの「いつごろ」を選んでください。")
+                            .font(.caption).foregroundStyle(.white.opacity(0.7))
+                    }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
